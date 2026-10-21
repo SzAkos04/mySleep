@@ -2,7 +2,7 @@ const P = {
   moon: <path className="ic" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />,
   list: <path className="ic" d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
   chart: <path className="ic" d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
-  gear: <><circle className="ic" cx="12" cy="12" r="3" /><path className="ic" d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" /></>,
+  gear: <><path className="ic" d="M19.21 9.29 L21.84 10.21 L21.84 13.79 L19.21 14.71 A7.7 7.7 0 0 1 19.01 15.18 L19.01 15.18 L20.22 17.69 L17.69 20.22 L15.18 19.01 A7.7 7.7 0 0 1 14.71 19.21 L14.71 19.21 L13.79 21.84 L10.21 21.84 L9.29 19.21 A7.7 7.7 0 0 1 8.82 19.01 L8.82 19.01 L6.31 20.22 L3.78 17.69 L4.99 15.18 A7.7 7.7 0 0 1 4.79 14.71 L4.79 14.71 L2.16 13.79 L2.16 10.21 L4.79 9.29 A7.7 7.7 0 0 1 4.99 8.82 L4.99 8.82 L3.78 6.31 L6.31 3.78 L8.82 4.99 A7.7 7.7 0 0 1 9.29 4.79 L9.29 4.79 L10.21 2.16 L13.79 2.16 L14.71 4.79 A7.7 7.7 0 0 1 15.18 4.99 L15.18 4.99 L17.69 3.78 L20.22 6.31 L19.01 8.82 Z" /><circle className="ic" cx="12" cy="12" r="3" /></>,   // a cogwheel (the rays read as a sun)
   plus: <path className="ic" d="M12 5v14M5 12h14" />,
   play: <path d="M8 5.5v13l11-6.5Z" fill="currentColor" />,
   stop: <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" />,
