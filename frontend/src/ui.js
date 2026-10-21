@@ -1,0 +1,10 @@
+import { create } from 'zustand'
+
+// Screen state that is not data: which sheet is open, the toast.
+export const useUI = create(set => ({
+  sheet: null,        // { type: 'review', night } | { type: 'preview' }
+  toast: null,
+  openSheet: sheet => set({ sheet }),
+  closeSheet: () => set({ sheet: null }),
+  say: text => { set({ toast: text }); setTimeout(() => set(s => s.toast === text ? { toast: null } : s), 1800) }
+}))

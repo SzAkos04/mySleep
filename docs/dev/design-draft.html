@@ -1,0 +1,605 @@
+<title>mySleep Draft</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one phone-width column (myGym's), large iOS titles, floating tab bar; flat surfaces. */
+:root{
+  --bg:#0b0a09; --bg-el:#131211; --surface:#1b1a18; --surface-2:#272522; --surface-3:#363330;
+  --label:#ffffff; --label-2:rgba(235,235,245,.60); --label-3:rgba(235,235,245,.32); --label-4:rgba(235,235,245,.14);
+  --sep:rgba(84,84,88,.60);
+  --acc:#8b8cf8; --on-acc:#0b0a09;
+  --acc-soft:color-mix(in srgb,var(--acc) 16%,transparent);
+  --awake:#ff9f0a; --snore:#40c8e0; --talk:#ffd60a; --move:rgba(235,235,245,.45); --good:#30d158;
+  --night:#000000; --night-fg:rgba(235,235,245,.38);
+  --r-card:14px; --ease:cubic-bezier(.32,.72,0,1);
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Segoe UI',Roboto,system-ui,sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#f3f1ee; --bg-el:#f8f6f3; --surface:#ffffff; --surface-2:#ece9e5; --surface-3:#e1ddd8;
+  --label:#000000; --label-2:rgba(60,60,67,.62); --label-3:rgba(60,60,67,.34); --label-4:rgba(60,60,67,.12);
+  --sep:rgba(60,60,67,.29); --acc:#5b5bd6; --on-acc:#ffffff;
+  --awake:#c76b00; --snore:#1a8fa6; --talk:#a06a00; --move:rgba(60,60,67,.45); --good:#248a3d;
+  color-scheme:light;
+}}
+:root[data-theme="light"]{
+  --bg:#f3f1ee; --bg-el:#f8f6f3; --surface:#ffffff; --surface-2:#ece9e5; --surface-3:#e1ddd8;
+  --label:#000000; --label-2:rgba(60,60,67,.62); --label-3:rgba(60,60,67,.34); --label-4:rgba(60,60,67,.12);
+  --sep:rgba(60,60,67,.29); --acc:#5b5bd6; --on-acc:#ffffff;
+  --awake:#c76b00; --snore:#1a8fa6; --talk:#a06a00; --move:rgba(60,60,67,.45); --good:#248a3d;
+  color-scheme:light;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--label);font-family:var(--font);font-size:15px;line-height:1.35;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+#app{max-width:440px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 120px}
+
+/* large title */
+.back{display:flex;margin:4px 0 10px}
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:8px 0 18px}
+.hdr h1{font-size:34px;line-height:1.06;font-weight:700;letter-spacing:-.028em;text-wrap:balance}
+.hdr .sub{color:var(--label-2);font-size:15px;margin-top:4px}
+.iconbtn{width:44px;height:44px;border-radius:50%;flex:none;background:var(--surface);display:flex;align-items:center;justify-content:center;transition:transform 140ms,background 140ms}
+.iconbtn:active{background:var(--surface-2);transform:scale(.92)}
+.iconbtn svg{width:24px;height:24px}
+.ic{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* cards */
+.card{background:var(--surface);border-radius:var(--r-card);padding:16px;margin-bottom:12px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--label-2)}
+.card-title{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.card-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:12px}
+.muted{color:var(--label-2)}
+.small{font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.tile{background:var(--surface);border-radius:var(--r-card);padding:14px;min-width:0}
+.tile .l{color:var(--label-2);font-size:13px}
+.tile .v{font-size:26px;font-weight:600;letter-spacing:-.026em;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.tile .d{font-size:12px;color:var(--label-2);margin-top:2px}
+.tiles.in-card{margin:0}
+.tiles.in-card .tile{background:var(--surface-2);padding:12px}
+.tiles.in-card .tile .v{font-size:22px}
+
+.btn{display:flex;width:100%;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:14px;font-size:17px;font-weight:600;background:var(--acc);color:var(--on-acc);transition:transform 140ms}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:var(--surface-2);color:var(--label)}
+.btn svg{width:22px;height:22px}
+
+.target{display:flex;gap:10px;margin:14px 0}
+.target>div{flex:1;background:var(--surface-2);border-radius:12px;padding:10px 12px}
+.target b{display:block;font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+
+/* charts */
+svg.chart{display:block;width:100%;height:auto;overflow:visible}
+.chart text{fill:var(--label-2);font-size:10px;font-family:var(--font)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--label-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* lists */
+.sect-t{font-size:13px;color:var(--label-2);padding:0 4px 7px;display:block}
+.sect{margin-bottom:22px}
+.sect-b{background:var(--surface);border-radius:var(--r-card);overflow:hidden}
+.lrow{display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:48px;width:100%;text-align:left;position:relative}
+.lrow+.lrow::before{content:'';position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.lrow .t{flex:1;min-width:0}
+.lrow .t .s{font-size:13px;color:var(--label-2);margin-top:2px}
+.lrow .r{color:var(--label-2);font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.lrow .chev{width:16px;height:16px;color:var(--label-3);flex:none}
+button.lrow:active{background:var(--surface-2)}
+.dots{display:inline-flex;gap:3px;vertical-align:1px}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--surface-3)}
+.dots i.on{background:var(--acc)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:14px;padding:7px 12px;border-radius:99px;background:var(--surface-2);color:var(--label);transition:background 140ms}
+.chip[aria-pressed="true"]{background:var(--acc-soft);color:var(--acc);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 45%,transparent)}
+.tag{font-size:12px;padding:3px 8px;border-radius:99px;background:var(--surface-2);color:var(--label-2)}
+
+.seg{display:flex;background:var(--surface-3);border-radius:9px;padding:2px}
+.seg button{flex:1;padding:6px 10px;border-radius:7px;font-size:13px;font-weight:500;color:var(--label-2)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--label)}
+.seg.q button{font-size:16px;padding:9px 0}
+
+.switch{width:51px;height:31px;border-radius:99px;background:var(--surface-3);position:relative;flex:none;transition:background 200ms}
+.switch::after{content:'';position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:transform 200ms var(--ease);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.switch[aria-checked="true"]{background:var(--good)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+
+/* tab bar: flat, own layer so iOS keeps it pinned during momentum */
+#tabbar{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);will-change:transform;z-index:20;
+  width:min(408px,calc(100% - 20px));display:flex;padding:7px 6px 6px;background:var(--surface);border:.5px solid var(--sep);border-radius:26px;box-shadow:0 8px 24px -8px rgba(0,0,0,.45)}
+#tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:500;color:var(--label-3);padding:3px 0}
+#tabbar button svg{width:25px;height:25px}
+#tabbar button[aria-current="page"]{color:var(--acc)}
+
+/* bottom sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30;opacity:0;transition:opacity 220ms}
+.scrim.open{opacity:1}
+.sheet{position:fixed;left:50%;bottom:0;z-index:31;width:min(440px,100%);max-height:92%;overflow:auto;background:var(--bg-el);border-radius:22px 22px 0 0;
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  transform:translate(-50%,100%);transition:transform 320ms var(--ease);will-change:transform}
+.sheet.open{transform:translate(-50%,0)}
+.sheet.closing{transform:translate(-50%,100%)}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--surface-3);margin:0 auto 10px}
+.sheet h2{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;min-height:48px;position:relative}
+.field+.field::before{content:'';position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.field input[type=time]{font:inherit;font-size:17px;color:var(--acc);background:var(--surface-2);border:0;border-radius:8px;padding:5px 8px;font-variant-numeric:tabular-nums}
+.est{font-size:11px;color:var(--label-3);margin-left:6px}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper button{width:32px;height:32px;border-radius:50%;background:var(--surface-2);font-size:18px}
+textarea{width:100%;font:inherit;color:var(--label);background:var(--surface);border:0;border-radius:var(--r-card);padding:12px 14px;min-height:72px;resize:vertical}
+.stack{display:grid;gap:14px}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check svg{width:20px;height:20px;flex:none;color:var(--good);margin-top:1px}
+
+/* tracking: black screen, dim text, OLED pixels off */
+#track{position:fixed;inset:0;z-index:40;background:var(--night);color:var(--night-fg);display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;
+  padding:calc(40px + env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-right,0px)) calc(30px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px))}
+#track .clock{font-size:76px;font-weight:200;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:rgba(235,235,245,.30)}
+#track .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;background:#121212;font-size:13px}
+#track .pill svg{width:16px;height:16px}
+#track .meter{display:flex;gap:3px;align-items:flex-end;height:22px;margin-top:14px;justify-content:center}
+#track .meter i{width:4px;border-radius:2px;background:#2a2a40}
+#track .ev{font-size:13px;margin-top:14px}
+#track .wake{width:min(320px,100%);height:56px;border-radius:28px;background:#141414;color:rgba(235,235,245,.6);font-size:17px;font-weight:600}
+#track .hint{font-size:12px;max-width:300px;margin-top:12px;line-height:1.45}
+
+#ring{position:fixed;inset:0;z-index:45;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;
+  padding:calc(70px + env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px))}
+#ring .clock{font-size:88px;font-weight:200;letter-spacing:-.03em;color:var(--label);margin:6px 0 10px}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-140%);z-index:50;background:var(--surface-3);color:var(--label);padding:10px 16px;border-radius:99px;font-size:14px;font-weight:500;transition:transform 260ms var(--ease)}
+.toast.show{transform:translate(-50%,0)}
+
+.draft-note{font-size:12px;color:var(--label-3);text-align:center;margin:18px 0 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-moon" viewBox="0 0 24 24"><path class="ic" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path class="ic" d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path class="ic" d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="3"/><path class="ic" d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path class="ic" d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path class="ic" d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path class="ic" d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect class="ic" x="9" y="3" width="6" height="11" rx="3"/><path class="ic" d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5Z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path class="ic" d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path class="ic" d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4"/></symbol>
+</svg>
+
+<div id="app">
+
+<!-- ============ TONIGHT ============ -->
+<section data-screen="tonight">
+  <header class="hdr">
+    <div><h1>Tonight</h1><div class="sub">Wednesday, October 21</div></div>
+    <button class="iconbtn" data-open="review-blank" aria-label="Log a night by hand"><svg><use href="#i-plus"/></svg></button>
+  </header>
+
+  <div class="card">
+    <div class="eyebrow">Bedtime</div>
+    <div class="card-title">Lights out in 1h 40m</div>
+    <div class="target">
+      <div><span class="muted small">Go to bed</span><b>23:00</b></div>
+      <div><span class="muted small">Alarm window</span><b>06:15–06:45</b></div>
+    </div>
+    <div class="field" style="padding:0 0 14px;min-height:0"><span>Smart alarm<div class="small muted">Rings when you stir, at 06:45 at the latest</div></span><button class="switch" role="switch" aria-checked="true" aria-label="Smart alarm"></button></div>
+    <button class="btn" data-open="preview"><svg><use href="#i-moon"/></svg>Start sleep tracking</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div><div class="eyebrow">Last night</div><div class="card-title">7h 02m asleep</div></div>
+      <button class="small" style="color:var(--acc)" data-go="night">Details</button>
+    </div>
+    <svg class="chart" id="tl-mini" viewBox="0 0 340 70" role="img" aria-label="Last night: sound level and asleep or awake over time"></svg>
+    <div class="tiles in-card" style="margin-top:12px">
+      <div class="tile"><div class="l">Fell asleep</div><div class="v">19 min</div></div>
+      <div class="tile"><div class="l">Woke up</div><div class="v">2×</div><div class="d">15 min awake</div></div>
+      <div class="tile"><div class="l">Snoring</div><div class="v">18 min</div></div>
+      <div class="tile"><div class="l">Quality</div><div class="v"><span class="dots" style="gap:5px"><i class="on" style="width:10px;height:10px"></i><i class="on" style="width:10px;height:10px"></i><i class="on" style="width:10px;height:10px"></i><i class="on" style="width:10px;height:10px"></i><i style="width:10px;height:10px"></i></span></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><div class="eyebrow">This week</div><div class="card-title">Sleep debt 2h 10m</div></div></div>
+    <svg class="chart" id="week" viewBox="0 0 340 120" role="img" aria-label="Hours asleep, last 7 nights, against a 7h 30m need"></svg>
+  </div>
+  <p class="draft-note">Draft · example data · not your real nights</p>
+</section>
+
+<!-- ============ HISTORY ============ -->
+<section data-screen="history" hidden>
+  <header class="hdr"><div><h1>History</h1><div class="sub">30 nights tracked</div></div></header>
+  <div class="sect"><div class="sect-b" id="hist"></div></div>
+  <button class="btn ghost" id="more">Show 10 more</button>
+</section>
+
+<!-- ============ NIGHT DETAIL ============ -->
+<section data-screen="night" hidden>
+  <div class="back"><button class="iconbtn" data-go="back" aria-label="Back"><svg><use href="#i-back"/></svg></button></div>
+  <header class="hdr">
+    <div><h1>Tue, Oct 20</h1><div class="sub num">In bed 23:12 – 06:48 · 7h 36m</div></div>
+    <button class="iconbtn" data-open="review" aria-label="Edit night"><svg><use href="#i-edit"/></svg></button>
+  </header>
+  <div class="tiles">
+    <div class="tile"><div class="l">Asleep</div><div class="v">7h 02m</div><div class="d">93% of time in bed</div></div>
+    <div class="tile"><div class="l">Fell asleep</div><div class="v">19 min</div><div class="d">at 23:31 · estimated</div></div>
+    <div class="tile"><div class="l">Woke up</div><div class="v">2×</div><div class="d">01:42 · 04:17</div></div>
+    <div class="tile"><div class="l">Snoring</div><div class="v">18 min</div><div class="d">3 episodes</div></div>
+  </div>
+  <div class="card">
+    <div class="eyebrow">Night</div>
+    <div class="card-title" style="margin-bottom:12px">What the microphone heard</div>
+    <svg class="chart" id="tl" viewBox="0 0 340 118" role="img" aria-label="Sound level, asleep or awake, and sound events across the night"></svg>
+    <div class="legend">
+      <span><i style="background:var(--acc)"></i>Asleep</span>
+      <span><i style="background:var(--awake)"></i>Awake</span>
+      <span><i style="background:var(--snore)"></i>Snoring</span>
+      <span><i style="background:var(--talk)"></i>Talking</span>
+      <span><i style="background:var(--move)"></i>Movement</span>
+    </div>
+  </div>
+  <div class="sect">
+    <span class="sect-t">Clips · kept 7 days</span>
+    <div class="sect-b" id="clips"></div>
+  </div>
+  <div class="sect">
+    <span class="sect-t">Your notes</span>
+    <div class="card" style="margin:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="muted">Quality</span><span class="dots" style="gap:5px"><i class="on" style="width:9px;height:9px"></i><i class="on" style="width:9px;height:9px"></i><i class="on" style="width:9px;height:9px"></i><i class="on" style="width:9px;height:9px"></i><i style="width:9px;height:9px"></i></span></div>
+      <div class="chips" style="gap:6px;margin-bottom:10px"><span class="tag">Training day</span><span class="tag">Late screen</span></div>
+      <div>Woke at 4 from a dream, back asleep fast.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TRENDS ============ -->
+<section data-screen="trends" hidden>
+  <header class="hdr"><div><h1>Trends</h1><div class="sub" id="tr-sub">Last 7 nights</div></div></header>
+  <div class="seg" style="margin-bottom:14px" id="range">
+    <button aria-pressed="true" data-n="7">7 nights</button><button aria-pressed="false" data-n="30">30 nights</button>
+  </div>
+  <div class="tiles" id="tr-tiles"></div>
+  <div class="card">
+    <div class="eyebrow">Hours asleep</div>
+    <div class="card-title" style="margin-bottom:10px">Against a 7h 30m need</div>
+    <svg class="chart" id="tr-dur" viewBox="0 0 340 130"></svg>
+  </div>
+  <div class="card">
+    <div class="eyebrow">Consistency</div>
+    <div class="card-title" style="margin-bottom:10px">When you slept</div>
+    <svg class="chart" id="tr-win" viewBox="0 0 340 170"></svg>
+    <div class="legend"><span><i style="background:var(--acc)"></i>Asleep window</span><span><i style="background:transparent;box-shadow:inset 0 0 0 1.5px var(--label-2)"></i>Target 23:00 – 06:45</span></div>
+  </div>
+  <div class="card">
+    <div class="eyebrow">Snoring</div>
+    <div class="card-title" style="margin-bottom:10px">Minutes per night</div>
+    <svg class="chart" id="tr-snore" viewBox="0 0 340 90"></svg>
+  </div>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section data-screen="settings" hidden>
+  <header class="hdr"><div><h1>Settings</h1></div></header>
+  <div class="sect"><span class="sect-t">Schedule</span><div class="sect-b">
+    <div class="field"><span>Go to bed</span><input id="s-bed" type="time" value="23:00"></div>
+    <div class="field"><span>Wake up</span><input id="s-wake" type="time" value="06:45"></div>
+    <div class="field"><span>Sleep need</span><span class="muted num">7h 30m</span></div>
+  </div></div>
+  <div class="sect"><span class="sect-t">Alarm</span><div class="sect-b">
+    <div class="field"><span>Smart alarm<div class="small muted">Rings at the first stir in the window</div></span><button class="switch" role="switch" aria-checked="true" aria-label="Smart alarm on"></button></div>
+    <div class="field"><span>Window</span><span class="muted num">30 min before 06:45</span></div>
+    <div class="field"><span>Sound</span><span class="muted">Rises over 60 s</span></div>
+    <div class="field"><span>Snooze</span><span class="muted num">9 min</span></div>
+    <div class="field"><span>Backup notification<div class="small muted">At 06:46 if the app stopped listening</div></span><button class="switch" role="switch" aria-checked="true" aria-label="Backup notification"></button></div>
+  </div></div>
+  <div class="sect"><span class="sect-t">Reminders</span><div class="sect-b">
+    <div class="field"><span>Bedtime reminder<div class="small muted">30 min before 23:00</div></span><button class="switch" role="switch" aria-checked="true" aria-label="Bedtime reminder"></button></div>
+    <div class="field"><span>Morning log reminder<div class="small muted">If the night has no quality yet</div></span><button class="switch" role="switch" aria-checked="false" aria-label="Morning log reminder"></button></div>
+  </div></div>
+  <div class="sect"><span class="sect-t">Sound</span><div class="sect-b">
+    <div class="field"><span>Room noise</span><span class="muted">Learned each night</span></div>
+    <div class="field"><span>Save clips<div class="small muted">Snoring and talking, max 10 a night</div></span><button class="switch" role="switch" aria-checked="true" aria-label="Save clips"></button></div>
+    <div class="field"><span>Keep clips</span><span class="muted">7 days</span></div>
+  </div>
+  <span class="sect-t" style="padding-top:7px">Audio never leaves the phone except the clips you keep. The server gets the night's timeline only.</span></div>
+  <div class="sect"><span class="sect-t">Tags</span><div class="sect-b">
+    <div class="field"><div class="chips"><span class="tag">Caffeine after 14:00</span><span class="tag">Alcohol</span><span class="tag">Late screen</span><span class="tag">Training day</span></div></div>
+  </div></div>
+  <div class="sect"><span class="sect-t">Account</span><div class="sect-b">
+    <div class="field"><span>Passkey</span><span class="muted">iPhone</span></div>
+    <div class="field"><span>Build</span><span class="muted num">v0.1.0+draft</span></div>
+  </div></div>
+</section>
+</div>
+
+<nav id="tabbar" aria-label="Main">
+  <button data-tab="tonight" aria-current="page"><svg><use href="#i-moon"/></svg>Tonight</button>
+  <button data-tab="history"><svg><use href="#i-list"/></svg>History</button>
+  <button data-tab="trends"><svg><use href="#i-chart"/></svg>Trends</button>
+  <button data-tab="settings"><svg><use href="#i-gear"/></svg>Settings</button>
+</nav>
+
+<!-- ============ SHEETS ============ -->
+<div class="scrim" id="scrim" hidden></div>
+
+<div class="sheet" id="sh-preview" role="dialog" aria-modal="true" aria-labelledby="pv-t" hidden>
+  <div class="grab"></div>
+  <div class="stack">
+    <div><h2 id="pv-t">Before you sleep</h2><div class="muted">Tracking until you tap Wake up</div></div>
+    <div class="card stack" style="margin:0;gap:10px">
+      <div class="check"><svg><use href="#i-check"/></svg><div>Microphone allowed</div></div>
+      <div class="check"><svg><use href="#i-check"/></svg><div>Screen stays on, dimmed to black</div></div>
+      <div class="check"><svg style="color:var(--label-3)"><use href="#i-check"/></svg><div>Phone on the charger, face up, next to your pillow</div></div>
+      <div class="check"><svg style="color:var(--label-3)"><use href="#i-check"/></svg><div>Volume up: the alarm plays at media volume</div></div>
+      <div class="check"><svg><use href="#i-check"/></svg><div>Alarm 06:15–06:45, rings when you stir</div></div>
+    </div>
+    <div><span class="sect-t">Today</span><div class="chips" id="pv-tags"></div></div>
+    <button class="btn" id="go-track"><svg><use href="#i-moon"/></svg>Start tracking</button>
+  </div>
+</div>
+
+<div class="sheet" id="sh-review" role="dialog" aria-modal="true" aria-labelledby="rv-t" hidden>
+  <div class="grab"></div>
+  <div class="stack">
+    <div><h2 id="rv-t">Good morning</h2><div class="muted" id="rv-sub">Night of Tue, Oct 20 · filled in from sound</div></div>
+    <svg class="chart" id="tl-rv" viewBox="0 0 340 70" aria-hidden="true"></svg>
+    <div class="sect-b">
+      <div class="field"><span>In bed</span><input id="rv-bed" type="time" value="23:12"></div>
+      <div class="field"><span>Fell asleep<span class="est">estimated</span></span><input id="rv-on" type="time" value="23:31"></div>
+      <div class="field"><span>Woke up</span><input id="rv-wake" type="time" value="06:48"></div>
+      <div class="field"><span>Times awake<span class="est">estimated</span></span><div class="stepper"><button data-step="-1" aria-label="One fewer">−</button><b class="num" id="rv-n">2</b><button data-step="1" aria-label="One more">+</button></div></div>
+      <div class="field"><span>Snoring</span><span class="muted num">18 min</span></div>
+    </div>
+    <div><span class="sect-t">How did you sleep?</span>
+      <div class="seg q" id="rv-q"><button aria-pressed="false">1</button><button aria-pressed="false">2</button><button aria-pressed="false">3</button><button aria-pressed="true">4</button><button aria-pressed="false">5</button></div>
+    </div>
+    <div><span class="sect-t">Tags</span><div class="chips" id="rv-tags"></div></div>
+    <textarea id="rv-note" placeholder="Note (optional)" aria-label="Note"></textarea>
+    <button class="btn" id="rv-save">Save night</button>
+  </div>
+</div>
+
+<!-- ============ TRACKING ============ -->
+<div id="track" hidden>
+  <div>
+    <div class="pill"><svg><use href="#i-mic"/></svg><span id="tr-state">Listening · 0:00</span></div>
+    <div class="meter" id="meter" aria-hidden="true"></div>
+  </div>
+  <div>
+    <div class="clock" id="clock">23:04</div>
+    <div>Alarm 06:15–06:45 · when you stir</div>
+    <div class="ev num" id="ev">0 snores · 0 movements</div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center">
+    <button class="wake" id="wake">Wake up</button>
+    <button class="small" id="sim" style="margin-top:12px;color:rgba(235,235,245,.35);text-decoration:underline">Draft only: jump to 06:31</button>
+    <div class="hint">Keep this screen open. iPhone stops the microphone when a web app is locked or in the background.</div>
+  </div>
+</div>
+
+<!-- ============ ALARM ============ -->
+<div id="ring" role="alertdialog" aria-labelledby="ring-t" hidden>
+  <div>
+    <div class="eyebrow" style="color:var(--acc)">Smart alarm</div>
+    <div class="clock num">06:31</div>
+    <div id="ring-t" style="font-size:20px;font-weight:600;color:var(--label)">Good morning</div>
+    <div class="muted" style="margin-top:6px">You were moving, so it rang 14 min early.<br>7h 01m asleep.</div>
+  </div>
+  <div class="stack" style="width:min(340px,100%)">
+    <button class="btn" id="stop">Stop</button>
+    <button class="btn ghost" id="snooze">Snooze 9 min</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const NS='http://www.w3.org/2000/svg';
+const TAGS=['Caffeine after 14:00','Alcohol','Late screen','Training day'];
+
+// ---- example data (seeded, so the draft looks the same every load) ----
+let seed=7; const rnd=()=>((seed=(seed*16807)%2147483647)-1)/2147483646;
+const clock=m=>{m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+const dur=m=>Math.floor(m/60)+'h '+String(Math.round(m%60)).padStart(2,'0')+'m';
+const DAY=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const NEED=450;
+// minutes after midnight, negative = before midnight
+const nights=[];
+for(let i=0;i<30;i++){
+  const d=new Date(2026,9,20-i);
+  const weekend=d.getDay()===5||d.getDay()===6;
+  const bed=-60+Math.round(rnd()*75-20)+(weekend?50:0);
+  const lat=Math.round(6+rnd()*26), wakes=Math.floor(rnd()*3), awake=wakes*Math.round(4+rnd()*8);
+  const wake=405+Math.round(rnd()*45-15)+(weekend?70:0);
+  const n={d,bed,on:bed+lat,wake,lat,wakes,awake,asleep:wake-bed-lat-awake,
+    snore:rnd()<.35?0:Math.round(4+rnd()*34),q:Math.min(5,Math.max(2,Math.round(2.5+rnd()*2.6))),
+    tags:TAGS.filter(()=>rnd()<.22)};
+  nights.push(n);
+}
+Object.assign(nights[0],{bed:-48,on:-29,wake:408,lat:19,wakes:2,awake:15,asleep:422,snore:18,q:4,tags:['Training day','Late screen']});
+const label=n=>DAY[n.d.getDay()]+', '+MON[n.d.getMonth()]+' '+n.d.getDate();
+
+// last night, per minute from 23:12 (= -48)
+const T0=-48, LEN=456, mins=[];
+const snoreAt=[[60,69],[95,101],[210,213]], wakeAt=[[0,19],[150,156],[305,314]];
+for(let t=0;t<LEN;t++){
+  const awake=wakeAt.some(([a,b])=>t>=a&&t<b);
+  const snore=snoreAt.some(([a,b])=>t>=a&&t<b);
+  let ev=snore?'snore':null;
+  if(!ev&&(awake?rnd()<.35:rnd()<.025)) ev='move';
+  if(t===238) ev='talk';
+  const db=snore?47+rnd()*7:ev==='move'?40+rnd()*10:awake?31+rnd()*6:27+rnd()*3;
+  mins.push({awake,ev,db});
+}
+// ---- drawing ----
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e}
+function timeline(svg,full){
+  svg.textContent='';
+  const W=340, x=t=>t/LEN*W, sH=full?44:30, laneY=sH+6, laneH=full?14:10, evY=laneY+laneH+8;
+  // sound level as an area, 20–60 dB
+  const y=db=>sH-(db-20)/40*sH; let d='M0 '+sH;
+  for(let t=0;t<LEN;t+=2) d+=' L'+x(t).toFixed(1)+' '+y(Math.max(mins[t].db,mins[t+1]?mins[t+1].db:0)).toFixed(1);
+  el('path',{d:d+' L'+W+' '+sH+' Z',fill:'var(--label-4)'},svg);
+  // asleep / awake lane, merged into runs
+  let s=0; for(let t=1;t<=LEN;t++) if(t===LEN||mins[t].awake!==mins[s].awake){
+    el('rect',{x:x(s),y:laneY,width:Math.max(x(t)-x(s)-.6,1),height:laneH,rx:2,fill:mins[s].awake?'var(--awake)':'var(--acc)'},svg); s=t;}
+  if(full){
+    mins.forEach((m,t)=>{ if(!m.ev) return;
+      const c={snore:'var(--snore)',talk:'var(--talk)',move:'var(--move)'}[m.ev];
+      el('rect',{x:x(t),y:evY+(m.ev==='move'?4:0),width:m.ev==='move'?1:Math.max(x(1),1.6),height:m.ev==='move'?8:12,fill:c},svg)});
+    for(let h=0;h<=7;h++){const t=h*60+48; if(t>LEN)break;
+      el('text',{x:x(t),y:118,'text-anchor':'middle'},svg).textContent=String(h).padStart(2,'0')+':00';
+      el('line',{x1:x(t),x2:x(t),y1:0,y2:evY+14,stroke:'var(--label-4)','stroke-width':.5},svg);}
+    el('text',{x:0,y:9},svg).textContent='60 dB';
+  }else{
+    el('text',{x:0,y:68},svg).textContent='23:12';
+    el('text',{x:W,y:68,'text-anchor':'end'},svg).textContent='06:48';
+  }
+}
+function bars(svg,list,{max,h,val,color,target,fmt}){
+  svg.textContent='';
+  const W=340, L=26, top=6, B=h-16, n=list.length, bw=(W-L)/n, y=v=>B-(v/max)*(B-top);
+  for(const v of fmt.ticks){
+    el('line',{x1:L,x2:W,y1:y(v),y2:y(v),stroke:'var(--label-4)','stroke-width':.5},svg);
+    el('text',{x:0,y:y(v)+3},svg).textContent=fmt.tick(v);}
+  list.forEach((n,i)=>{const v=val(n), x=L+i*bw+bw*.18;
+    if(v>0) el('rect',{x,y:y(v),width:bw*.64,height:B-y(v),rx:Math.min(3,bw*.2),fill:color(n,i)},svg);
+    if(n.d && (list.length<=7||n.d.getDay()===1)) el('text',{x:x+bw*.32,y:h-2,'text-anchor':'middle'},svg).textContent=list.length<=7?DAY[n.d.getDay()][0]:n.d.getDate();});
+  if(target!=null){el('line',{x1:L,x2:W,y1:y(target),y2:y(target),stroke:'var(--label-2)','stroke-width':1,'stroke-dasharray':'3 3'},svg);}
+}
+function windows(svg,list){
+  svg.textContent='';
+  const W=340,L=34,top=4,B=156,lo=-120,hi=540,n=list.length,bw=(W-L)/n,y=m=>top+(m-lo)/(hi-lo)*(B-top);
+  for(const m of [-120,0,120,240,360,480]){
+    el('line',{x1:L,x2:W,y1:y(m),y2:y(m),stroke:'var(--label-4)','stroke-width':.5},svg);
+    el('text',{x:0,y:y(m)+3},svg).textContent=clock(m);}
+  for(const m of [-60,405]) el('line',{x1:L,x2:W,y1:y(m),y2:y(m),stroke:'var(--label-2)','stroke-width':1,'stroke-dasharray':'3 3'},svg);
+  list.slice().reverse().forEach((n,i)=>{const x=L+i*bw+bw*.2;
+    el('rect',{x,y:y(n.on),width:bw*.6,height:y(n.wake)-y(n.on),rx:Math.min(3,bw*.25),fill:'var(--acc)'},svg);
+    if(list.length<=7||n.d.getDay()===1) el('text',{x:x+bw*.3,y:168,'text-anchor':'middle'},svg).textContent=list.length<=7?DAY[n.d.getDay()][0]:n.d.getDate();});
+}
+const sd=a=>{const m=a.reduce((s,v)=>s+v,0)/a.length;return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length)};
+function trends(N){
+  const L=nights.slice(0,N), avg=f=>L.reduce((s,n)=>s+f(n),0)/L.length;
+  const debt=L.reduce((s,n)=>s+Math.max(0,NEED-n.asleep),0);
+  $('#tr-sub').textContent='Last '+N+' nights';
+  $('#tr-tiles').innerHTML=[
+    ['Avg asleep',dur(avg(n=>n.asleep)),'need 7h 30m'],
+    ['Sleep debt',dur(debt),'nights under 7h 30m'],
+    ['Fell asleep',clock(avg(n=>n.on)),'± '+Math.round(sd(L.map(n=>n.on)))+' min'],
+    ['Woke up',clock(avg(n=>n.wake)),'± '+Math.round(sd(L.map(n=>n.wake)))+' min'],
+  ].map(([l,v,d])=>`<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  const chrono=L.slice().reverse();
+  bars($('#tr-dur'),chrono,{max:540,h:130,val:n=>n.asleep,target:NEED,color:n=>n.asleep<NEED?'color-mix(in srgb,var(--acc) 55%,transparent)':'var(--acc)',fmt:{ticks:[0,180,360,540],tick:v=>v/60+'h'}});
+  windows($('#tr-win'),L);
+  bars($('#tr-snore'),chrono,{max:40,h:90,val:n=>n.snore,color:()=>'var(--snore)',fmt:{ticks:[0,20,40],tick:v=>v+'m'}});
+}
+
+// ---- screens ----
+const stack=[]; let cur='tonight';
+function show(name,push){
+  if(push) stack.push(cur); else stack.length=0;
+  cur=name; $$('[data-screen]').forEach(s=>s.hidden=s.dataset.screen!==name);
+  const tab=name==='night'?(stack[0]||'history'):name;
+  $$('#tabbar button').forEach(b=>b.dataset.tab===tab?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current'));
+  scrollTo(0,0);
+}
+$('#tabbar').onclick=e=>{const b=e.target.closest('button');b&&show(b.dataset.tab)};
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]'); if(g){ g.dataset.go==='back'?show(stack.pop()||'tonight'):show(g.dataset.go,true); }
+  const o=e.target.closest('[data-open]'); if(o){ const k=o.dataset.open; k==='preview'?openSheet('preview'):openReview(k==='review-blank'); }
+});
+
+// history, drawn in pages of 10
+let shown=0;
+function more(){
+  const h=$('#hist');
+  nights.slice(shown,shown+10).forEach(n=>{
+    const b=document.createElement('button'); b.className='lrow'; b.dataset.go='night';
+    b.innerHTML=`<div class="t"><div>${label(n)}</div><div class="s num">${clock(n.bed)} – ${clock(n.wake)}${n.snore?' · snoring '+n.snore+'m':''}${n.tags.length?' · '+n.tags.join(', '):''}</div></div>
+      <div class="r"><div class="num">${dur(n.asleep)}</div><span class="dots">${[1,2,3,4,5].map(i=>`<i class="${i<=n.q?'on':''}"></i>`).join('')}</span></div>
+      <svg class="chev"><use href="#i-chev"/></svg>`;
+    h.appendChild(b);});
+  shown+=10; $('#more').hidden=shown>=nights.length;
+}
+$('#more').onclick=more;
+
+// clips (no audio in the draft, the button only toggles)
+$('#clips').innerHTML=[['00:12','Snoring','0:10'],['01:47','Snoring','0:10'],['03:10','Talking','0:06']].map(([t,k,l])=>
+  `<div class="lrow"><button class="iconbtn" style="width:36px;height:36px;background:var(--surface-2)" aria-label="Play ${k} at ${t}"><svg style="width:16px;height:16px"><use href="#i-play"/></svg></button><div class="t">${k}<div class="s num">${t}</div></div><div class="r num">${l}</div></div>`).join('');
+$('#clips').onclick=e=>{const b=e.target.closest('.iconbtn'); if(!b)return; const u=b.querySelector('use'); u.setAttribute('href',u.getAttribute('href')==='#i-play'?'#i-pause':'#i-play')};
+
+// chips & segmented & switches
+function chips(box,on){box.innerHTML=TAGS.map(t=>`<button class="chip" aria-pressed="${on.includes(t)}">${t}</button>`).join('')}
+document.addEventListener('click',e=>{
+  const c=e.target.closest('.chip'); if(c) c.setAttribute('aria-pressed',c.getAttribute('aria-pressed')!=='true');
+  const s=e.target.closest('.switch'); if(s) s.setAttribute('aria-checked',s.getAttribute('aria-checked')!=='true');
+  const q=e.target.closest('.seg button'); if(q){ q.parentNode.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b===q));
+    if(q.dataset.n) trends(+q.dataset.n); }
+  const st=e.target.closest('[data-step]'); if(st){ const n=$('#rv-n'); n.textContent=Math.max(0,+n.textContent+ +st.dataset.step); }
+});
+
+// sheets: the real sheet stays in the DOM, a class plays the exit
+let open=null;
+function openSheet(k){
+  const s=$('#sh-'+k); open=s; $('#scrim').hidden=false; s.hidden=false;
+  requestAnimationFrame(()=>{$('#scrim').classList.add('open'); s.classList.remove('closing'); s.classList.add('open')});
+}
+function closeSheet(){
+  if(!open) return; const s=open; open=null;
+  s.classList.add('closing'); $('#scrim').classList.remove('open');
+  setTimeout(()=>{s.classList.remove('open','closing'); s.hidden=true; $('#scrim').hidden=true},320);
+}
+$('#scrim').onclick=closeSheet;
+document.addEventListener('keydown',e=>{e.key==='Escape'&&closeSheet()});
+function openReview(blank){
+  $('#rv-t').textContent=blank?'Log a night':'Good morning';
+  $('#rv-sub').textContent=blank?'No recording · type it in':'Night of Tue, Oct 20 · filled in from sound';
+  $('#tl-rv').hidden=blank;
+  chips($('#rv-tags'),blank?[]:nights[0].tags);
+  openSheet('review');
+}
+$('#rv-save').onclick=()=>{closeSheet(); toast('Night saved')};
+
+// tracking
+let timer=null, started=0, evs={snore:0,move:0};
+$('#go-track').onclick=()=>{
+  closeSheet(); $('#track').hidden=false; $('#tabbar').hidden=true;
+  started=Date.now(); evs={snore:0,move:0};
+  const m=$('#meter'); m.innerHTML='<i></i>'.repeat(16);
+  try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(_){}
+  const tick=()=>{
+    const s=Math.floor((Date.now()-started)/1000), now=new Date();
+    $('#clock').textContent=clock(now.getHours()*60+now.getMinutes());
+    $('#tr-state').textContent='Listening · '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+    m.querySelectorAll('i').forEach(i=>i.style.height=(3+Math.pow(rnd(),3)*19)+'px');
+    if(rnd()<.06) evs.move++; if(rnd()<.03) evs.snore++;
+    $('#ev').textContent=evs.snore+' snores · '+evs.move+' movements';
+  };
+  tick(); timer=setInterval(tick,1000);
+};
+const endTrack=()=>{clearInterval(timer); $('#track').hidden=true};
+$('#wake').onclick=()=>{endTrack(); $('#tabbar').hidden=false; openReview(false)};
+$('#sim').onclick=()=>{endTrack(); $('#ring').hidden=false};
+$('#stop').onclick=()=>{$('#ring').hidden=true; $('#tabbar').hidden=false; openReview(false)};
+$('#snooze').onclick=()=>{$('#ring').hidden=true; $('#track').hidden=false; toast('Snoozed until 06:40')};
+
+let tt; function toast(t){const e=$('#toast'); e.textContent=t; e.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('show'),1800)}
+
+// first paint
+timeline($('#tl-mini'),false); timeline($('#tl'),true); timeline($('#tl-rv'),false);
+bars($('#week'),nights.slice(0,7).reverse(),{max:540,h:120,val:n=>n.asleep,target:NEED,color:n=>n.asleep<NEED?'color-mix(in srgb,var(--acc) 55%,transparent)':'var(--acc)',fmt:{ticks:[0,180,360,540],tick:v=>v/60+'h'}});
+chips($('#pv-tags'),['Training day']);
+more(); trends(7);
+})();
+</script>

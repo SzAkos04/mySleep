@@ -1,0 +1,27 @@
+name: mysleep
+
+services:
+  api:
+    build: ./api
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - DATA_DIR=/data
+      - PORT=3000
+    volumes:
+      - ./data:/data    # users, passkeys, nights, secret, vapid keys: BACK THIS UP
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        APP_BUILD: ${APP_BUILD:-}
+    restart: unless-stopped
+    depends_on:
+      - api
+    # localhost only: Tailscale serve puts HTTPS in front (docs/dev/MVP.md)
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8081}:80"
