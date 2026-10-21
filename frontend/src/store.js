@@ -21,12 +21,17 @@ export const useStore = create(persist((set, get) => ({
   dirty: {},
   tracking: null,
 
-  setUser: user => set({ user }),
+  // `owner` is whose nights these are. Another profile signing in on this device starts clean;
+  // the same one signing back in (an expired session) keeps its unsynced edits.
+  owner: null,
+  setUser: user => set(s => !user ? { user } : s.owner && s.owner !== user.id
+    ? { user, owner: user.id, nights: {}, settings: defaultSettings(), rev: 0, dirty: {} }
+    : { user, owner: user.id }),
   saveNight: n => { set(s => ({ nights: { ...s.nights, [n.id]: { ...n, ts: Date.now() } }, dirty: { ...s.dirty, ['night:' + n.id]: true } })); schedule() },
   deleteNight: id => { set(s => ({ nights: { ...s.nights, [id]: { id, deleted: true, ts: Date.now() } }, dirty: { ...s.dirty, ['night:' + id]: true } })); schedule() },
   saveSettings: patch => { set(s => ({ settings: { ...s.settings, ...patch, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, ts: Date.now() }, dirty: { ...s.dirty, 'settings:main': true } })); schedule() },
   setTracking: tracking => set({ tracking }),
-  signOut: () => set({ user: null, nights: {}, settings: defaultSettings(), rev: 0, dirty: {} })
+  signOut: () => set({ user: null, owner: null, nights: {}, settings: defaultSettings(), rev: 0, dirty: {} })
 }), { name: 'mysleep_v1' }))
 
 // Newest first, without deleted ones.

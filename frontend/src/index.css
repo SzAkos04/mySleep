@@ -12,9 +12,12 @@
   color-scheme:dark;
 }
 * { box-sizing:border-box; margin:0; padding:0 }
-/* No rubber-band overscroll: on iOS the viewport takes overscroll-behavior from <html>, not
-   <body>, and while it stretched the fixed tab bar went with it (myGym does the same). */
+/* As myGym: no overscroll anywhere (a pull would reload a browser tab), except the installed
+   iOS app, which gets the native bounce back; JS adds `ios` (index.html). The page is always at
+   least a screen tall and the tab bar sits on its own layer, pinned by its edges, so the bar
+   stays put while the page stretches and settles, on short pages and long ones alike. */
 html { overscroll-behavior:none }
+@media (display-mode:standalone) { html.ios, html.ios body { overscroll-behavior-y:auto } }
 html, body { background:var(--bg); color:var(--label) }
 body { font:15px/1.35 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,system-ui,sans-serif; -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; overscroll-behavior-y:none }
 button { font:inherit; color:inherit; background:none; border:0; cursor:pointer }
@@ -24,7 +27,7 @@ input, textarea { font:inherit; color:inherit }
 .muted { color:var(--label-2) }
 .small { font-size:13px }
 
-#app { max-width:480px; margin:0 auto; padding:calc(12px + var(--sat)) max(16px,env(safe-area-inset-right,0px)) calc(110px + var(--sab)) max(16px,env(safe-area-inset-left,0px)) }
+#app { min-height:calc(100vh + 1px); min-height:calc(100dvh + 1px); max-width:480px; margin:0 auto; padding:calc(12px + var(--sat)) max(16px,env(safe-area-inset-right,0px)) calc(110px + var(--sab)) max(16px,env(safe-area-inset-left,0px)) }
 
 .back { display:flex; margin:4px 0 10px }
 .hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin:8px 0 18px }
@@ -129,7 +132,7 @@ h2.sect-t { font-weight:400 }
 .empty { color:var(--label-2); text-align:center; padding:28px 12px }
 
 /* tab bar: flat, its own layer so iOS keeps it pinned during momentum scrolling */
-#tabbar { position:fixed; left:50%; bottom:calc(8px + var(--sab)); transform:translateX(-50%); will-change:transform; z-index:20; width:min(448px,calc(100% - 20px)); display:flex; padding:7px 6px 6px; background:var(--surface); border:.5px solid var(--sep); border-radius:26px; box-shadow:0 8px 24px -8px rgba(0,0,0,.45) }
+#tabbar { position:fixed; left:10px; right:10px; bottom:calc(8px + var(--sab)); margin:0 auto; max-width:448px; will-change:transform; z-index:20; display:flex; padding:7px 6px 6px; background:var(--surface); border:.5px solid var(--sep); border-radius:26px; box-shadow:0 8px 24px -8px rgba(0,0,0,.45) }
 #tabbar a { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; font-weight:500; color:var(--label-3); padding:3px 0; text-decoration:none }
 #tabbar a svg { width:25px; height:25px }
 #tabbar a.active { color:var(--acc) }
@@ -239,7 +242,7 @@ h2.sect-t { font-weight:400 }
 #tabbar .start .cir svg { width:28px; height:28px }
 #tabbar .start:active .cir { transform:scale(.93) }
 #tabbar { align-items:flex-end }
-#tabfade { position:fixed; left:0; right:0; bottom:0; height:calc(110px + var(--sab)); z-index:19; pointer-events:none; background:linear-gradient(to bottom,transparent,var(--bg) 78%) }
+#tabfade { position:fixed; left:0; right:0; bottom:0; height:calc(110px + var(--sab)); z-index:19; pointer-events:none; will-change:transform; background:linear-gradient(to bottom,transparent,var(--bg) 78%) }
 
 .toast { position:fixed; left:50%; top:calc(10px + var(--sat)); transform:translate(-50%,-12px); opacity:0; pointer-events:none; z-index:50; background:var(--surface-3); padding:10px 16px; border-radius:99px; font-size:14px; font-weight:500; transition:transform 260ms var(--ease), opacity 200ms }
 .toast.show { transform:translate(-50%,0); opacity:1 }
