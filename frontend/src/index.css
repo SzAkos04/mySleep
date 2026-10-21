@@ -6,6 +6,8 @@
   --acc:#8b8cf8; --on-acc:#0b0a09; --acc-soft:color-mix(in srgb,var(--acc) 16%,transparent);
   --awake:#ff9f0a; --snore:#40c8e0; --move:rgba(235,235,245,.45); --good:#30d158; --red:#ff453a;
   --r-card:14px; --ease:cubic-bezier(.32,.72,0,1);
+  /* a damped spring with ~1.5% overshoot, how iOS settles a sheet (myGym) */
+  --spring:linear(0, 0.0337, 0.1159, 0.224, 0.3417, 0.4583, 0.5667, 0.6633, 0.7461, 0.8149, 0.8705, 0.9142, 0.9474, 0.972, 0.9895, 1.0013, 1.0087, 1.013, 1.0148, 1.0151, 1.0143, 1.0129, 1.0112, 1.0094, 1.0077, 1.0061, 1.0047, 1.0035, 1.0025, 1.0017, 1);
   --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
   color-scheme:dark;
 }
@@ -108,13 +110,24 @@ textarea { width:100%; background:var(--surface); border:0; border-radius:var(--
 #tabbar a svg { width:25px; height:25px }
 #tabbar a.active { color:var(--acc) }
 
-/* bottom sheet: the real sheet stays in the DOM while it slides away */
-.scrim { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:30; opacity:0; transition:opacity 220ms }
-.scrim.open { opacity:1 }
-.sheet { position:fixed; left:50%; bottom:0; z-index:31; width:min(480px,100%); max-height:92%; overflow:auto; background:var(--bg-el); border-radius:22px 22px 0 0; padding:8px 16px calc(20px + var(--sab)); transform:translate(-50%,100%); transition:transform 320ms var(--ease); will-change:transform }
-.sheet.open { transform:translate(-50%,0) }
+/* sheets and dialogs (components/Sheet.jsx), myGym's: a spring in, a slide out under .closing */
+.layer { position:fixed; inset:0; z-index:30 }
+.scrim { position:absolute; inset:0; background:rgba(0,0,0,.5); cursor:pointer; touch-action:none; animation:fadein .3s ease both }
+.sheet { position:absolute; left:0; right:0; bottom:0; margin:0 auto; width:min(480px,100%); max-height:calc(100dvh - var(--sat) - 12px); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; background:var(--bg-el); border-radius:22px 22px 0 0; padding:8px 16px calc(20px + var(--sab)); animation:sheetup .5s var(--ease); will-change:transform }
+.center { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(84vw,320px); background:var(--bg-el); border-radius:16px; padding:20px; box-shadow:0 20px 60px -12px rgba(0,0,0,.5); animation:pop .4s var(--ease) both }
+@supports (animation-timing-function:linear(0,1)) { .sheet, .center { animation-timing-function:var(--spring) } }
+.closing .scrim, .dragged-away .scrim { animation:fadeout .26s ease both }
+.closing .sheet { animation:sheetdown .28s var(--ease) both }
+.closing .center { animation:popout .2s ease both }
+@keyframes fadein { from { opacity:0 } }
+@keyframes fadeout { to { opacity:0 } }
+@keyframes sheetup { from { transform:translateY(100%) } }
+@keyframes sheetdown { to { transform:translateY(105%) } }
+@keyframes pop { from { transform:translate(-50%,-50%) scale(.92); opacity:0 } }
+@keyframes popout { to { transform:translate(-50%,-50%) scale(.96); opacity:0 } }
 .grab { width:36px; height:5px; border-radius:3px; background:var(--surface-3); margin:0 auto 10px }
 .sheet h2 { font-size:24px; font-weight:700; letter-spacing:-.02em }
+.sheet-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px }
 .check { display:flex; gap:10px; align-items:flex-start }
 .check svg { width:20px; height:20px; flex:none; color:var(--good); margin-top:1px }
 .check.off svg { color:var(--label-3) }
@@ -130,6 +143,6 @@ textarea { width:100%; background:var(--surface); border:0; border-radius:var(--
 .ring { position:fixed; inset:0; z-index:45; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; padding:calc(70px + var(--sat)) 24px calc(40px + var(--sab)) }
 .ring .clock { font-size:88px; font-weight:200; letter-spacing:-.03em; margin:6px 0 10px }
 
-.toast { position:fixed; left:50%; top:calc(14px + var(--sat)); transform:translate(-50%,-160%); z-index:50; background:var(--surface-3); padding:10px 16px; border-radius:99px; font-size:14px; font-weight:500; transition:transform 260ms var(--ease) }
-.toast.show { transform:translate(-50%,0) }
-@media (prefers-reduced-motion:reduce) { * { transition:none !important } }
+.toast { position:fixed; left:50%; top:calc(10px + var(--sat)); transform:translate(-50%,-12px); opacity:0; pointer-events:none; z-index:50; background:var(--surface-3); padding:10px 16px; border-radius:99px; font-size:14px; font-weight:500; transition:transform 260ms var(--ease), opacity 200ms }
+.toast.show { transform:translate(-50%,0); opacity:1 }
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important } }

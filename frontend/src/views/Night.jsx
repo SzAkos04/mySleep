@@ -4,6 +4,7 @@ import { useStore } from '../store.js'
 import { useUI } from '../ui.js'
 import { Icon } from '../components/Icon.jsx'
 import { Timeline, TimelineLegend, Dots } from '../components/Charts.jsx'
+import { Confirm } from '../components/Sheet.jsx'
 import { clockOf, dayLabel, dur } from '../lib/time.js'
 
 export function Night() {
@@ -45,13 +46,7 @@ export function Night() {
       </div>
     </div>
     <button className="btn danger" onClick={() => setConfirm(true)}><Icon name="trash" />Delete night</button>
-    {confirm && <div className="scrim open" style={{ display: 'grid', placeItems: 'center', padding: 24 }} onClick={() => setConfirm(false)}>
-      <div className="card stack" role="alertdialog" aria-label="Delete this night?" style={{ width: 'min(320px,100%)', margin: 0 }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 17, fontWeight: 600 }}>Delete {dayLabel(n.id)}?</div>
-        <div className="muted small">The night and its recording summary go from every device.</div>
-        <button className="btn danger" onClick={() => { deleteNight(n.id); say('Night deleted'); nav('/history', { replace: true }) }}>Delete</button>
-        <button className="btn ghost" onClick={() => setConfirm(false)}>Cancel</button>
-      </div>
-    </div>}
+    {confirm && <Confirm title={`Delete ${dayLabel(n.id)}?`} body="The night and its recording summary go from every device." action="Delete"
+      onConfirm={() => { deleteNight(n.id); say('Night deleted'); nav('/history', { replace: true }) }} onClosed={() => setConfirm(false)} />}
   </>
 }

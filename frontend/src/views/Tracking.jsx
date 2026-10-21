@@ -11,7 +11,7 @@ const CHECK_MS = 10000
 
 // The night screen, then the alarm. Shown over everything while `tracking` is set.
 export function Tracking() {
-  const tr = useStore(s => s.tracking), setTracking = useStore(s => s.setTracking)
+  const tr = useStore(s => s.tracking), setTracking = useStore(s => s.setTracking), saveNight = useStore(s => s.saveNight)
   const openSheet = useUI(s => s.openSheet)
   const [now, setNow] = useState(Date.now())
   const [live, setLive] = useState(tracker.micLive())
@@ -59,12 +59,15 @@ export function Tracking() {
     armBackup(null)
     tracker.clearProgress()
     setTracking(null)
-    openSheet({ type: 'review', night: {
+    // saved now, so closing the review keeps the night; the review has Discard
+    const night = {
       id: tr.nightId, bed: s.start, on: r.on ?? s.start, wake: end,
       wakes: r.wakes, awakeMin: r.awakeMin, asleepMin: r.asleepMin, snoreMin: r.snoreMin,
-      tags: tr.tags, timeline: r.timeline,
+      q: null, tags: tr.tags, note: '', timeline: r.timeline,
       ...(ringing && { alarm: { at: ringing.at, early: ringing.early } })
-    } })
+    }
+    saveNight(night)
+    openSheet({ type: 'review', night: useStore.getState().nights[night.id], fresh: true })
   }
 
   async function resume() {

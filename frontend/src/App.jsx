@@ -20,9 +20,6 @@ export function App() {
   const user = useStore(s => s.user), tracking = useStore(s => s.tracking)
   const { sheet, toast } = useUI()
   const [signup, setSignup] = useState(false)
-  // keep the last sheet's content while it slides away
-  const [shownSheet, setShownSheet] = useState(sheet)
-  useEffect(() => { if (sheet) setShownSheet(sheet) }, [sheet])
 
   useEffect(() => {
     api('/api/me')
@@ -45,8 +42,8 @@ export function App() {
     <nav id="tabbar" aria-label="Main">
       {TABS.map(([to, icon, label]) => <NavLink key={to} to={to} end><Icon name={icon} />{label}</NavLink>)}
     </nav>
-    {shownSheet?.type === 'review' && <ReviewSheet key={shownSheet.night.id || 'new'} night={shownSheet.night} open={sheet?.type === 'review'} />}
-    {shownSheet?.type === 'preview' && <PreviewSheet open={sheet?.type === 'preview'} />}
+    {sheet?.type === 'review' && <ReviewSheet key={sheet.key} night={sheet.night} fresh={sheet.fresh} />}
+    {sheet?.type === 'preview' && <PreviewSheet key={sheet.key} />}
     {tracking && <Tracking />}
     <div className={'toast' + (toast ? ' show' : '')} role="status">{toast}</div>
   </HashRouter>
