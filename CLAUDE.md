@@ -19,10 +19,8 @@ scripts/   server-update.sh (runs on the server).
 ```bash
 cd frontend && npm test            # vitest
 cd api && npm test                 # node:test, boots server.js on a temp DATA_DIR
-# local, signed in without a passkey:
-cd api && DATA_DIR=../data ORIGIN=http://localhost:5173 node server.js
-cd frontend && DEV_SESSION=$(cd ../api && DATA_DIR=../data node scripts/dev-session.mjs Test) npx vite
-# (make the profile once: DATA_DIR=../data node scripts/dev-session.mjs --create Test)
+scripts/dev-local.sh               # API + hot-reload frontend on http://localhost:5173, signed in as
+                                   # Test (data/), Ctrl-C stops both; API_PORT/WEB_PORT to move them
 ```
 
 iPhone checks: the iOS Simulator device "iPhone 11 Pro Max test". Serve the build signed in
