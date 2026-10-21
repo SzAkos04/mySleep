@@ -1,0 +1,459 @@
+<title>mySleep Structure</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: phone-sized screens in a row (stacked on a phone), myGym's look: warm near-black,
+   flat surfaces, iOS large titles, tinted hero card, raised centre button in the tab bar. */
+:root{
+  --bg:#0b0a09; --bg-el:#131211; --surface:#1b1a18; --surface-2:#272522; --surface-3:#363330;
+  --label:#fff; --label-2:rgba(235,235,245,.6); --label-3:rgba(235,235,245,.32); --label-4:rgba(235,235,245,.14);
+  --sep:rgba(84,84,88,.6);
+  --acc:#8b8cf8; --acc-soft:color-mix(in srgb,var(--acc) 16%,transparent); --acc-line:color-mix(in srgb,var(--acc) 38%,transparent);
+  --good:#30d158; --awake:#ff9f0a; --snore:#40c8e0; --talk:#ffd60a; --red:#ff453a; --pink:#ff375f; --grey:#8e8e93;
+  --page:#050505; --ink:#e9e7f5; --ink-2:rgba(233,231,245,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.4 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.intro{max-width:760px;margin:0 auto 28px}
+.intro h1{font-size:30px;letter-spacing:-.02em;text-wrap:balance}
+.intro p{color:var(--ink-2);margin-top:8px;max-width:64ch}
+.intro ol{color:var(--ink-2);margin:12px 0 0 20px;display:grid;gap:4px;max-width:64ch}
+.row{display:flex;gap:28px;overflow-x:auto;padding:8px 4px 20px;scroll-snap-type:x mandatory}
+.shot{flex:none;scroll-snap-align:center;display:flex;flex-direction:column;gap:12px;width:390px}
+.cap{color:var(--ink-2);font-size:13px;max-width:390px}
+.cap b{color:var(--ink);font-size:14px;display:block;margin-bottom:2px}
+@media (max-width:520px){ .row{flex-direction:column;overflow:visible} .shot{width:100%} .phone{width:100%!important} }
+
+.phone{width:390px;height:844px;border-radius:46px;background:var(--bg);position:relative;overflow:hidden;box-shadow:0 0 0 1px #222,0 30px 60px -20px rgba(0,0,0,.8)}
+.sb{height:47px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 4px 34px;font-size:15px;font-weight:600;color:var(--label)}
+.sb i{font-style:normal;letter-spacing:2px;font-size:12px}
+.scr{padding:4px 16px 0}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin:6px 0 14px}
+.hdr h2{font-size:34px;font-weight:700;letter-spacing:-.028em;line-height:1.06}
+.hdr .sub{color:var(--label-2);margin-top:4px}
+.ib{width:44px;height:44px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card{background:var(--surface);border-radius:14px;padding:16px;margin-bottom:12px}
+.eb{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--label-2)}
+.muted{color:var(--label-2)} .small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+
+/* myGym's week strip */
+.week{display:flex;justify-content:space-between;margin:0 2px 14px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:5px;width:40px}
+.wd .l{font-size:11px;color:var(--label-3);font-weight:500}
+.wd .n{font-size:16px;width:31px;height:31px;display:grid;place-items:center;border-radius:50%}
+.wd.today .n{background:var(--acc);color:#0b0a09;font-weight:600}
+.wd .d{width:6px;height:6px;border-radius:50%;background:transparent}
+.d.g{background:var(--good)} .d.a{background:var(--acc)} .d.o{background:var(--awake)}
+
+/* tinted hero, like myGym's today card */
+.hero{background:linear-gradient(155deg,var(--acc-soft),transparent 70%),var(--surface);border:.5px solid var(--acc-line);border-radius:18px;padding:18px}
+.hero .big{font-size:48px;font-weight:600;letter-spacing:-.03em;line-height:1;margin:6px 0 4px}
+.pair{display:flex;gap:10px;margin-top:14px}
+.pair>div{flex:1;background:rgba(0,0,0,.25);border-radius:12px;padding:10px 12px}
+.pair b{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em}
+
+.last{display:flex;align-items:center;gap:14px}
+.ring{flex:none}
+.chev{color:var(--label-3);margin-left:auto}
+
+/* tab bar with the raised centre button (myGym's Start) */
+.tabfade{position:absolute;left:0;right:0;bottom:0;height:130px;background:linear-gradient(to bottom,transparent,var(--bg) 75%)}
+.tabbar{position:absolute;left:10px;right:10px;bottom:24px;display:flex;align-items:flex-end;justify-content:space-around;padding:7px 6px 6px;background:var(--surface);border:.5px solid rgba(84,84,88,.34);border-radius:26px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:500;color:var(--label-3)}
+.tab.on{color:var(--acc)}
+.tab.start{margin-top:-26px}
+.tab.start .cir{width:56px;height:56px;border-radius:50%;background:var(--acc);color:#0b0a09;display:grid;place-items:center;box-shadow:0 0 0 3px var(--bg),0 8px 22px -4px color-mix(in srgb,var(--acc) 60%,transparent)}
+.tab.start span{color:var(--acc);font-weight:600}
+.home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:rgba(255,255,255,.85)}
+
+/* night */
+.night{background:#000}
+.night .glow{position:absolute;inset:auto 0 0 0;height:420px;background:radial-gradient(120% 80% at 50% 100%,rgba(90,92,220,.22),transparent 70%)}
+.night .sb{color:rgba(255,255,255,.55)}
+.nt{position:absolute;inset:47px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:28px 28px 56px;text-align:center}
+.listen{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:14px}
+.listen i{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px rgba(48,209,88,.18)}
+.clock{font-size:104px;font-weight:200;letter-spacing:-.05em;line-height:1;color:rgba(255,255,255,.9)}
+.alarmline{font-size:17px;color:rgba(255,255,255,.75);margin-top:12px}
+.until{font-size:14px;color:rgba(255,255,255,.45);margin-top:4px}
+.mood{display:flex;gap:8px;justify-content:center;margin-top:22px}
+.mood span{font-size:12px;padding:5px 10px;border-radius:99px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.55)}
+.hold{width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.06);display:grid;place-items:center;position:relative;color:rgba(255,255,255,.8)}
+.hold svg.r{position:absolute;inset:0}
+.holdl{font-size:14px;color:rgba(255,255,255,.6);margin-top:10px}
+.hint{font-size:12px;color:rgba(255,255,255,.35);margin-top:14px}
+/* dimmed: only these pixels light on OLED */
+.dimclock{font-size:84px;font-weight:200;letter-spacing:-.05em;color:#2a2a44}
+.dimline{font-size:14px;color:#26263a;margin-top:8px}
+
+/* alarm */
+.alarm{background:linear-gradient(180deg,#0b0a09 0%,#1a1020 35%,#5a2a1a 72%,#d9783a 100%)}
+.alarm .nt{justify-content:space-between}
+.alarm .clock{color:#fff;font-weight:200}
+.gm{font-size:24px;font-weight:600;margin-top:8px}
+.early{color:rgba(255,255,255,.75);margin-top:6px}
+.stop{width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.92);color:#1a1020;display:grid;place-items:center;font-size:20px;font-weight:700;box-shadow:0 10px 40px -8px rgba(255,170,90,.7)}
+.snz{font-size:17px;color:rgba(255,255,255,.85);margin-top:22px;font-weight:500}
+
+/* morning */
+.score{display:flex;align-items:center;gap:18px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.facts>div{background:rgba(0,0,0,.25);border-radius:12px;padding:10px}
+.facts b{display:block;font-size:19px;font-weight:600;letter-spacing:-.02em}
+.facts span{font-size:12px;color:var(--label-2)}
+.say{display:grid;gap:7px;margin-top:2px}
+.say p{padding-left:14px;position:relative}
+.say p::before{content:'';position:absolute;left:0;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--acc)}
+svg.chart{display:block;width:100%;height:auto}
+.chart text{fill:var(--label-2);font-size:10px}
+.lrow{display:flex;align-items:center;gap:12px;padding:10px 14px;position:relative}
+.lrow+.lrow::before{content:'';position:absolute;top:0;left:62px;right:0;height:.5px;background:var(--sep)}
+.play{width:36px;height:36px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;flex:none}
+.lrow .t{flex:1}
+.lrow .s{font-size:13px;color:var(--label-2)}
+.list{background:var(--surface);border-radius:14px;overflow:hidden;margin-bottom:12px}
+.st{font-size:13px;color:var(--label-2);padding:0 4px 7px}
+.fix{text-align:center;color:var(--acc);font-size:15px;margin:6px 0 120px}
+
+/* trends */
+.seg{display:flex;background:var(--surface-3);border-radius:9px;padding:2px;margin-bottom:14px}
+.seg span{flex:1;text-align:center;padding:6px;border-radius:7px;font-size:13px;font-weight:500;color:var(--label-2)}
+.seg span.on{background:var(--surface);color:var(--label)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.kpis div{background:rgba(0,0,0,.25);border-radius:12px;padding:10px 12px}
+.kpis b{display:block;font-size:22px;font-weight:600;letter-spacing:-.02em}
+.kpis span{font-size:12px;color:var(--label-2)}
+
+/* settings */
+.sect{margin-bottom:22px}
+.srow{display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:46px;position:relative}
+.srow+.srow::before{content:'';position:absolute;top:0;left:55px;right:0;height:.5px;background:var(--sep)}
+.tile{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:none}
+.srow .m{flex:1;font-size:17px}
+.srow .m small{display:block;font-size:13px;color:var(--label-2)}
+.val{color:var(--label-2);font-size:17px}
+.sw{width:51px;height:31px;border-radius:99px;background:var(--good);position:relative;flex:none}
+.sw::after{content:'';position:absolute;top:2px;right:2px;width:27px;height:27px;border-radius:50%;background:#fff}
+.time{color:var(--acc);background:var(--surface-2);border-radius:8px;padding:5px 9px;font-size:17px}
+
+.opt{max-width:1260px;margin:44px auto 0}
+.opt-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.opt-h h2{font-size:26px;letter-spacing:-.02em}
+.opt-h .k{font-size:13px;color:var(--ink-2)}
+.badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--acc-soft);color:var(--acc);border:.5px solid var(--acc-line)}
+.lead{color:var(--ink-2);max-width:72ch;margin:6px 0 4px}
+.tabs-line{font-size:13px;color:var(--ink-2);margin-bottom:10px}
+.tabs-line b{color:var(--ink);font-weight:600}
+.pc{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 28px;max-width:860px;margin:10px 0 4px;font-size:14px}
+.pc ul{list-style:none;display:grid;gap:5px}
+.pros li::before{content:'+  ';color:var(--good);font-weight:700}
+.cons li::before{content:'–  ';color:var(--awake);font-weight:700}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}
+.cal .h{font-size:11px;color:var(--label-3);padding-bottom:2px}
+.cal .c{height:40px;display:grid;place-items:center;border-radius:11px;font-size:14px;color:var(--label-2)}
+.cal .g{background:color-mix(in srgb,var(--good) 26%,transparent);color:#fff}
+.cal .a{background:color-mix(in srgb,var(--acc) 30%,transparent);color:#fff}
+.cal .o{background:color-mix(in srgb,var(--awake) 28%,transparent);color:#fff}
+.cal .sel{box-shadow:inset 0 0 0 2px var(--acc)}
+.cal .fut{color:var(--label-4)}
+.bigtime{font-size:66px;font-weight:200;letter-spacing:-.04em;line-height:1}
+.startbtn{height:64px;border-radius:32px;background:var(--acc);color:#0b0a09;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 30px -10px color-mix(in srgb,var(--acc) 70%,transparent)}
+.jcard{background:var(--surface);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.jtop{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.jtop b{font-size:16px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 11px;border-radius:99px;background:var(--surface-2);color:var(--label-2)}
+.chip.on{background:var(--acc-soft);color:var(--acc)}
+.hugebtn{width:190px;height:190px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#a3a4ff,#6c6de6);color:#0b0a09;display:grid;place-items:center;margin:0 auto;box-shadow:0 0 0 10px rgba(139,140,248,.10),0 0 0 22px rgba(139,140,248,.05)}
+.hugebtn div{text-align:center;font-weight:700;font-size:22px}
+.cmpwrap{overflow-x:auto;max-width:1260px;margin:44px auto 0}
+.cmp{border-collapse:collapse;min-width:820px;width:100%;font-size:14px}
+.cmp th,.cmp td{text-align:left;padding:11px 12px;border-bottom:.5px solid var(--sep);vertical-align:top}
+.cmp th{color:var(--ink-2);font-weight:500;font-size:13px}
+.cmp td:first-child{color:var(--ink-2);width:180px}
+.cmp .rec{background:color-mix(in srgb,var(--acc) 8%,transparent)}
+.verdict{max-width:760px;margin:36px auto 0}
+.verdict h2{font-size:24px;letter-spacing:-.02em}
+.verdict p{color:var(--ink-2);margin-top:8px}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="moon" viewBox="0 0 24 24"><path class="ic" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="moonf" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="currentColor"/></symbol>
+  <symbol id="list" viewBox="0 0 24 24"><path class="ic" d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="chart" viewBox="0 0 24 24"><path class="ic" d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="gear" viewBox="0 0 24 24"><path class="ic" d="M19.21 9.29 L21.84 10.21 L21.84 13.79 L19.21 14.71 A7.7 7.7 0 0 1 19.01 15.18 L19.01 15.18 L20.22 17.69 L17.69 20.22 L15.18 19.01 A7.7 7.7 0 0 1 14.71 19.21 L14.71 19.21 L13.79 21.84 L10.21 21.84 L9.29 19.21 A7.7 7.7 0 0 1 8.82 19.01 L8.82 19.01 L6.31 20.22 L3.78 17.69 L4.99 15.18 A7.7 7.7 0 0 1 4.79 14.71 L4.79 14.71 L2.16 13.79 L2.16 10.21 L4.79 9.29 A7.7 7.7 0 0 1 4.99 8.82 L4.99 8.82 L3.78 6.31 L6.31 3.78 L8.82 4.99 A7.7 7.7 0 0 1 9.29 4.79 L9.29 4.79 L10.21 2.16 L13.79 2.16 L14.71 4.79 A7.7 7.7 0 0 1 15.18 4.99 L15.18 4.99 L17.69 3.78 L20.22 6.31 L19.01 8.82 Z"/><circle class="ic" cx="12" cy="12" r="3"/></symbol>
+  <symbol id="home" viewBox="0 0 24 24"><path class="ic" d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/></symbol>
+  <symbol id="sun" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="4"/><path class="ic" d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path class="ic" d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5Z" fill="currentColor"/></symbol>
+  <symbol id="alarm" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="13" r="7.5"/><path class="ic" d="M12 9v4l2.5 2M4.5 4.5 7 2.5M19.5 4.5 17 2.5"/></symbol>
+  <symbol id="spark" viewBox="0 0 24 24"><path class="ic" d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9Z"/></symbol>
+  <symbol id="music" viewBox="0 0 24 24"><path class="ic" d="M9 18V6l10-2v12"/><circle class="ic" cx="6.5" cy="18" r="2.5"/><circle class="ic" cx="16.5" cy="16" r="2.5"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path class="ic" d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15ZM10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="mic" viewBox="0 0 24 24"><rect class="ic" x="9" y="3" width="6" height="11" rx="3"/><path class="ic" d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+</svg>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="cal" viewBox="0 0 24 24"><rect class="ic" x="3.5" y="5" width="17" height="15" rx="2.5"/><path class="ic" d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="wave" viewBox="0 0 24 24"><path class="ic" d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></symbol>
+  <symbol id="hypA" viewBox="0 0 340 52"><g><rect x="0" y="2" width="14" height="12" rx="2" fill="#ff9f0a"/><rect x="14" y="20" width="44" height="12" rx="2" fill="#5d5ea8"/><rect x="58" y="38" width="62" height="12" rx="2" fill="#8b8cf8"/><rect x="120" y="2" width="5" height="12" rx="2" fill="#ff9f0a"/><rect x="125" y="20" width="40" height="12" rx="2" fill="#5d5ea8"/><rect x="165" y="38" width="50" height="12" rx="2" fill="#8b8cf8"/><rect x="215" y="2" width="6" height="12" rx="2" fill="#ff9f0a"/><rect x="221" y="20" width="84" height="12" rx="2" fill="#5d5ea8"/><rect x="305" y="38" width="22" height="12" rx="2" fill="#8b8cf8"/><rect x="327" y="2" width="13" height="12" rx="2" fill="#ff9f0a"/></g></symbol>
+  <symbol id="hypB" viewBox="0 0 340 52"><g><rect x="0" y="2" width="30" height="12" rx="2" fill="#ff9f0a"/><rect x="30" y="20" width="70" height="12" rx="2" fill="#5d5ea8"/><rect x="100" y="2" width="16" height="12" rx="2" fill="#ff9f0a"/><rect x="116" y="20" width="60" height="12" rx="2" fill="#5d5ea8"/><rect x="176" y="38" width="40" height="12" rx="2" fill="#8b8cf8"/><rect x="216" y="20" width="90" height="12" rx="2" fill="#5d5ea8"/><rect x="306" y="2" width="34" height="12" rx="2" fill="#ff9f0a"/></g></symbol>
+  <symbol id="hypC" viewBox="0 0 340 52"><g><rect x="0" y="2" width="8" height="12" rx="2" fill="#ff9f0a"/><rect x="8" y="20" width="30" height="12" rx="2" fill="#5d5ea8"/><rect x="38" y="38" width="96" height="12" rx="2" fill="#8b8cf8"/><rect x="134" y="20" width="40" height="12" rx="2" fill="#5d5ea8"/><rect x="174" y="38" width="80" height="12" rx="2" fill="#8b8cf8"/><rect x="254" y="20" width="76" height="12" rx="2" fill="#5d5ea8"/><rect x="330" y="2" width="10" height="12" rx="2" fill="#ff9f0a"/></g></symbol>
+</svg>
+<div class="wrap">
+  <div class="intro">
+    <h1>Four ways to build mySleep</h1>
+    <p>"Tonight looks empty" and "I'm bombarded instead of just going to sleep" pull in opposite directions. What settles it is what the app shows when you open it, and where your past nights live. Here are four structures, each shown at the moment it matters most, with what is good and bad about it. My pick is at the bottom. Same myGym look throughout, example data.</p>
+  </div>
+
+  <!-- ======================= A ======================= -->
+  <section class="opt">
+    <div class="opt-h"><h2>A · Today</h2><span class="badge">My pick</span><span class="k">one home that changes with the time of day</span></div>
+    <p class="lead">Like myGym's Home: one full page. In the evening the top is about tonight, in the morning it is last night's report; your week and the trend sit underneath either way. Sleep is the round button in the middle.</p>
+    <div class="tabs-line">Tabs: <b>Today</b> · <b>Journal</b> · <b>( Sleep )</b> · <b>Trends</b> · <b>Settings</b></div>
+    <div class="row">
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>21:20</span><i>●●● ▮</i></div>
+          <div class="scr">
+            <div class="hdr"><div><h2>Today</h2><div class="sub">Wednesday 21 October</div></div></div>
+            <div class="week">
+              <div class="wd"><span class="l">Mon</span><span class="n">19</span><span class="d g"></span></div><div class="wd"><span class="l">Tue</span><span class="n">20</span><span class="d a"></span></div><div class="wd today"><span class="l">Wed</span><span class="n">21</span><span class="d"></span></div><div class="wd"><span class="l">Thu</span><span class="n">22</span><span class="d"></span></div><div class="wd"><span class="l">Fri</span><span class="n">23</span><span class="d"></span></div><div class="wd"><span class="l">Sat</span><span class="n">24</span><span class="d"></span></div><div class="wd"><span class="l">Sun</span><span class="n">25</span><span class="d"></span></div>
+            </div>
+            <div class="hero">
+              <div class="eb">Tonight</div>
+              <div style="display:flex;align-items:baseline;gap:10px"><div class="big num">23:00</div><span class="muted">in 1h 40m</span></div>
+              <div class="pair"><div><span class="small muted">Alarm · smart</span><b class="num">06:15–06:45</b></div><div><span class="small muted">Sound</span><b>Bells</b></div></div>
+            </div>
+            <div class="card" style="margin-top:12px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <svg width="58" height="58" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#272522" stroke-width="9"/><circle cx="50" cy="50" r="42" fill="none" stroke="#30d158" stroke-width="9" stroke-linecap="round" stroke-dasharray="216 264" transform="rotate(-90 50 50)"/><text x="50" y="59" text-anchor="middle" fill="#fff" style="font-size:28px;font-weight:700">82</text></svg>
+                <div style="flex:1"><div class="eb">Last night</div><div style="font-size:18px;font-weight:700">7h 02m asleep</div><div class="small muted">Woke twice · snored 18 min</div></div>
+                <svg width="16" height="16" style="color:var(--label-3)"><use href="#chev"/></svg>
+              </div>
+              <svg style="display:block;width:100%;height:auto;margin-top:10px" viewBox="0 0 340 52"><use href="#hypA"/></svg>
+            </div>
+            <div class="card">
+              <div class="eb" style="margin-bottom:8px">This week</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;height:64px;gap:8px">
+                <i style="flex:1;height:78%;background:#8b8cf8;border-radius:5px"></i><i style="flex:1;height:92%;background:#30d158;border-radius:5px"></i><i style="flex:1;height:70%;background:#8b8cf8;border-radius:5px"></i><i style="flex:1;height:48%;background:#ff9f0a;border-radius:5px"></i><i style="flex:1;height:84%;background:#8b8cf8;border-radius:5px"></i><i style="flex:1;height:88%;background:#30d158;border-radius:5px"></i><i style="flex:1;height:8%;background:var(--surface-3);border-radius:5px"></i>
+              </div>
+              <div class="small muted" style="margin-top:8px">Average 76 · asleep around 23:13 ± 13 min</div>
+            </div>
+          </div>
+          <div class="tabfade"></div>
+          <div class="tabbar"><div class="tab on"><svg width="25" height="25"><use href="#home"/></svg>Today</div><div class="tab"><svg width="25" height="25"><use href="#cal"/></svg>Journal</div><div class="tab start"><span class="cir"><svg width="28" height="28"><use href="#moonf"/></svg></span><span>Sleep</span></div><div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Trends</div><div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div></div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Evening</b>Tonight on top, then last night in one card, then the week. Full, but every block answers one question.</p>
+      </div>
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>06:40</span><i>●●● ▮</i></div>
+          <div class="scr">
+            <div class="hdr"><div><h2>Good morning</h2><div class="sub">Thursday 22 October</div></div></div>
+            <div class="hero">
+              <div class="score">
+                <svg width="88" height="88" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="8"/><circle cx="50" cy="50" r="42" fill="none" stroke="#30d158" stroke-width="8" stroke-linecap="round" stroke-dasharray="216 264" transform="rotate(-90 50 50)"/><text x="50" y="59" text-anchor="middle" fill="#fff" style="font-size:28px;font-weight:700">82</text></svg>
+                <div><div class="eb">Last night</div><div style="font-size:21px;font-weight:700">A good night</div><div class="small muted">Better than your week (76)</div></div>
+              </div>
+              <div class="facts"><div><b class="num">7h 02m</b><span>asleep</span></div><div><b class="num">19 min</b><span>to fall asleep</span></div><div><b class="num">2h 05m</b><span>restful</span></div></div>
+              <svg style="display:block;width:100%;height:auto;margin-top:12px" viewBox="0 0 340 52"><use href="#hypA"/></svg>
+            </div>
+            <div class="card" style="margin-top:12px"><div class="say"><p>You woke twice, at 01:42 and 04:17.</p><p>You snored for 18 min, mostly 02:00–03:00.</p><p>You talked in your sleep once, at 03:10.</p></div></div>
+            <div class="list"><div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Talking<div class="s num">03:10 · 6 s</div></div></div></div>
+            <div class="card"><div style="display:flex;justify-content:space-between"><span class="muted">Tonight</span><span class="num">23:00 · alarm 06:15–06:45</span></div></div>
+          </div>
+          <div class="tabfade"></div>
+          <div class="tabbar"><div class="tab on"><svg width="25" height="25"><use href="#home"/></svg>Today</div><div class="tab"><svg width="25" height="25"><use href="#cal"/></svg>Journal</div><div class="tab start"><span class="cir"><svg width="28" height="28"><use href="#moonf"/></svg></span><span>Sleep</span></div><div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Trends</div><div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div></div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Morning</b>The same tab, now opening with last night's report; tonight shrinks to one line at the bottom.</p>
+      </div>
+    </div>
+    <div class="pc">
+      <ul class="pros"><li>Never empty: there is always last night and the week</li><li>The same place every time, like myGym's Home</li><li>Sleep is one tap from anywhere</li></ul>
+      <ul class="cons"><li>The top of the page changes during the day; a little to learn</li><li>Five tabs</li></ul>
+    </div>
+  </section>
+
+  <!-- ======================= B ======================= -->
+  <section class="opt">
+    <div class="opt-h"><h2>B · Alarm first</h2><span class="k">Sleep Cycle's structure</span></div>
+    <p class="lead">You open it and you are setting tonight's alarm: the wake-up window large, the sound, one big Start. Everything about past nights is in the Journal, as a scroll of nights with their graphs.</p>
+    <div class="tabs-line">Tabs: <b>Alarm</b> · <b>Journal</b> · <b>Statistics</b> · <b>Settings</b></div>
+    <div class="row">
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>22:40</span><i>●●● ▮</i></div>
+          <div class="scr" style="display:flex;flex-direction:column;height:760px">
+            <div class="hdr"><div><h2>Alarm</h2><div class="sub">Tonight, Wednesday</div></div></div>
+            <div style="text-align:center;margin-top:30px">
+              <div class="muted">Wake up between</div>
+              <div class="bigtime num" style="margin-top:8px">06:15</div>
+              <div class="muted" style="margin:6px 0">and</div>
+              <div class="bigtime num">06:45</div>
+              <div style="display:flex;gap:8px;justify-content:center;margin-top:18px"><span class="chip on">Smart · 30 min</span><span class="chip">Bells</span></div>
+              <div class="small muted" style="margin-top:14px">Up to 7h 50m of sleep if you start now</div>
+            </div>
+            <div style="margin-top:auto;margin-bottom:96px"><div class="startbtn"><svg width="24" height="24"><use href="#moonf"/></svg>Start</div></div>
+          </div>
+          <div class="tabbar"><div class="tab on"><svg width="25" height="25"><use href="#alarm"/></svg>Alarm</div><div class="tab"><svg width="25" height="25"><use href="#cal"/></svg>Journal</div><div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Statistics</div><div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div></div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Evening</b>Nothing to read: the window, the sound, Start. Tapping the times changes them for tonight.</p>
+      </div>
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>06:40</span><i>●●● ▮</i></div>
+          <div class="scr">
+            <div class="hdr"><div><h2>Journal</h2></div></div>
+            <div class="jcard"><div class="jtop"><b>Wed, Oct 21</b><span class="num" style="color:var(--good);font-weight:700">82</span></div><svg style="display:block;width:100%;height:auto" viewBox="0 0 340 52"><use href="#hypA"/></svg><div class="small muted" style="margin-top:6px">23:12 – 06:31 · 7h 02m · snored 18 min</div></div>
+            <div class="jcard"><div class="jtop"><b>Tue, Oct 20</b><span class="num" style="color:var(--awake);font-weight:700">58</span></div><svg style="display:block;width:100%;height:auto" viewBox="0 0 340 52"><use href="#hypB"/></svg><div class="small muted" style="margin-top:6px">23:40 – 06:20 · 5h 51m · woke 3 times</div></div>
+            <div class="jcard"><div class="jtop"><b>Mon, Oct 19</b><span class="num" style="color:var(--good);font-weight:700">88</span></div><svg style="display:block;width:100%;height:auto" viewBox="0 0 340 52"><use href="#hypC"/></svg><div class="small muted" style="margin-top:6px">22:55 – 06:45 · 7h 31m · slept through</div></div>
+            <div class="jcard"><div class="jtop"><b>Sun, Oct 18</b><span class="num" style="color:var(--acc);font-weight:700">74</span></div><svg style="display:block;width:100%;height:auto" viewBox="0 0 340 52"><use href="#hypA"/></svg></div>
+          </div>
+          <div class="tabfade"></div>
+          <div class="tabbar"><div class="tab"><svg width="25" height="25"><use href="#alarm"/></svg>Alarm</div><div class="tab on"><svg width="25" height="25"><use href="#cal"/></svg>Journal</div><div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Statistics</div><div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div></div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Morning</b>After Stop it lands on the night's report; later, the Journal is every night as a card with its graph.</p>
+      </div>
+    </div>
+    <div class="pc">
+      <ul class="pros"><li>The most direct way to go to sleep</li><li>The Journal is a lovely scroll of nights</li><li>Proven: it is how Sleep Cycle works</li></ul>
+      <ul class="cons"><li>Home shows nothing about how you slept</li><li>Less like myGym; no centre button</li></ul>
+    </div>
+  </section>
+
+  <!-- ======================= C ======================= -->
+  <section class="opt">
+    <div class="opt-h"><h2>C · Calendar</h2><span class="k">your nights at a glance, sounds as their own tab</span></div>
+    <p class="lead">Home is the month as a calendar, every night coloured by its score, with the selected night (last night at first) underneath. Tonight's plan is a slim bar. The sounds of all nights get their own tab, so "what do I do at night" is one place.</p>
+    <div class="tabs-line">Tabs: <b>Nights</b> · <b>Sounds</b> · <b>( Sleep )</b> · <b>Trends</b> · <b>Settings</b></div>
+    <div class="row">
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>21:20</span><i>●●● ▮</i></div>
+          <div class="scr">
+            <div class="hdr"><div><h2>October</h2><div class="sub">Average 76 · 21 nights</div></div></div>
+            <div class="card" style="padding:12px">
+              <div class="cal">
+                <span class="h">M</span><span class="h">T</span><span class="h">W</span><span class="h">T</span><span class="h">F</span><span class="h">S</span><span class="h">S</span>
+                <span class="c"></span><span class="c"></span><span class="c g">1</span><span class="c a">2</span><span class="c a">3</span><span class="c o">4</span><span class="c g">5</span>
+                <span class="c a">6</span><span class="c g">7</span><span class="c a">8</span><span class="c a">9</span><span class="c o">10</span><span class="c g">11</span><span class="c a">12</span>
+                <span class="c g">13</span><span class="c a">14</span><span class="c a">15</span><span class="c g">16</span><span class="c o">17</span><span class="c a">18</span><span class="c g">19</span>
+                <span class="c o">20</span><span class="c g sel">21</span><span class="c fut">22</span><span class="c fut">23</span><span class="c fut">24</span><span class="c fut">25</span><span class="c fut">26</span>
+              </div>
+            </div>
+            <div class="card">
+              <div style="display:flex;align-items:center;gap:14px"><svg width="54" height="54" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#272522" stroke-width="9"/><circle cx="50" cy="50" r="42" fill="none" stroke="#30d158" stroke-width="9" stroke-linecap="round" stroke-dasharray="216 264" transform="rotate(-90 50 50)"/><text x="50" y="59" text-anchor="middle" fill="#fff" style="font-size:28px;font-weight:700">82</text></svg>
+                <div><div class="eb">Wed, Oct 21</div><div style="font-size:18px;font-weight:700">7h 02m asleep</div></div></div>
+              <svg style="display:block;width:100%;height:auto;margin-top:10px" viewBox="0 0 340 52"><use href="#hypA"/></svg>
+            </div>
+            <div class="card" style="display:flex;justify-content:space-between"><span class="muted">Tonight</span><span class="num">23:00 · alarm 06:15–06:45</span></div>
+          </div>
+          <div class="tabfade"></div>
+          <div class="tabbar"><div class="tab on"><svg width="25" height="25"><use href="#cal"/></svg>Nights</div><div class="tab"><svg width="25" height="25"><use href="#wave"/></svg>Sounds</div><div class="tab start"><span class="cir"><svg width="28" height="28"><use href="#moonf"/></svg></span><span>Sleep</span></div><div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Trends</div><div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div></div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Home</b>A month you can read in a second; tap a day to see that night below.</p>
+      </div>
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>12:10</span><i>●●● ▮</i></div>
+          <div class="scr">
+            <div class="hdr"><div><h2>Sounds</h2><div class="sub">Last 7 nights · kept 7 days</div></div></div>
+            <div style="display:flex;gap:8px;margin-bottom:14px"><span class="chip on">All</span><span class="chip">Snoring</span><span class="chip">Talking</span><span class="chip">Coughing</span></div>
+            <div class="st">Last night</div>
+            <div class="list">
+              <div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Snoring<div class="s num">02:10 · 18 min</div></div></div>
+              <div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Talking<div class="s num">03:10 · 6 s</div></div></div>
+            </div>
+            <div class="st">Tue, Oct 20</div>
+            <div class="list">
+              <div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Coughing<div class="s num">00:42 · 1 s</div></div></div>
+              <div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Snoring<div class="s num">03:55 · 6 min</div></div></div>
+              <div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Talking<div class="s num">05:02 · 11 s</div></div></div>
+            </div>
+          </div>
+          <div class="tabfade"></div>
+          <div class="tabbar"><div class="tab"><svg width="25" height="25"><use href="#cal"/></svg>Nights</div><div class="tab on"><svg width="25" height="25"><use href="#wave"/></svg>Sounds</div><div class="tab start"><span class="cir"><svg width="28" height="28"><use href="#moonf"/></svg></span><span>Sleep</span></div><div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Trends</div><div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div></div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Sounds</b>Every recording of the week in one list, filterable. The most "Asleep-like" part made its own place.</p>
+      </div>
+    </div>
+    <div class="pc">
+      <ul class="pros"><li>Your sleep pattern is visible at a glance</li><li>Recordings are easy to find and replay</li></ul>
+      <ul class="cons"><li>Tonight's plan is the smallest thing on screen</li><li>Early on the calendar is mostly empty</li></ul>
+    </div>
+  </section>
+
+  <!-- ======================= D ======================= -->
+  <section class="opt">
+    <div class="opt-h"><h2>D · One button</h2><span class="k">the smallest possible app</span></div>
+    <p class="lead">No tab bar. The app is a big Sleep button with last night's score under it; everything else (nights, trends, settings) is behind two small buttons at the top.</p>
+    <div class="tabs-line">Screens: <b>Home</b> (Sleep) · <b>Nights</b> (list with trends on top) · <b>Settings</b> (from the gear)</div>
+    <div class="row">
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>22:40</span><i>●●● ▮</i></div>
+          <div class="scr" style="display:flex;flex-direction:column;height:790px">
+            <div style="display:flex;justify-content:space-between;margin-top:8px"><span class="ib"><svg width="24" height="24"><use href="#cal"/></svg></span><span class="ib"><svg width="24" height="24"><use href="#gear"/></svg></span></div>
+            <div style="text-align:center;margin-top:60px"><div class="muted">Alarm 06:15 – 06:45 · Bells</div></div>
+            <div style="margin:40px 0"><div class="hugebtn"><div><svg width="40" height="40"><use href="#moonf"/></svg><br>Sleep</div></div></div>
+            <div class="card" style="margin-top:auto;margin-bottom:40px"><div style="display:flex;align-items:center;gap:14px"><svg width="54" height="54" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#272522" stroke-width="9"/><circle cx="50" cy="50" r="42" fill="none" stroke="#30d158" stroke-width="9" stroke-linecap="round" stroke-dasharray="216 264" transform="rotate(-90 50 50)"/><text x="50" y="59" text-anchor="middle" fill="#fff" style="font-size:28px;font-weight:700">82</text></svg><div style="flex:1"><div class="eb">Last night</div><div style="font-size:18px;font-weight:700">7h 02m asleep</div></div><svg width="16" height="16" style="color:var(--label-3)"><use href="#chev"/></svg></div></div>
+          </div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Home</b>Open, press, sleep. Last night is one card; tap it for the full report.</p>
+      </div>
+      <div class="shot">
+        <div class="phone">
+          <div class="sb"><span>12:10</span><i>●●● ▮</i></div>
+          <div class="scr">
+            <div class="back" style="margin:4px 0 8px"><span class="ib" style="transform:scaleX(-1)"><svg width="24" height="24"><use href="#chev"/></svg></span></div>
+            <div class="hdr"><div><h2>Nights</h2></div></div>
+            <div class="hero"><div class="eb">This week</div><div class="big num" style="font-size:40px">76</div><div class="muted">average score · up 4</div></div>
+            <div style="height:12px"></div>
+            <div class="jcard"><div class="jtop"><b>Wed, Oct 21</b><span class="num" style="color:var(--good);font-weight:700">82</span></div><svg style="display:block;width:100%;height:auto" viewBox="0 0 340 52"><use href="#hypA"/></svg></div>
+            <div class="jcard"><div class="jtop"><b>Tue, Oct 20</b><span class="num" style="color:var(--awake);font-weight:700">58</span></div><svg style="display:block;width:100%;height:auto" viewBox="0 0 340 52"><use href="#hypB"/></svg></div>
+            <div class="jcard"><div class="jtop"><b>Mon, Oct 19</b><span class="num" style="color:var(--good);font-weight:700">88</span></div><svg style="display:block;width:100%;height:auto" viewBox="0 0 340 52"><use href="#hypC"/></svg></div>
+          </div>
+          <div class="home-ind"></div>
+        </div>
+        <p class="cap"><b>Nights</b>History and trends together on one scrolling page.</p>
+      </div>
+    </div>
+    <div class="pc">
+      <ul class="pros"><li>Impossible to be overwhelmed</li><li>Fastest path to sleep</li></ul>
+      <ul class="cons"><li>The emptiness you just disliked, on purpose</li><li>Trends and sounds are hidden</li></ul>
+    </div>
+  </section>
+
+  <!-- ======================= compare ======================= -->
+  <div class="cmpwrap">
+    <table class="cmp">
+      <thead><tr><th></th><th class="rec">A · Today</th><th>B · Alarm first</th><th>C · Calendar</th><th>D · One button</th></tr></thead>
+      <tbody>
+        <tr><td>Taps to start the night</td><td class="rec">1, from any tab</td><td>1, on the home tab</td><td>1, from any tab</td><td>1</td></tr>
+        <tr><td>Opening it at bedtime</td><td class="rec">Tonight's plan, then last night and the week</td><td>Only tonight's alarm</td><td>The month, tonight as a slim bar</td><td>Only the Sleep button</td></tr>
+        <tr><td>Opening it in the morning</td><td class="rec">Last night's report</td><td>Last night's report (then the Journal)</td><td>Last night, under the calendar</td><td>Last night as one card</td></tr>
+        <tr><td>How full home feels</td><td class="rec">Full, ordered</td><td>Sparse, focused</td><td>Full, visual</td><td>Nearly empty</td></tr>
+        <tr><td>Where past nights live</td><td class="rec">Journal tab + week on home</td><td>Journal tab</td><td>Home</td><td>Behind a button</td></tr>
+        <tr><td>Recordings</td><td class="rec">On each night</td><td>On each night</td><td>Their own tab</td><td>On each night</td></tr>
+        <tr><td>Closest to</td><td class="rec">myGym</td><td>Sleep Cycle</td><td>a habit tracker</td><td>a bedside clock</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="verdict">
+    <h2>My pick: A, with one thing from C</h2>
+    <p>A answers both of your complaints: home is never empty, yet at bedtime the first thing is tonight and the round Sleep button, so you are never reading your way to bed. It is the structure myGym already has, so it will feel familiar. From C I would borrow the coloured month calendar as the top of the Journal tab, instead of a plain list.</p>
+    <p>B is the honest alternative if you want bedtime to be a single purposeful screen and are happy to go to the Journal for data. C and D each go too far in one direction.</p>
+    <p>Tell me a letter (or "A, but…"), and I will build that, starting from the night and morning screens you already liked.</p>
+  </div>
+</div>
