@@ -1,0 +1,396 @@
+<title>mySleep Drafts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: phone-sized screens in a row (stacked on a phone), myGym's look: warm near-black,
+   flat surfaces, iOS large titles, tinted hero card, raised centre button in the tab bar. */
+:root{
+  --bg:#0b0a09; --bg-el:#131211; --surface:#1b1a18; --surface-2:#272522; --surface-3:#363330;
+  --label:#fff; --label-2:rgba(235,235,245,.6); --label-3:rgba(235,235,245,.32); --label-4:rgba(235,235,245,.14);
+  --sep:rgba(84,84,88,.6);
+  --acc:#8b8cf8; --acc-soft:color-mix(in srgb,var(--acc) 16%,transparent); --acc-line:color-mix(in srgb,var(--acc) 38%,transparent);
+  --good:#30d158; --awake:#ff9f0a; --snore:#40c8e0; --talk:#ffd60a; --red:#ff453a; --pink:#ff375f; --grey:#8e8e93;
+  --page:#050505; --ink:#e9e7f5; --ink-2:rgba(233,231,245,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font:15px/1.4 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.intro{max-width:760px;margin:0 auto 28px}
+.intro h1{font-size:30px;letter-spacing:-.02em;text-wrap:balance}
+.intro p{color:var(--ink-2);margin-top:8px;max-width:64ch}
+.intro ol{color:var(--ink-2);margin:12px 0 0 20px;display:grid;gap:4px;max-width:64ch}
+.row{display:flex;gap:28px;overflow-x:auto;padding:8px 4px 20px;scroll-snap-type:x mandatory}
+.shot{flex:none;scroll-snap-align:center;display:flex;flex-direction:column;gap:12px;width:390px}
+.cap{color:var(--ink-2);font-size:13px;max-width:390px}
+.cap b{color:var(--ink);font-size:14px;display:block;margin-bottom:2px}
+@media (max-width:520px){ .row{flex-direction:column;overflow:visible} .shot{width:100%} .phone{width:100%!important} }
+
+.phone{width:390px;height:844px;border-radius:46px;background:var(--bg);position:relative;overflow:hidden;box-shadow:0 0 0 1px #222,0 30px 60px -20px rgba(0,0,0,.8)}
+.sb{height:47px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 30px 4px 34px;font-size:15px;font-weight:600;color:var(--label)}
+.sb i{font-style:normal;letter-spacing:2px;font-size:12px}
+.scr{padding:4px 16px 0}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin:6px 0 14px}
+.hdr h2{font-size:34px;font-weight:700;letter-spacing:-.028em;line-height:1.06}
+.hdr .sub{color:var(--label-2);margin-top:4px}
+.ib{width:44px;height:44px;border-radius:50%;background:var(--surface);display:grid;place-items:center;flex:none}
+.ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card{background:var(--surface);border-radius:14px;padding:16px;margin-bottom:12px}
+.eb{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--label-2)}
+.muted{color:var(--label-2)} .small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+
+/* myGym's week strip */
+.week{display:flex;justify-content:space-between;margin:0 2px 14px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:5px;width:40px}
+.wd .l{font-size:11px;color:var(--label-3);font-weight:500}
+.wd .n{font-size:16px;width:31px;height:31px;display:grid;place-items:center;border-radius:50%}
+.wd.today .n{background:var(--acc);color:#0b0a09;font-weight:600}
+.wd .d{width:6px;height:6px;border-radius:50%;background:transparent}
+.d.g{background:var(--good)} .d.a{background:var(--acc)} .d.o{background:var(--awake)}
+
+/* tinted hero, like myGym's today card */
+.hero{background:linear-gradient(155deg,var(--acc-soft),transparent 70%),var(--surface);border:.5px solid var(--acc-line);border-radius:18px;padding:18px}
+.hero .big{font-size:48px;font-weight:600;letter-spacing:-.03em;line-height:1;margin:6px 0 4px}
+.pair{display:flex;gap:10px;margin-top:14px}
+.pair>div{flex:1;background:rgba(0,0,0,.25);border-radius:12px;padding:10px 12px}
+.pair b{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em}
+
+.last{display:flex;align-items:center;gap:14px}
+.ring{flex:none}
+.chev{color:var(--label-3);margin-left:auto}
+
+/* tab bar with the raised centre button (myGym's Start) */
+.tabfade{position:absolute;left:0;right:0;bottom:0;height:130px;background:linear-gradient(to bottom,transparent,var(--bg) 75%)}
+.tabbar{position:absolute;left:10px;right:10px;bottom:24px;display:flex;align-items:flex-end;justify-content:space-around;padding:7px 6px 6px;background:var(--surface);border:.5px solid rgba(84,84,88,.34);border-radius:26px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:500;color:var(--label-3)}
+.tab.on{color:var(--acc)}
+.tab.start{margin-top:-26px}
+.tab.start .cir{width:56px;height:56px;border-radius:50%;background:var(--acc);color:#0b0a09;display:grid;place-items:center;box-shadow:0 0 0 3px var(--bg),0 8px 22px -4px color-mix(in srgb,var(--acc) 60%,transparent)}
+.tab.start span{color:var(--acc);font-weight:600}
+.home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:rgba(255,255,255,.85)}
+
+/* night */
+.night{background:#000}
+.night .glow{position:absolute;inset:auto 0 0 0;height:420px;background:radial-gradient(120% 80% at 50% 100%,rgba(90,92,220,.22),transparent 70%)}
+.night .sb{color:rgba(255,255,255,.55)}
+.nt{position:absolute;inset:47px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:28px 28px 56px;text-align:center}
+.listen{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:14px}
+.listen i{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px rgba(48,209,88,.18)}
+.clock{font-size:104px;font-weight:200;letter-spacing:-.05em;line-height:1;color:rgba(255,255,255,.9)}
+.alarmline{font-size:17px;color:rgba(255,255,255,.75);margin-top:12px}
+.until{font-size:14px;color:rgba(255,255,255,.45);margin-top:4px}
+.mood{display:flex;gap:8px;justify-content:center;margin-top:22px}
+.mood span{font-size:12px;padding:5px 10px;border-radius:99px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.55)}
+.hold{width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.06);display:grid;place-items:center;position:relative;color:rgba(255,255,255,.8)}
+.hold svg.r{position:absolute;inset:0}
+.holdl{font-size:14px;color:rgba(255,255,255,.6);margin-top:10px}
+.hint{font-size:12px;color:rgba(255,255,255,.35);margin-top:14px}
+/* dimmed: only these pixels light on OLED */
+.dimclock{font-size:84px;font-weight:200;letter-spacing:-.05em;color:#2a2a44}
+.dimline{font-size:14px;color:#26263a;margin-top:8px}
+
+/* alarm */
+.alarm{background:linear-gradient(180deg,#0b0a09 0%,#1a1020 35%,#5a2a1a 72%,#d9783a 100%)}
+.alarm .nt{justify-content:space-between}
+.alarm .clock{color:#fff;font-weight:200}
+.gm{font-size:24px;font-weight:600;margin-top:8px}
+.early{color:rgba(255,255,255,.75);margin-top:6px}
+.stop{width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.92);color:#1a1020;display:grid;place-items:center;font-size:20px;font-weight:700;box-shadow:0 10px 40px -8px rgba(255,170,90,.7)}
+.snz{font-size:17px;color:rgba(255,255,255,.85);margin-top:22px;font-weight:500}
+
+/* morning */
+.score{display:flex;align-items:center;gap:18px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.facts>div{background:rgba(0,0,0,.25);border-radius:12px;padding:10px}
+.facts b{display:block;font-size:19px;font-weight:600;letter-spacing:-.02em}
+.facts span{font-size:12px;color:var(--label-2)}
+.say{display:grid;gap:7px;margin-top:2px}
+.say p{padding-left:14px;position:relative}
+.say p::before{content:'';position:absolute;left:0;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--acc)}
+svg.chart{display:block;width:100%;height:auto}
+.chart text{fill:var(--label-2);font-size:10px}
+.lrow{display:flex;align-items:center;gap:12px;padding:10px 14px;position:relative}
+.lrow+.lrow::before{content:'';position:absolute;top:0;left:62px;right:0;height:.5px;background:var(--sep)}
+.play{width:36px;height:36px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;flex:none}
+.lrow .t{flex:1}
+.lrow .s{font-size:13px;color:var(--label-2)}
+.list{background:var(--surface);border-radius:14px;overflow:hidden;margin-bottom:12px}
+.st{font-size:13px;color:var(--label-2);padding:0 4px 7px}
+.fix{text-align:center;color:var(--acc);font-size:15px;margin:6px 0 120px}
+
+/* trends */
+.seg{display:flex;background:var(--surface-3);border-radius:9px;padding:2px;margin-bottom:14px}
+.seg span{flex:1;text-align:center;padding:6px;border-radius:7px;font-size:13px;font-weight:500;color:var(--label-2)}
+.seg span.on{background:var(--surface);color:var(--label)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.kpis div{background:rgba(0,0,0,.25);border-radius:12px;padding:10px 12px}
+.kpis b{display:block;font-size:22px;font-weight:600;letter-spacing:-.02em}
+.kpis span{font-size:12px;color:var(--label-2)}
+
+/* settings */
+.sect{margin-bottom:22px}
+.srow{display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:46px;position:relative}
+.srow+.srow::before{content:'';position:absolute;top:0;left:55px;right:0;height:.5px;background:var(--sep)}
+.tile{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:none}
+.srow .m{flex:1;font-size:17px}
+.srow .m small{display:block;font-size:13px;color:var(--label-2)}
+.val{color:var(--label-2);font-size:17px}
+.sw{width:51px;height:31px;border-radius:99px;background:var(--good);position:relative;flex:none}
+.sw::after{content:'';position:absolute;top:2px;right:2px;width:27px;height:27px;border-radius:50%;background:#fff}
+.time{color:var(--acc);background:var(--surface-2);border-radius:8px;padding:5px 9px;font-size:17px}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="moon" viewBox="0 0 24 24"><path class="ic" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="moonf" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="currentColor"/></symbol>
+  <symbol id="list" viewBox="0 0 24 24"><path class="ic" d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="chart" viewBox="0 0 24 24"><path class="ic" d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="gear" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="3"/><path class="ic" d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="home" viewBox="0 0 24 24"><path class="ic" d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/></symbol>
+  <symbol id="sun" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="4"/><path class="ic" d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path class="ic" d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5Z" fill="currentColor"/></symbol>
+  <symbol id="alarm" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="13" r="7.5"/><path class="ic" d="M12 9v4l2.5 2M4.5 4.5 7 2.5M19.5 4.5 17 2.5"/></symbol>
+  <symbol id="spark" viewBox="0 0 24 24"><path class="ic" d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9Z"/></symbol>
+  <symbol id="music" viewBox="0 0 24 24"><path class="ic" d="M9 18V6l10-2v12"/><circle class="ic" cx="6.5" cy="18" r="2.5"/><circle class="ic" cx="16.5" cy="16" r="2.5"/></symbol>
+  <symbol id="bell" viewBox="0 0 24 24"><path class="ic" d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15ZM10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="mic" viewBox="0 0 24 24"><rect class="ic" x="9" y="3" width="6" height="11" rx="3"/><path class="ic" d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>mySleep, second draft</h1>
+    <p>Built around one job: open it, tap Sleep, put the phone down. In the morning there is only your night, nothing to fill in. The look is myGym's: the week strip, a tinted hero card, the raised round button in the tab bar. Example data throughout.</p>
+    <ol>
+      <li>Is the night screen now visible enough, or should the clock stay on all night (screen 3)?</li>
+      <li>Alarm ringing on a sunrise colour with one big Stop: right mood?</li>
+      <li>Anything on the morning screen you would not miss?</li>
+    </ol>
+  </div>
+
+  <div class="row">
+
+    <!-- 1 Tonight -->
+    <div class="shot">
+      <div class="phone">
+        <div class="sb"><span>21:20</span><i>●●● ▮</i></div>
+        <div class="scr">
+          <div class="hdr"><div><h2>Tonight</h2><div class="sub">Wednesday 21 October</div></div></div>
+          <div class="week">
+            <div class="wd"><span class="l">Mon</span><span class="n">19</span><span class="d g"></span></div>
+            <div class="wd"><span class="l">Tue</span><span class="n">20</span><span class="d a"></span></div>
+            <div class="wd today"><span class="l">Wed</span><span class="n">21</span><span class="d"></span></div>
+            <div class="wd"><span class="l">Thu</span><span class="n">22</span><span class="d"></span></div>
+            <div class="wd"><span class="l">Fri</span><span class="n">23</span><span class="d"></span></div>
+            <div class="wd"><span class="l">Sat</span><span class="n">24</span><span class="d"></span></div>
+            <div class="wd"><span class="l">Sun</span><span class="n">25</span><span class="d"></span></div>
+          </div>
+          <div class="hero">
+            <div class="eb">Bedtime</div>
+            <div class="big num">23:00</div>
+            <div class="muted">Lights out in 1h 40m</div>
+            <div class="pair">
+              <div><span class="small muted">Alarm</span><b class="num">06:15–06:45</b></div>
+              <div><span class="small muted">If you sleep now</span><b class="num">8h 55m</b></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="last">
+              <svg class="ring" width="62" height="62" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#272522" stroke-width="9"/><circle cx="50" cy="50" r="42" fill="none" stroke="#30d158" stroke-width="9" stroke-linecap="round" stroke-dasharray="216 264" transform="rotate(-90 50 50)"/><text x="50" y="59" text-anchor="middle" fill="#fff" style="font-size:28px;font-weight:700">82</text></svg>
+              <div><div class="eb">Last night</div><div style="font-size:19px;font-weight:700;letter-spacing:-.02em">7h 02m asleep</div><div class="small muted">Woke twice · snored 18 min</div></div>
+              <svg class="chev" width="16" height="16"><use href="#chev"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="tabfade"></div>
+        <div class="tabbar">
+          <div class="tab on"><svg width="25" height="25"><use href="#home"/></svg>Tonight</div>
+          <div class="tab"><svg width="25" height="25"><use href="#list"/></svg>Nights</div>
+          <div class="tab start"><span class="cir"><svg width="28" height="28"><use href="#moonf"/></svg></span><span>Sleep</span></div>
+          <div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Trends</div>
+          <div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div>
+        </div>
+        <div class="home-ind"></div>
+      </div>
+      <p class="cap"><b>1 · Tonight</b>Bedtime and alarm in one tinted card, last night in one line. Sleep is the round button in the middle of the tab bar, the way Start is in myGym: one tap from any screen.</p>
+    </div>
+
+    <!-- 2 Night, lit -->
+    <div class="shot">
+      <div class="phone night">
+        <div class="glow"></div>
+        <div class="sb"><span>22:58</span><i>●●● ▮</i></div>
+        <div class="nt">
+          <div class="listen"><i></i>Listening · 3 min</div>
+          <div>
+            <div class="clock num">22:58</div>
+            <div class="alarmline">Alarm 06:15 – 06:45</div>
+            <div class="until">Up to 7h 47m of sleep</div>
+            <div class="mood"><span>Quiet so far</span><span>Phone on charger ✓</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div class="hold">
+              <svg class="r" viewBox="0 0 96 96"><circle cx="48" cy="48" r="45" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3"/><circle cx="48" cy="48" r="45" fill="none" stroke="#8b8cf8" stroke-width="3" stroke-dasharray="100 283" stroke-linecap="round" transform="rotate(-90 48 48)"/></svg>
+              <svg width="32" height="32"><use href="#sun"/></svg>
+            </div>
+            <div class="holdl">Hold to wake up</div>
+            <div class="hint">Dims in 30 s · tap anywhere to light up</div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>2 · Going to sleep</b>Clearly on: a full-size clock, the alarm window, how long you can sleep, a calm glow. The ring shows a hold in progress; a tap never ends the night.</p>
+    </div>
+
+    <!-- 3 Night, dimmed -->
+    <div class="shot">
+      <div class="phone night">
+        <div class="sb" style="color:#333"><span>03:12</span><i>●●● ▮</i></div>
+        <div class="nt" style="justify-content:center">
+          <div>
+            <div class="dimclock num">03:12</div>
+            <div class="dimline">06:15 – 06:45</div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>3 · All night</b>After 30 s only a very dim clock stays, the rest is pure black, so the OLED screen is off apart from these digits. The clock drifts a few pixels each minute against burn-in. Or fully black, as now: your choice.</p>
+    </div>
+
+    <!-- 4 Alarm -->
+    <div class="shot">
+      <div class="phone alarm">
+        <div class="sb"><span>06:31</span><i>●●● ▮</i></div>
+        <div class="nt">
+          <div class="listen" style="background:rgba(255,255,255,.1);color:#fff">Smart alarm · Bells</div>
+          <div>
+            <div class="clock num">06:31</div>
+            <div class="gm">Good morning</div>
+            <div class="early">You were stirring, so it rang 14 min early</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center">
+            <div class="stop">Stop</div>
+            <div class="snz">Snooze 9 min</div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>4 · Alarm</b>A sunrise instead of a wall of text. One big Stop, Snooze underneath. The sound is a real recording (music box, kalimba, piano, birds), getting louder over a minute.</p>
+    </div>
+
+    <!-- 5 Morning -->
+    <div class="shot">
+      <div class="phone" style="overflow:hidden">
+        <div class="sb"><span>06:32</span><i>●●● ▮</i></div>
+        <div class="scr">
+          <div class="hdr"><div><h2>Good morning</h2><div class="sub">Tue, Oct 20 · 23:12 – 06:31</div></div></div>
+          <div class="hero">
+            <div class="score">
+              <svg width="92" height="92" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="8"/><circle cx="50" cy="50" r="42" fill="none" stroke="#30d158" stroke-width="8" stroke-linecap="round" stroke-dasharray="216 264" transform="rotate(-90 50 50)"/><text x="50" y="59" text-anchor="middle" fill="#fff" style="font-size:28px;font-weight:700">82</text></svg>
+              <div><div class="eb">Sleep score</div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">A good night</div><div class="small muted">Better than your week (76)</div></div>
+            </div>
+            <div class="facts">
+              <div><b class="num">7h 02m</b><span>asleep</span></div>
+              <div><b class="num">19 min</b><span>to fall asleep</span></div>
+              <div><b class="num">2h 05m</b><span>restful</span></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="say">
+              <p>You woke twice, at 01:42 and 04:17.</p>
+              <p>You snored for 18 min, mostly between 02:00 and 03:00.</p>
+              <p>You talked in your sleep once, at 03:10.</p>
+            </div>
+          </div>
+          <div class="card">
+            <svg class="chart" viewBox="0 0 340 92">
+              <text x="0" y="14">Awake</text><text x="0" y="36">Light</text><text x="0" y="58">Restful</text>
+              <rect x="44" y="4" width="12" height="14" rx="2" fill="#ff9f0a"/><rect x="56" y="26" width="40" height="14" rx="2" fill="#5d5ea8"/><rect x="96" y="48" width="58" height="14" rx="2" fill="#8b8cf8"/><rect x="154" y="4" width="5" height="14" rx="2" fill="#ff9f0a"/><rect x="159" y="26" width="34" height="14" rx="2" fill="#5d5ea8"/><rect x="193" y="48" width="44" height="14" rx="2" fill="#8b8cf8"/><rect x="237" y="4" width="6" height="14" rx="2" fill="#ff9f0a"/><rect x="243" y="26" width="60" height="14" rx="2" fill="#5d5ea8"/><rect x="303" y="48" width="22" height="14" rx="2" fill="#8b8cf8"/><rect x="325" y="4" width="15" height="14" rx="2" fill="#ff9f0a"/>
+              <rect x="150" y="70" width="34" height="8" rx="2" fill="#40c8e0"/><rect x="226" y="68" width="3" height="12" fill="#ffd60a"/>
+              <text x="44" y="91">23:12</text><text x="340" y="91" text-anchor="end">06:31</text>
+            </svg>
+          </div>
+          <div class="st">Sounds</div>
+          <div class="list">
+            <div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Snoring<div class="s num">02:10 · 18 min</div></div></div>
+            <div class="lrow"><span class="play"><svg width="14" height="14"><use href="#play"/></svg></span><div class="t">Talking<div class="s num">03:10 · 6 s</div></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>5 · Morning</b>Opens by itself after Stop. Only data: the score with what it means, three numbers, three sentences, the night as a picture, the sounds to play. Nothing to rate or tag; "correct the times" lives on the night's page, out of the way.</p>
+    </div>
+
+    <!-- 6 Trends -->
+    <div class="shot">
+      <div class="phone">
+        <div class="sb"><span>12:04</span><i>●●● ▮</i></div>
+        <div class="scr">
+          <div class="hdr"><div><h2>Trends</h2></div></div>
+          <div class="seg"><span class="on">Week</span><span>Month</span><span>Year</span></div>
+          <div class="hero">
+            <div class="eb">This week</div>
+            <div class="big num" style="font-size:44px">76</div>
+            <div class="muted">Average sleep score · up 4 on last week</div>
+            <div class="kpis">
+              <div><b class="num">7h 09m</b><span>asleep a night</span></div>
+              <div><b class="num">2h 26m</b><span>short of 8 h, in all</span></div>
+              <div><b class="num">23:13</b><span>asleep ± 13 min</span></div>
+              <div><b class="num">06:42</b><span>awake ± 19 min</span></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="eb" style="margin-bottom:10px">Score per night</div>
+            <svg class="chart" viewBox="0 0 340 120">
+              <line x1="20" x2="340" y1="100" y2="100" stroke="rgba(235,235,245,.14)"/><text x="0" y="104">0</text><text x="0" y="14">100</text>
+              <g fill="#8b8cf8"><rect x="30" y="34" width="30" height="66" rx="4"/><rect x="76" y="22" width="30" height="78" rx="4" fill="#30d158"/><rect x="122" y="44" width="30" height="56" rx="4"/><rect x="168" y="60" width="30" height="40" rx="4" fill="#ff9f0a"/><rect x="214" y="30" width="30" height="70" rx="4"/><rect x="260" y="26" width="30" height="74" rx="4"/><rect x="306" y="18" width="30" height="82" rx="4" fill="#30d158"/></g>
+              <g class="small"><text x="45" y="116" text-anchor="middle">T</text><text x="91" y="116" text-anchor="middle">F</text><text x="137" y="116" text-anchor="middle">S</text><text x="183" y="116" text-anchor="middle">S</text><text x="229" y="116" text-anchor="middle">M</text><text x="275" y="116" text-anchor="middle">T</text><text x="321" y="116" text-anchor="middle">W</text></g>
+            </svg>
+          </div>
+        </div>
+        <div class="tabfade"></div>
+        <div class="tabbar">
+          <div class="tab"><svg width="25" height="25"><use href="#home"/></svg>Tonight</div>
+          <div class="tab"><svg width="25" height="25"><use href="#list"/></svg>Nights</div>
+          <div class="tab start"><span class="cir"><svg width="28" height="28"><use href="#moonf"/></svg></span><span>Sleep</span></div>
+          <div class="tab on"><svg width="25" height="25"><use href="#chart"/></svg>Trends</div>
+          <div class="tab"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div>
+        </div>
+        <div class="home-ind"></div>
+      </div>
+      <p class="cap"><b>6 · Trends</b>myGym's stats hero: one number for the week, four that explain it, then the nights as bars coloured by score.</p>
+    </div>
+
+    <!-- 7 Settings -->
+    <div class="shot">
+      <div class="phone">
+        <div class="sb"><span>12:05</span><i>●●● ▮</i></div>
+        <div class="scr">
+          <div class="hdr"><div><h2>Settings</h2></div></div>
+          <div class="st">Alarm</div>
+          <div class="list sect">
+            <div class="srow"><span class="tile" style="background:var(--awake)"><svg width="18" height="18"><use href="#alarm"/></svg></span><span class="m">Wake up</span><span class="time num">06:45</span></div>
+            <div class="srow"><span class="tile" style="background:var(--acc)"><svg width="18" height="18"><use href="#spark"/></svg></span><span class="m">Smart alarm<small>Up to 30 min earlier, when you stir</small></span><span class="sw"></span></div>
+            <div class="srow"><span class="tile" style="background:var(--pink)"><svg width="18" height="18"><use href="#music"/></svg></span><span class="m">Sound</span><span class="val">Bells</span><svg width="15" height="15" style="color:var(--label-3)"><use href="#chev"/></svg></div>
+          </div>
+          <div class="st">Bedtime</div>
+          <div class="list sect">
+            <div class="srow"><span class="tile" style="background:var(--acc)"><svg width="18" height="18"><use href="#moon"/></svg></span><span class="m">Go to bed</span><span class="time num">23:00</span></div>
+            <div class="srow"><span class="tile" style="background:var(--red)"><svg width="18" height="18"><use href="#bell"/></svg></span><span class="m">Reminder<small>30 min before</small></span><span class="sw"></span></div>
+          </div>
+          <div class="st">Night</div>
+          <div class="list sect">
+            <div class="srow"><span class="tile" style="background:var(--snore)"><svg width="18" height="18"><use href="#mic"/></svg></span><span class="m">Keep recordings<small>Snoring, talking, coughing · 7 days</small></span><span class="sw"></span></div>
+          </div>
+        </div>
+        <div class="tabfade"></div>
+        <div class="tabbar">
+          <div class="tab"><svg width="25" height="25"><use href="#home"/></svg>Tonight</div>
+          <div class="tab"><svg width="25" height="25"><use href="#list"/></svg>Nights</div>
+          <div class="tab start"><span class="cir"><svg width="28" height="28"><use href="#moonf"/></svg></span><span>Sleep</span></div>
+          <div class="tab"><svg width="25" height="25"><use href="#chart"/></svg>Trends</div>
+          <div class="tab on"><svg width="25" height="25"><use href="#gear"/></svg>Settings</div>
+        </div>
+        <div class="home-ind"></div>
+      </div>
+      <p class="cap"><b>7 · Settings</b>What is built now, in the new tab bar: seven rows, each something you would actually change.</p>
+    </div>
+
+  </div>
+</div>
