@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useStore, nightList } from '../store.js'
 import { Icon } from '../components/Icon.jsx'
+import { ServerStatus } from '../components/ServerStatus.jsx'
 import { Timeline, ScoreRing, scoreColor } from '../components/Charts.jsx'
 import { NightReport, Insights } from '../components/Report.jsx'
 import { sleepScore } from '../lib/score.js'
@@ -52,7 +53,7 @@ export function Today() {
   const avg = thisWeek.length ? Math.round(thisWeek.reduce((t, n) => t + sleepScore(n, settings).score, 0) / thisWeek.length) : null
 
   return <>
-    <header className="hdr"><div><h1>{morning ? 'Good morning' : 'Today'}</h1><div className="sub">{todayLabel()}</div></div></header>
+    <header className="hdr"><div><h1>{morning ? 'Good morning' : 'Today'}</h1><div className="sub">{todayLabel()}</div></div><ServerStatus /></header>
 
     {morning ? <>
       <Link to={'/night/' + last.id} className="plain"><NightReport n={last} label="Last night" /></Link>

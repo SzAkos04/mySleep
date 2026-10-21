@@ -23,7 +23,10 @@ export function App() {
   useEffect(() => {
     api('/api/me')
       .then(r => { useStore.getState().setUser(r.user); syncNow() })
-      .catch(e => { if (e.status === 401) { useStore.getState().setUser(null); setSignup(!!e.data?.signup) } })   // offline: keep the cached user
+      .catch(e => {
+        if (e.status === 401) { useStore.getState().setUser(null); setSignup(!!e.data?.signup) }
+        else syncNow()   // offline: keep the cached user, and let the server check in the corner say so
+      })
   }, [])
 
   if (!user && !tracking) return <div id="app"><Login signup={signup} /></div>

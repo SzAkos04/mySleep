@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { api } from './lib/api.js'
 import { pendingChanges, mergeRemote, stillDirty } from './lib/sync.js'
+import { useUI } from './ui.js'
 
 export const defaultSettings = () => ({
   bedtime: '23:00', wake: '06:45',
@@ -19,6 +20,7 @@ export const useStore = create(persist((set, get) => ({
   settings: defaultSettings(),
   rev: 0,
   dirty: {},
+  lastSynced: null,
   tracking: null,
 
   // `owner` is whose nights these are. Another profile signing in on this device starts clean;
@@ -37,7 +39,9 @@ export const useStore = create(persist((set, get) => ({
 // Newest first, without deleted ones.
 export const nightList = nights => Object.values(nights).filter(n => !n.deleted).sort((a, b) => b.id.localeCompare(a.id))
 
-/* ---------- sync: debounced after each change, and whenever the app comes back ---------- */
+/* ---------- sync: debounced after each change, whenever the app comes back, and once a minute
+   while it is open (so the server check in the corner stays current). The connection state lives
+   in the UI store, not here: it must not survive a reload. ---------- */
 let timer = null, running = false, again = false
 function schedule(ms = 800) { clearTimeout(timer); timer = setTimeout(syncNow, ms) }
 
@@ -45,17 +49,25 @@ export async function syncNow() {
   if (!useStore.getState().user) return
   if (running) { again = true; return }
   running = true
+  useUI.setState({ syncBusy: true })
   try {
     const s = useStore.getState()
     const changes = pendingChanges(s)
     const r = await api('/api/sync', { since: s.rev, changes })
-    useStore.setState(cur => ({ ...mergeRemote(cur, r.changes), rev: r.rev, dirty: stillDirty(cur, changes) }))
+    useStore.setState(cur => ({ ...mergeRemote(cur, r.changes), rev: r.rev, dirty: stillDirty(cur, changes), lastSynced: Date.now() }))
+    useUI.setState({ syncError: null })
   } catch (e) {
+    // no status: the request never got an answer (offline, Tailscale down); 502-504: nginx is up
+    // but the API behind it is not. Both are "not reachable"; anything else is the API saying no.
+    const down = !e.status || (e.status >= 502 && e.status <= 504)
+    useUI.setState({ syncError: e.status === 401 ? 'auth' : down ? 'offline' : 'server' })
     if (e.status === 401) useStore.setState({ user: null })
-    else schedule(30000)   // offline: try again later, the edits stay dirty
+    else schedule(30000)   // try again later, the edits stay dirty
   } finally {
     running = false
+    useUI.setState({ syncBusy: false })
     if (again) { again = false; schedule(0) }
   }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow() })
+setInterval(() => { if (document.visibilityState === 'visible' && !useStore.getState().tracking) syncNow() }, 60000)

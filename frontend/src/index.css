@@ -125,6 +125,26 @@ textarea { width:100%; background:var(--surface); border:0; border-radius:var(--
 .srow.danger .srow-t { color:var(--red) }
 .srow input[type=time] { font-size:17px; color:var(--acc); background:var(--surface-2); border:0; border-radius:8px; padding:5px 8px; font-variant-numeric:tabular-nums }
 h2.sect-t { font-weight:400 }
+/* the server check in Today's corner (components/ServerStatus.jsx), myGym's cloud */
+.cloud { position:relative; color:var(--label); --st:var(--good) }
+.cloud.sync { color:var(--acc) } .cloud.sync svg:first-child { animation:turn 1s linear infinite }
+.cloud.wait { --st:var(--awake) }
+.cloud.off { --st:var(--grey); color:var(--grey) }
+.cloud.bad { --st:var(--red); color:var(--red) }
+@keyframes turn { to { transform:rotate(360deg) } }
+.iconbtn .cloud-b { position:absolute; right:1px; bottom:1px; width:15px; height:15px; border-radius:50%; background:var(--st); box-shadow:0 0 0 2px var(--bg);
+  fill:none; stroke:#000; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round }
+.pop-bg { position:fixed; inset:0; z-index:60 }
+.pop { position:fixed; z-index:61; width:min(290px,calc(100vw - 24px)); padding:14px; border-radius:18px; background:var(--surface-2); border:.5px solid var(--sep);
+  box-shadow:0 18px 40px rgba(0,0,0,.45); animation:popin 180ms var(--ease) both; transform-origin:top right; --st:var(--good) }
+.pop.sync { --st:var(--acc) } .pop.wait { --st:var(--awake) } .pop.off { --st:var(--grey) } .pop.bad { --st:var(--red) }
+@keyframes popin { from { opacity:0; transform:scale(.94) translateY(-4px) } }
+.pop-h { display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px }
+.pop-h::before { content:''; width:9px; height:9px; border-radius:50%; background:var(--st); flex:none }
+.pop-host { font-size:12.5px; color:var(--label-2); margin:2px 0 0 17px; overflow-wrap:anywhere }
+.pop dl { display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:13px; margin:12px 0 }
+.pop dt { color:var(--label-3) } .pop dd { text-align:right; font-variant-numeric:tabular-nums }
+.pop-note { font-size:12.5px; color:var(--label-2); margin:0 0 12px }
 .score-card { display:flex; align-items:center; gap:16px; width:100% }
 .insights { list-style:none; display:grid; gap:8px; margin-top:8px; font-size:15px; line-height:1.4 }
 .insights li { padding-left:14px; position:relative }

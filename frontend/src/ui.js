@@ -4,6 +4,8 @@ import { create } from 'zustand'
 export const useUI = create(set => ({
   sheet: null,        // { type: 'review', night } (correcting a night's times), plus a key per opening
   toast: null,
+  syncBusy: false,
+  syncError: null,   // null | 'offline' | 'server' | 'auth'
   openSheet: sheet => set({ sheet: { ...sheet, key: Date.now() } }),
   closeSheet: () => set({ sheet: null }),
   say: (text, ms = 1800) => { set({ toast: text }); setTimeout(() => set(s => s.toast === text ? { toast: null } : s), ms) }
