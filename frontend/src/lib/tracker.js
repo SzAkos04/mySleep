@@ -9,7 +9,6 @@
 //   switches the audio session to playback, which also ignores the silent switch.
 import { events, slice } from './analysis.js'
 import { encodeWav } from './wav.js'
-import { playSound } from './sounds.js'
 // its own file, not a data: URL, which Safari may refuse for a worklet
 import ringWorklet from './ring-worklet.js?url&no-inline'
 
@@ -123,6 +122,7 @@ export async function start({ resume = false } = {}) {
   acc = fresh(); lastDb = null
   await openMic()
   await lockScreen()
+  loadAlarm()
   clearInterval(poll)
   poll = setInterval(read, POLL_MS)
   document.addEventListener('visibilitychange', onVisible)
@@ -168,23 +168,50 @@ export async function collectClips() {
 }
 
 /* ---------- alarm ---------- */
-let ringing = null
+// The alarm is a recording: "Soft Piano Loop" by Ncone (freesound.org #710546, CC0), mono 32 kHz,
+// normalised to -1 dBFS (public/alarm-piano.wav). Loaded when the night starts, so ringing
+// needs no network at 6 am. It starts almost silent and keeps getting louder until it is
+// very loud; a limiter lets it pass full scale without clipping.
+const QUIET_TO_FULL = 90       // seconds from almost nothing to the recording's full level
+const FULL_TO_LOUD = 60        // then this long to about +9 dB, held in by the limiter
+let ringing = null, alarmBuffer = null
 
-export async function ring(sound = 'chime', riseSec = 60) {
+async function loadAlarm() {
+  if (alarmBuffer) return
+  try { alarmBuffer = await ctx.decodeAudioData(await (await fetch('alarm-piano.wav')).arrayBuffer()) }
+  catch { alarmBuffer = null }   // offline at bedtime: the fallback tone below rings instead
+}
+
+export async function ring() {
   closeMic()
   if (navigator.audioSession) navigator.audioSession.type = 'playback'
   await ctx.resume().catch(() => {})
-  const master = ctx.createGain()
-  master.gain.setValueAtTime(0.05, ctx.currentTime)
-  master.gain.linearRampToValueAtTime(1, ctx.currentTime + riseSec)   // gets louder
-  master.connect(ctx.destination)
-  ringing = { master, stop: playSound(ctx, master, sound) }
+  const t = ctx.currentTime, gain = ctx.createGain(), limit = ctx.createDynamicsCompressor()
+  limit.threshold.value = -3; limit.knee.value = 0; limit.ratio.value = 20; limit.attack.value = 0.003; limit.release.value = 0.25
+  gain.gain.setValueAtTime(0.002, t)
+  gain.gain.exponentialRampToValueAtTime(1, t + QUIET_TO_FULL)
+  gain.gain.linearRampToValueAtTime(2.8, t + QUIET_TO_FULL + FULL_TO_LOUD)
+  // the limiter reacts a few ms late and let peaks reach +1.7 dBFS when measured; -2.2 dB keeps them near -0.5 dBFS
+  const trim = ctx.createGain(); trim.gain.value = 0.78
+  gain.connect(limit).connect(trim).connect(ctx.destination)
+  let src
+  if (alarmBuffer) {
+    src = ctx.createBufferSource()
+    src.buffer = alarmBuffer
+    src.loop = true
+  } else {
+    src = ctx.createOscillator()   // the recording did not load
+    src.frequency.value = 660
+  }
+  src.connect(gain)
+  src.start()
+  ringing = { src, gain }
 }
 
 export function silence() {
   if (!ringing) return
-  ringing.stop()
-  ringing.master.disconnect()
+  try { ringing.src.stop() } catch {}
+  ringing.gain.disconnect()
   ringing = null
 }
 
@@ -192,18 +219,4 @@ export function silence() {
 export async function snooze() {
   silence()
   try { await openMic() } catch {}
-}
-
-// Settings: a few seconds of a sound, from a tap.
-let preview = null
-export async function previewSound(id) {
-  preview?.()
-  const c = ctx || (ctx = new AudioContext())
-  if (navigator.audioSession && !micLive()) navigator.audioSession.type = 'playback'
-  await c.resume()
-  const g = c.createGain(); g.gain.value = 0.7; g.connect(c.destination)
-  const stopSound = playSound(c, g, id)
-  const done = () => { clearTimeout(t); stopSound(); g.disconnect(); preview = null }
-  const t = setTimeout(done, 5000)
-  preview = done
 }

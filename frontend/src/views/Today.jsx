@@ -5,7 +5,6 @@ import { Timeline, ScoreRing, scoreColor } from '../components/Charts.jsx'
 import { NightReport, Insights } from '../components/Report.jsx'
 import { sleepScore } from '../lib/score.js'
 import { summary, noonToClock } from '../lib/stats.js'
-import { SOUNDS } from '../lib/sounds.js'
 import { alarmPlan } from './Tracking.jsx'
 import { clockOf, dur, nextAt, todayLabel } from '../lib/time.js'
 
@@ -30,7 +29,6 @@ function Week({ byId, settings }) {
 function TonightCard({ settings, compact }) {
   const plan = alarmPlan(settings)
   const toBed = (nextAt(settings.bedtime) - Date.now()) / 60000
-  const sound = (SOUNDS.find(o => o.id === settings.alarmSound) || SOUNDS[0]).name
   const alarm = plan ? (settings.smart ? `${clockOf(plan.from)}–${clockOf(plan.at)}` : clockOf(plan.at)) : 'Off'
   if (compact) return <Link to="/settings" className="card line-card"><span className="muted">Tonight</span><span className="num">{settings.bedtime} · alarm {alarm}</span></Link>
   return <div className="hero">
@@ -38,7 +36,7 @@ function TonightCard({ settings, compact }) {
     <div className="hero-row"><span className="big num">{settings.bedtime}</span>{toBed < 12 * 60 && <span className="muted">in {dur(toBed)}</span>}</div>
     <div className="pair">
       <div><span className="small muted">Alarm{plan && settings.smart ? ' · smart' : ''}</span><b className="num">{alarm}</b></div>
-      <div><span className="small muted">Sound</span><b>{plan ? sound : '–'}</b></div>
+      <div><span className="small muted">If you sleep now</span><b className="num">{plan ? dur((plan.at - Date.now()) / 60000) : '–'}</b></div>
     </div>
   </div>
 }

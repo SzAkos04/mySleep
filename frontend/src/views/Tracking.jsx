@@ -4,7 +4,6 @@ import { useStore } from '../store.js'
 import { Icon } from '../components/Icon.jsx'
 import * as tracker from '../lib/tracker.js'
 import { summarize, stirring, events } from '../lib/analysis.js'
-import { SOUNDS } from '../lib/sounds.js'
 import { armBackup, uploadClips } from '../lib/api.js'
 import { clockOf, dur, nextAt, nightIdOf } from '../lib/time.js'
 
@@ -132,7 +131,7 @@ export function Tracking() {
 
   async function wake(n) {
     setRinging({ at: n, early: Math.max(0, Math.round((tr.ringAt - n) / 60000)) })
-    await tracker.ring(useStore.getState().settings.alarmSound || 'chime', 60)
+    await tracker.ring()
   }
 
   async function snooze() {
@@ -174,10 +173,9 @@ export function Tracking() {
     catch { setLive(false) }
   }
 
-  const sound = (SOUNDS.find(o => o.id === useStore.getState().settings.alarmSound) || SOUNDS[0]).name
   if (ringing) return <div className="night alarm" role="alertdialog" aria-label="Alarm">
     <div className="night-ui">
-      <div className="pill">{tr.smart ? 'Smart alarm' : 'Alarm'} · {sound}</div>
+      <div className="pill">{tr.smart ? 'Smart alarm' : 'Alarm'}</div>
       <div>
         <div className="night-clock num">{clockOf(ringing.at)}</div>
         <div className="gm">Good morning</div>
