@@ -16,7 +16,7 @@ export function History() {
       {nights.slice(0, shown).map(n => <Link key={n.id} to={'/night/' + n.id} className="row" style={{ color: 'inherit', textDecoration: 'none' }}>
         <div className="t">
           <div>{dayLabel(n.id)}</div>
-          <div className="s num">{clockOf(n.bed)} – {clockOf(n.wake)}{n.snoreMin ? ` · snoring ${n.snoreMin}m` : ''}{n.tags?.length ? ' · ' + n.tags.join(', ') : ''}</div>
+          <div className="s num">{clockOf(n.bed)} – {clockOf(n.wake)}{n.snoreMin ? ` · snoring ${n.snoreMin}m` : ''}</div>
         </div>
         <div className="r"><div>{dur(n.asleepMin || 0)}</div><div className="s">Score {sleepScore(n, settings).score}</div></div>
         <Icon name="chev" className="chev" />

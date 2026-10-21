@@ -3,6 +3,10 @@
 import { fromNoon } from './stats.js'
 import { clockOf, dur } from './time.js'
 
+// What a night is scored against: the middle of the 7–9 h adults need (AASM, 2015). Not a
+// setting: nobody knows their own number, and the score should not depend on a guess.
+export const NEED = 480
+
 const clamp = v => Math.max(0, Math.min(1, v))
 const lerp = (v, zero, full) => clamp((v - zero) / (full - zero))
 const toNoon = hhmm => { const [h, m] = hhmm.split(':').map(Number); return (h * 60 + m + 720) % 1440 }
@@ -12,7 +16,7 @@ export function sleepScore(n, settings) {
   // without sleep there is nothing to be continuous, quick or on time about
   const slept = (n.asleepMin || 0) > 0
   const parts = [
-    { label: 'Duration', max: 35, pts: 35 * clamp((n.asleepMin || 0) / settings.need), note: `${dur(n.asleepMin || 0)} of ${dur(settings.need)}` },
+    { label: 'Duration', max: 35, pts: 35 * clamp((n.asleepMin || 0) / NEED), note: `${dur(n.asleepMin || 0)} of ${dur(NEED)}` },
     inBed > 0 && { label: 'Efficiency', max: 20, pts: 20 * lerp((n.asleepMin || 0) / inBed, 0.6, 0.9), note: `${Math.round((n.asleepMin || 0) / inBed * 100)}% of time in bed asleep` },
     slept && { label: 'Continuity', max: 15, pts: 15 * lerp(n.awakeMin || 0, 40, 0), note: n.wakes ? `${n.wakes} wake-up${n.wakes > 1 ? 's' : ''}, ${Math.round(n.awakeMin || 0)} min awake` : 'Slept through' },
     slept && latency != null && { label: 'Falling asleep', max: 10, pts: 10 * lerp(latency, 60, 15), note: `${Math.round(latency)} min` },

@@ -1,11 +1,11 @@
 import { it, expect } from 'vitest'
 import { sleepScore, insights } from './score.js'
 
-const settings = { need: 450, bedtime: '23:00' }
+const settings = { bedtime: '23:00' }
 const at = (d, h, m) => new Date(2026, 9, d, h, m).getTime()
 
 it('gives a full night full marks and scales a short, broken one down', () => {
-  const good = { bed: at(20, 22, 50), on: at(20, 23, 0), wake: at(21, 6, 45), asleepMin: 465, awakeMin: 0, wakes: 0, restfulMin: 170, timeline: { states: '' } }
+  const good = { bed: at(20, 22, 50), on: at(20, 23, 0), wake: at(21, 7, 15), asleepMin: 490, awakeMin: 0, wakes: 0, restfulMin: 170, timeline: { states: '' } }
   expect(sleepScore(good, settings).score).toBe(100)
 
   const bad = { bed: at(20, 23, 0), on: at(21, 0, 30), wake: at(21, 5, 30), asleepMin: 240, awakeMin: 40, wakes: 3, restfulMin: 0, timeline: { states: '' } }
@@ -21,7 +21,7 @@ it('gives a night without sleep nothing for continuity, falling asleep or routin
 })
 
 it('scores a night typed in by hand on the parts it has', () => {
-  const manual = { bed: at(20, 23, 0), on: at(20, 23, 0), wake: at(21, 6, 30), asleepMin: 450 }
+  const manual = { bed: at(20, 23, 0), on: at(20, 23, 0), wake: at(21, 7, 0), asleepMin: 480 }
   const s = sleepScore(manual, settings)
   expect(s.parts.map(p => p.label)).not.toContain('Restfulness')
   expect(s.score).toBe(100)

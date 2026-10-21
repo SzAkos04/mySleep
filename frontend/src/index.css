@@ -4,7 +4,7 @@
   --label:#fff; --label-2:rgba(235,235,245,.6); --label-3:rgba(235,235,245,.32); --label-4:rgba(235,235,245,.14);
   --sep:rgba(84,84,88,.6);
   --acc:#8b8cf8; --on-acc:#0b0a09; --acc-soft:color-mix(in srgb,var(--acc) 16%,transparent);
-  --awake:#ff9f0a; --snore:#40c8e0; --talk:#ffd60a; --move:rgba(235,235,245,.45); --good:#30d158; --red:#ff453a;
+  --awake:#ff9f0a; --snore:#40c8e0; --talk:#ffd60a; --move:rgba(235,235,245,.45); --good:#30d158; --red:#ff453a; --pink:#ff375f; --grey:#8e8e93;
   --r-card:14px; --ease:cubic-bezier(.32,.72,0,1);
   /* a damped spring with ~1.5% overshoot, how iOS settles a sheet (myGym) */
   --spring:linear(0, 0.0337, 0.1159, 0.224, 0.3417, 0.4583, 0.5667, 0.6633, 0.7461, 0.8149, 0.8705, 0.9142, 0.9474, 0.972, 0.9895, 1.0013, 1.0087, 1.013, 1.0148, 1.0151, 1.0143, 1.0129, 1.0112, 1.0094, 1.0077, 1.0061, 1.0047, 1.0035, 1.0025, 1.0017, 1);
@@ -12,6 +12,9 @@
   color-scheme:dark;
 }
 * { box-sizing:border-box; margin:0; padding:0 }
+/* No rubber-band overscroll: on iOS the viewport takes overscroll-behavior from <html>, not
+   <body>, and while it stretched the fixed tab bar went with it (myGym does the same). */
+html { overscroll-behavior:none }
 html, body { background:var(--bg); color:var(--label) }
 body { font:15px/1.35 -apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,system-ui,sans-serif; -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; overscroll-behavior-y:none }
 button { font:inherit; color:inherit; background:none; border:0; cursor:pointer }
@@ -102,6 +105,23 @@ textarea { width:100%; background:var(--surface); border:0; border-radius:var(--
 .field-in { width:100%; background:var(--surface); border:0; border-radius:12px; padding:14px; font-size:17px }
 .stack { display:grid; gap:14px }
 .err { color:var(--red); font-size:14px }
+/* settings rows (views/Settings.jsx), myGym's: icon tile, title, value or control */
+.srow { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:10px 14px; min-height:46px; position:relative; color:var(--label) }
+.srow + .srow::before { content:''; position:absolute; top:0; left:55px; right:0; height:.5px; background:var(--sep) }
+.srow:not(:has(.srow-i)) + .srow::before, .srow + .srow:not(:has(.srow-i))::before { left:14px }
+.srow.tap:active { background:var(--surface-2) }
+.srow-i { width:29px; height:29px; border-radius:7px; flex:none; display:grid; place-items:center; color:#fff }
+.srow-i svg { width:18px; height:18px }
+.srow-i .ic { stroke-width:2 }
+.srow-m { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px }
+.srow-t { font-size:17px; letter-spacing:-.012em }
+.srow-s { font-size:13px; color:var(--label-2) }
+.srow-v { color:var(--label-2); font-size:17px }
+.srow-c { width:15px; height:15px; color:var(--label-3); flex:none }
+.srow-k { width:20px; height:20px; color:var(--acc); flex:none }
+.srow.danger .srow-t { color:var(--red) }
+.srow input[type=time] { font-size:17px; color:var(--acc); background:var(--surface-2); border:0; border-radius:8px; padding:5px 8px; font-variant-numeric:tabular-nums }
+h2.sect-t { font-weight:400 }
 .score-card { display:flex; align-items:center; gap:16px; width:100% }
 .insights { list-style:none; display:grid; gap:8px; margin-top:8px; font-size:15px; line-height:1.4 }
 .insights li { padding-left:14px; position:relative }

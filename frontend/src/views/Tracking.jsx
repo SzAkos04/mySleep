@@ -1,15 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store.js'
-import { useUI } from '../ui.js'
 import { Icon } from '../components/Icon.jsx'
 import * as tracker from '../lib/tracker.js'
 import { summarize, stirring } from '../lib/analysis.js'
 import { armBackup, uploadClips } from '../lib/api.js'
-import { clockOf, dur } from '../lib/time.js'
+import { clockOf, dur, nextAt, nightIdOf } from '../lib/time.js'
 
 const CHECK_MS = 10000
 const LIT_MS = 8000      // how long a tap shows the screen before it goes black again
 const HOLD_MS = 1500     // how long to hold before the night ends
+
+export function alarmPlan(settings, from = Date.now()) {
+  if (!settings.alarm) return null
+  const at = nextAt(settings.wake, from)
+  return { at, from: settings.smart ? at - 30 * 60000 : at }   // the smart window: 30 min
+}
+
+// From the Start tap (the microphone and the alarm's sound both need it). Throws a message for
+// the person when the microphone cannot start.
+export async function startNight() {
+  try { await tracker.start() }
+  catch (e) { throw new Error(e.name === 'NotAllowedError' ? 'mySleep needs the microphone. Allow it in Settings › Safari › Microphone, then try again.' : 'The microphone did not start: ' + e.message) }
+  const { settings, setTracking } = useStore.getState(), start = tracker.samples.start, p = alarmPlan(settings, start)
+  setTracking({ start, nightId: nightIdOf(start), ringFrom: p?.from ?? null, ringAt: p?.at ?? null, smart: settings.smart })
+  if (p) armBackup(p.at + 60000)
+}
 
 const rnd = (lo, hi) => Math.round(lo + Math.random() * (hi - lo))
 
@@ -57,7 +73,7 @@ function Hold({ label, icon, onDone, disabled }) {
 // switched off. A tap shows the time for a few seconds; ending the night needs a held press.
 export function Tracking() {
   const tr = useStore(s => s.tracking), setTracking = useStore(s => s.setTracking), saveNight = useStore(s => s.saveNight)
-  const openSheet = useUI(s => s.openSheet)
+  const nav = useNavigate()
   const [now, setNow] = useState(Date.now())
   const [live, setLive] = useState(tracker.micLive())
   const [ringing, setRinging] = useState(null)
@@ -107,12 +123,11 @@ export function Tracking() {
 
   async function wake(n) {
     setRinging({ at: n, early: Math.max(0, Math.round((tr.ringAt - n) / 60000)) })
-    const { alarmSound, rise } = useStore.getState().settings
-    await tracker.ring(alarmSound || 'chime', rise || 60)
+    await tracker.ring(useStore.getState().settings.alarmSound || 'chime', 60)
   }
 
   async function snooze() {
-    const snoozeMin = useStore.getState().settings.snooze
+    const snoozeMin = 9
     await tracker.snooze()
     setRinging(null)
     setTracking({ ...tr, ringAt: Date.now() + snoozeMin * 60000, smart: false })
@@ -131,11 +146,12 @@ export function Tracking() {
       id: tr.nightId, bed: s.start, on: r.on, wake: end,   // on: null when no sleep was found
       wakes: r.wakes, awakeMin: r.awakeMin, asleepMin: r.asleepMin, restfulMin: r.restfulMin,
       snoreMin: r.snoreMin, talks: r.talks, coughs: r.coughs, events: r.events,
-      q: null, tags: tr.tags, note: '', timeline: r.timeline, clips: [],
+      timeline: r.timeline, clips: [],
       ...(ringing && { alarm: { at: ringing.at, early: ringing.early } })
     }
     saveNight(night)
-    openSheet({ type: 'review', night: useStore.getState().nights[night.id], fresh: true })
+    // the morning is just the night's data; nothing to fill in
+    nav('/night/' + night.id, { state: { morning: true } })
     // the recordings go up after; the night gains them when they are on the server
     const list = tracker.clips.splice(0)
     if (list.length) uploadClips(night.id, list).then(done => {
@@ -159,7 +175,7 @@ export function Tracking() {
       </div>
       <div className="night-foot">
         <button className="btn" onClick={finish}>Stop</button>
-        <button className="btn ghost" onClick={snooze}>Snooze {useStore.getState().settings.snooze} min</button>
+        <button className="btn ghost" onClick={snooze}>Snooze 9 min</button>
       </div>
     </div>
   </div>

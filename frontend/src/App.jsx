@@ -5,7 +5,6 @@ import { useUI } from './ui.js'
 import { api } from './lib/api.js'
 import { Icon } from './components/Icon.jsx'
 import { ReviewSheet } from './components/ReviewSheet.jsx'
-import { PreviewSheet } from './components/PreviewSheet.jsx'
 import { Tonight } from './views/Tonight.jsx'
 import { History } from './views/History.jsx'
 import { Night } from './views/Night.jsx'
@@ -42,8 +41,7 @@ export function App() {
     <nav id="tabbar" aria-label="Main">
       {TABS.map(([to, icon, label]) => <NavLink key={to} to={to} end><Icon name={icon} />{label}</NavLink>)}
     </nav>
-    {sheet?.type === 'review' && <ReviewSheet key={sheet.key} night={sheet.night} fresh={sheet.fresh} />}
-    {sheet?.type === 'preview' && <PreviewSheet key={sheet.key} />}
+    {sheet?.type === 'review' && <ReviewSheet key={sheet.key} night={sheet.night} />}
     {tracking && <Tracking />}
     <div className={'toast' + (toast ? ' show' : '')} role="status">{toast}</div>
   </HashRouter>
