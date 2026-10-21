@@ -4,7 +4,7 @@ import { useUI } from '../ui.js'
 import { Icon } from '../components/Icon.jsx'
 import * as tracker from '../lib/tracker.js'
 import { summarize, stirring } from '../lib/analysis.js'
-import { armBackup } from '../lib/api.js'
+import { armBackup, uploadClips } from '../lib/api.js'
 import { clockOf, dur } from '../lib/time.js'
 
 const CHECK_MS = 10000
@@ -98,16 +98,17 @@ export function Tracking() {
       if (n - lastCheck.current < CHECK_MS) return
       lastCheck.current = n
       if (n % 60000 < CHECK_MS) tracker.saveProgress()
+      if (useStore.getState().settings.clips !== false) tracker.collectClips().catch(() => {})
       if (!tr.ringAt) return
-      const s = tracker.samples
-      if (n >= tr.ringAt || (tr.smart && n >= tr.ringFrom && stirring(s.db, s.low))) wake(n)
+      if (n >= tr.ringAt || (tr.smart && n >= tr.ringFrom && stirring(tracker.samples))) wake(n)
     }, 1000)
     return () => clearInterval(t)
   }, [stale, ringing, tr])
 
   async function wake(n) {
     setRinging({ at: n, early: Math.max(0, Math.round((tr.ringAt - n) / 60000)) })
-    await tracker.ring()
+    const { alarmSound, rise } = useStore.getState().settings
+    await tracker.ring(alarmSound || 'chime', rise || 60)
   }
 
   async function snooze() {
@@ -121,19 +122,26 @@ export function Tracking() {
 
   function finish() {
     tracker.stop()
-    const end = Date.now(), s = tracker.samples, r = summarize(s.db, s.low, s.start)
+    const end = Date.now(), s = tracker.samples, r = summarize(s, s.start)
     armBackup(null)
     tracker.clearProgress()
     setTracking(null)
     // saved now, so closing the review keeps the night; the review has Discard
     const night = {
-      id: tr.nightId, bed: s.start, on: r.on ?? s.start, wake: end,
-      wakes: r.wakes, awakeMin: r.awakeMin, asleepMin: r.asleepMin, snoreMin: r.snoreMin,
-      q: null, tags: tr.tags, note: '', timeline: r.timeline,
+      id: tr.nightId, bed: s.start, on: r.on, wake: end,   // on: null when no sleep was found
+      wakes: r.wakes, awakeMin: r.awakeMin, asleepMin: r.asleepMin, restfulMin: r.restfulMin,
+      snoreMin: r.snoreMin, talks: r.talks, coughs: r.coughs, events: r.events,
+      q: null, tags: tr.tags, note: '', timeline: r.timeline, clips: [],
       ...(ringing && { alarm: { at: ringing.at, early: ringing.early } })
     }
     saveNight(night)
     openSheet({ type: 'review', night: useStore.getState().nights[night.id], fresh: true })
+    // the recordings go up after; the night gains them when they are on the server
+    const list = tracker.clips.splice(0)
+    if (list.length) uploadClips(night.id, list).then(done => {
+      const cur = useStore.getState().nights[night.id]
+      if (done.length && cur && !cur.deleted) saveNight({ ...cur, clips: done })
+    })
   }
 
   async function resume() {

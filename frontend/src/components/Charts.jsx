@@ -2,14 +2,20 @@ import { clockOf } from '../lib/time.js'
 import { noonToClock } from '../lib/stats.js'
 
 const W = 340
-const STATE = { s: 'var(--acc)', w: 'var(--awake)', g: 'var(--surface-3)' }
+const STATE = { s: 'color-mix(in srgb,var(--acc) 55%,transparent)', l: 'color-mix(in srgb,var(--acc) 55%,transparent)', d: 'var(--acc)', w: 'var(--awake)', g: 'var(--surface-3)' }
+const LEVEL = { w: 0, l: 1, s: 1, d: 2 }   // hypnogram rows, top to bottom
+export const EVENT = {
+  n: ['Snoring', 'var(--snore)'], t: ['Talking', 'var(--talk)'], c: ['Coughing', 'var(--red)'],
+  m: ['Movement', 'var(--move)'], x: ['Room noise', 'var(--label-4)']
+}
 
-// A night as the microphone heard it: loudness, asleep/awake, and sound events.
+// A night as the microphone heard it: loudness, then (full) a three-row estimate of the night
+// (awake / light / restful) and the sounds; (small) one coloured lane.
 export function Timeline({ t, full }) {
   if (!t?.states) return null
   const E = t.states.length, x = e => (e / E) * W
-  const sH = full ? 44 : 30, laneY = sH + 6, laneH = full ? 14 : 10, evY = laneY + laneH + 8
-  const H = full ? 118 : 70
+  const sH = full ? 34 : 30, top = sH + 8, rowH = full ? 18 : 10, evY = full ? top + 3 * rowH + 8 : 0
+  const H = full ? evY + 34 : 70
   const vals = t.db.filter(v => v != null), lo = Math.min(...vals), hi = Math.max(lo + 10, ...vals)
   const y = v => sH - ((v - lo) / (hi - lo)) * sH
   let d = `M0 ${sH}`
@@ -19,15 +25,20 @@ export function Timeline({ t, full }) {
   for (let s = 0, e = 1; e <= E; e++) if (e === E || t.states[e] !== t.states[s]) { runs.push([s, e, t.states[s]]); s = e }
   const hours = []
   for (let h = Math.ceil(t.start / 3600e3) * 3600e3; h < t.start + E * 30e3; h += 3600e3) hours.push(h)
-  return <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Loudness, asleep or awake, and sounds through the night">
+  return <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Loudness, an estimate of awake, light and restful sleep, and sounds through the night">
     <path d={d} fill="var(--label-4)" />
-    {runs.map(([s, e, k]) => <rect key={s} x={x(s)} y={laneY} width={Math.max(x(e) - x(s) - 0.6, 1)} height={laneH} rx="2" fill={STATE[k]} />)}
-    {full && [...t.events].map((c, e) => c === '.' ? null :
-      <rect key={e} x={x(e)} y={evY + (c === 'm' ? 4 : 0)} width={Math.max(x(1), 1.2)} height={c === 'm' ? 8 : 12} fill={c === 'n' ? 'var(--snore)' : 'var(--move)'} />)}
-    {full ? hours.map(h => {
-      const hx = x((h - t.start) / 30e3)
-      return <g key={h}><line x1={hx} x2={hx} y1="0" y2={evY + 14} stroke="var(--label-4)" strokeWidth=".5" /><text x={hx} y="116" textAnchor="middle">{clockOf(h)}</text></g>
-    }) : <>
+    {full ? <>
+      {['Awake', 'Light', 'Restful'].map((l, i) => <text key={l} x="0" y={top + i * rowH + rowH * 0.7} style={{ fontSize: 9 }}>{l}</text>)}
+      {runs.map(([s, e, k]) => k === 'g' ? null :
+        <rect key={s} x={42 + x(s) * (W - 42) / W} y={top + LEVEL[k] * rowH} width={Math.max((x(e) - x(s)) * (W - 42) / W - 0.4, 1)} height={rowH - 3} rx="2" fill={STATE[k]} />)}
+      {[...t.events].map((c, e) => c === '.' || !EVENT[c] ? null :
+        <rect key={e} x={42 + x(e) * (W - 42) / W} y={evY + (c === 'm' ? 4 : 0)} width={Math.max(x(1) * (W - 42) / W, 1.2)} height={c === 'm' ? 8 : 12} fill={EVENT[c][1]} />)}
+      {hours.map(h => {
+        const hx = 42 + x((h - t.start) / 30e3) * (W - 42) / W
+        return <g key={h}><line x1={hx} x2={hx} y1="0" y2={evY + 14} stroke="var(--label-4)" strokeWidth=".5" /><text x={hx} y={H - 2} textAnchor="middle">{clockOf(h)}</text></g>
+      })}
+    </> : <>
+      {runs.map(([s, e, k]) => <rect key={s} x={x(s)} y={top} width={Math.max(x(e) - x(s) - 0.6, 1)} height={rowH} rx="2" fill={STATE[k]} />)}
       <text x="0" y="68">{clockOf(t.start)}</text>
       <text x={W} y="68" textAnchor="end">{clockOf(t.start + E * 30e3)}</text>
     </>}
@@ -35,12 +46,22 @@ export function Timeline({ t, full }) {
 }
 
 export const TimelineLegend = () => <div className="legend">
-  <span><i style={{ background: 'var(--acc)' }} />Asleep</span>
   <span><i style={{ background: 'var(--awake)' }} />Awake</span>
-  <span><i style={{ background: 'var(--snore)' }} />Snoring</span>
-  <span><i style={{ background: 'var(--move)' }} />Movement</span>
-  <span><i style={{ background: 'var(--surface-3)' }} />Not recorded</span>
+  <span><i style={{ background: STATE.l }} />Light</span>
+  <span><i style={{ background: STATE.d }} />Restful</span>
+  {Object.entries(EVENT).map(([k, [name, color]]) => <span key={k}><i style={{ background: color }} />{name}</span>)}
 </div>
+
+// The sleep score as a ring.
+export function ScoreRing({ score, size = 96 }) {
+  const r = 42, c = 2 * Math.PI * r
+  const color = score >= 80 ? 'var(--good)' : score >= 60 ? 'var(--acc)' : 'var(--awake)'
+  return <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`Sleep score ${score}`} style={{ flex: 'none' }}>
+    <circle cx="50" cy="50" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="8" />
+    <circle cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c * score / 100} ${c}`} transform="rotate(-90 50 50)" />
+    <text x="50" y="58" textAnchor="middle" style={{ fontSize: 28, fontWeight: 700, fill: 'var(--label)' }}>{score}</text>
+  </svg>
+}
 
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const dayOf = id => new Date(id + 'T12:00')

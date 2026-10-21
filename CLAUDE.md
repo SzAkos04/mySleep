@@ -31,6 +31,10 @@ Record with `xcrun simctl io <udid> recordVideo --codec h264` to see an animatio
 WebKit: `swift frontend/scripts/webkit-run.swift <url> "<cookie>" flow.js` (outside the sandbox).
 Its window runs hidden, so animations do not advance and timers are throttled: use it for what
 happens (elements, classes, state), measure motion in the Simulator.
+The Simulator's microphone is a steady tone with a click every second, not the Mac's: it tests the
+tracking flow and the clip upload, never what the analysis hears. For that, replay audio:
+`node frontend/scripts/replay.mjs some.wav` (a clip from data/clips/, or `say -o x.wav
+--data-format=LEI16@48000 "…"`), and see docs/dev/SOUND_ANALYSIS.md for the measured thresholds.
 
 Use Node 22 (Homebrew `node@22`). Homebrew's npm 10 crashes resolving this tree
 (`Cannot read properties of null (reading 'edgesOut')`): change dependencies with

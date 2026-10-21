@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { useStore, nightList } from '../store.js'
 import { useUI } from '../ui.js'
 import { Icon } from '../components/Icon.jsx'
-import { Timeline, Bars, Dots } from '../components/Charts.jsx'
+import { Timeline, Bars, Dots, ScoreRing } from '../components/Charts.jsx'
+import { sleepScore } from '../lib/score.js'
 import { alarmPlan } from '../components/PreviewSheet.jsx'
 import { clockOf, dur, nextAt, todayLabel } from '../lib/time.js'
 
@@ -32,7 +33,10 @@ export function Tonight() {
 
     {last ? <div className="card">
       <div className="card-head">
-        <div><div className="eyebrow">Last night</div><div className="card-title">{dur(last.asleepMin || 0)} asleep</div></div>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <ScoreRing score={sleepScore(last, settings).score} size={56} />
+          <div><div className="eyebrow">Last night</div><div className="card-title">{dur(last.asleepMin || 0)} asleep</div></div>
+        </div>
         <Link className="link" to={'/night/' + last.id}>Details</Link>
       </div>
       <Timeline t={last.timeline} />

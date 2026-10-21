@@ -58,3 +58,13 @@ export async function enablePush() {
 
 // The backup alarm; never let a failure here get in the way of the night.
 export const armBackup = at => api('/api/alarm', { at }).catch(() => {})
+
+// Tonight's clips to the server once the night is over; returns the ones that made it.
+export async function uploadClips(night, list) {
+  const done = []
+  for (const c of list) {
+    const r = await fetch(`/api/clips/${night}/${c.id}`, { method: 'PUT', headers: { 'Content-Type': 'audio/wav' }, body: c.blob }).catch(() => null)
+    if (r?.ok) done.push({ id: c.id, t: c.t, kind: c.kind, sec: c.sec })
+  }
+  return done
+}

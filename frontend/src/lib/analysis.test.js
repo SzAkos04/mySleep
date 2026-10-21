@@ -1,26 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { summarize, stirring } from './analysis.js'
+import { summarize, stirring, events, slice } from './analysis.js'
 
 // A synthetic 8-hour night: a quiet room at ~30 dB with a little jitter.
-function night() {
-  const n = 8 * 3600, db = new Array(n), low = new Array(n)
+function night(hours = 8) {
+  const n = hours * 3600, f = { db: new Array(n), low: new Array(n), mid: new Array(n), vr: new Array(n), at: new Array(n) }
   let seed = 1
   const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
-  for (let s = 0; s < n; s++) { db[s] = 30 + rnd() * 2; low[s] = 0.3 }
-  const burst = (s, len, d = 45, l = 0.3) => { for (let i = s; i < s + len; i++) { db[i] = d; low[i] = l } }
-  return { db, low, burst, n }
+  for (let s = 0; s < n; s++) { f.db[s] = 30 + rnd() * 2; f.low[s] = 0.3; f.mid[s] = 0.3; f.vr[s] = 1; f.at[s] = 1 }
+  // a sound: movement by default (broadband, steady, no jump)
+  f.burst = (s, len, o = {}) => { for (let i = s; i < s + len; i++) { f.db[i] = o.db ?? 45; f.low[i] = o.low ?? 0.3; f.mid[i] = o.mid ?? 0.3; f.vr[i] = o.vr ?? 1; f.at[i] = o.at ?? 2 } }
+  return f
 }
+// traits as scripts/replay.mjs measured them (SOUND_ANALYSIS.md)
+const snore = { db: 48, low: 0.57, mid: 0.33, vr: 9.7, at: 14 }, talk = { db: 44, low: 0.45, mid: 0.4, vr: 13, at: 32 }, cough = { db: 55, low: 0.17, mid: 0.66, vr: 13.6, at: 38 }
 
 describe('summarize', () => {
   it('finds sleep onset, one wake-up, and snoring that is not movement', () => {
-    const { db, low, burst } = night()
-    for (let s = 0; s < 15 * 60; s += 20) burst(s, 2)                   // awake in bed, tossing: 15 min
-    for (let s = 7200; s < 7200 + 5 * 60; s += 15) burst(s, 3)          // a 5-minute wake-up at 2h
-    for (let s = 3 * 3600; s < 3 * 3600 + 600; s += 4) burst(s, 2, 48, 0.8)   // 10 min of snoring at 3h
-    for (let s = 4 * 3600; s < 8 * 3600; s += 600) burst(s, 1)          // a turn every 10 min: still asleep
-    for (let s = 8 * 3600 - 900; s < 8 * 3600 - 40; s += 25) burst(s, 2) // up for 15 min before Stop, a quiet half minute at the end
+    const f = night()
+    for (let s = 0; s < 15 * 60; s += 20) f.burst(s, 2)                   // awake in bed, tossing: 15 min
+    for (let s = 7200; s < 7200 + 5 * 60; s += 15) f.burst(s, 3)          // a 5-minute wake-up at 2h
+    for (let s = 3 * 3600; s < 3 * 3600 + 600; s += 4) f.burst(s, 2, snore) // 10 min of snoring at 3h
+    for (let s = 4 * 3600; s < 8 * 3600; s += 600) f.burst(s, 1)          // a turn every 10 min: still asleep
+    for (let s = 8 * 3600 - 900; s < 8 * 3600 - 40; s += 25) f.burst(s, 2) // up for 15 min before Stop
 
-    const r = summarize(db, low, 0)
+    const r = summarize(f, 0)
     expect(r.on / 60000).toBeGreaterThanOrEqual(14)
     expect(r.on / 60000).toBeLessThanOrEqual(19)
     expect(r.wakes).toBe(1)
@@ -34,24 +37,65 @@ describe('summarize', () => {
     expect(r.timeline.db.length).toBe(480)
   })
 
+  it('estimates restful sleep only where nothing happened for 10 minutes', () => {
+    const f = night()
+    // asleep from the start; a turn every 5 minutes for the first 4 hours, nothing after
+    for (let s = 1800; s < 4 * 3600; s += 300) f.burst(s, 1)
+    const r = summarize(f, 0)
+    const st = r.timeline.states
+    expect(st.slice(60, 470)).not.toContain('d')        // turns every 5 min: light
+    expect(st.slice(500, 950)).toMatch(/^d+$/)           // the quiet second half: restful
+    expect(r.restfulMin).toBeGreaterThan(200)
+  })
+
   it('marks missing seconds as gaps and does not count them as sleep', () => {
-    const { db, low } = night()
-    for (let s = 3600; s < 7200; s++) db[s] = NaN
-    const r = summarize(db, low, 0)
+    const f = night()
+    for (let s = 3600; s < 7200; s++) f.db[s] = NaN
+    const r = summarize(f, 0)
     expect(r.timeline.states.slice(120, 240)).toBe('g'.repeat(120))
     expect(r.asleepMin).toBeLessThanOrEqual(7 * 60)
   })
 })
 
+describe('sounds', () => {
+  it('tells talking, coughing, snoring and room noise apart, and lists them as events', () => {
+    const f = night(2)
+    f.burst(1000, 4, talk); f.burst(1006, 3, talk)                        // one sentence, a short pause
+    f.burst(2000, 1, cough); f.burst(2002, 1, cough)                      // a double cough
+    for (let s = 3000; s < 3060; s += 4) f.burst(s, 2, snore)             // a minute of snoring
+    f.burst(5000, 90, { db: 40, vr: 0.5 })                                // a car passing for 90 s
+    f.burst(6000, 2)                                                      // a turn: not an event
+    const ev = events(f, 0)
+    expect(ev.map(e => e.kind)).toEqual(['talk', 'cough', 'snore', 'noise'])
+    expect(ev[0]).toEqual({ t: 1000000, kind: 'talk', sec: 9 })
+    expect(ev[2].sec).toBeGreaterThanOrEqual(56)
+    const r = summarize(f, 0)
+    expect(r.talks).toBe(1)
+    expect(r.coughs).toBe(1)
+  })
+
+  it('does not count talking or room noise as being awake', () => {
+    const f = night()
+    for (let s = 2 * 3600; s < 2 * 3600 + 600; s += 30) f.burst(s, 5, talk)  // talking in your sleep, 10 min
+    f.burst(5 * 3600, 1200, { db: 40, vr: 0.5 })                              // a fan for 20 min
+    expect(summarize(f, 0).wakes).toBe(0)
+  })
+})
+
 describe('stirring', () => {
-  it('is true after movement in the last minute, false in quiet or snoring', () => {
+  it('is true after movement in the last minute, false in quiet, snoring or talking', () => {
+    const at = f => stirring(slice(f, 0, 3600))
     const a = night()
-    expect(stirring(a.db.slice(0, 3600), a.low.slice(0, 3600))).toBe(false)
+    expect(at(a)).toBe(false)
     for (let s = 3600 - 50; s < 3600; s += 10) a.burst(s, 2)
-    expect(stirring(a.db.slice(0, 3600), a.low.slice(0, 3600))).toBe(true)
+    expect(at(a)).toBe(true)
 
     const b = night()
-    for (let s = 3600 - 60; s < 3600; s += 4) b.burst(s, 2, 48, 0.8)
-    expect(stirring(b.db.slice(0, 3600), b.low.slice(0, 3600))).toBe(false)
+    for (let s = 3600 - 60; s < 3600; s += 4) b.burst(s, 2, snore)
+    expect(at(b)).toBe(false)
+
+    const c = night()
+    for (let s = 3600 - 60; s < 3600; s += 10) c.burst(s, 4, talk)
+    expect(at(c)).toBe(false)
   })
 })

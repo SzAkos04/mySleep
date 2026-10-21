@@ -60,3 +60,18 @@ test('newer edit wins per entry, and a device gets only what it has not seen', a
 test('bad changes are refused whole', async () => {
   assert.equal((await sync({ changes: [{ kind: 'user', id: 'x', ts: 1, data: {} }] })).status, 400);
 });
+
+test('a clip is stored, served back, and goes with its night', async () => {
+  const wav = Buffer.alloc(64); wav.write('RIFF', 0, 'latin1'); wav.write('WAVE', 8, 'latin1')
+  const url = base + '/api/clips/2026-10-20/abc123'
+  const put = (body, headers = {}) => fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin', ...headers }, body })
+  assert.equal((await put(Buffer.from('not audio'))).status, 400)
+  assert.equal((await put(wav, { cookie: '' })).status, 401)
+  assert.equal((await put(wav)).status, 200)
+  const got = await fetch(url, { headers: { cookie } })
+  assert.equal(got.headers.get('content-type'), 'audio/wav')
+  assert.deepEqual(Buffer.from(await got.arrayBuffer()), wav)
+  assert.equal((await fetch(base + '/api/clips/2026-10-20/../../db', { headers: { cookie } })).status, 404)
+  await sync({ changes: [{ kind: 'night', id: '2026-10-20', ts: 999, deleted: true }] })
+  assert.equal((await fetch(url, { headers: { cookie } })).status, 404)
+})

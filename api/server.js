@@ -23,6 +23,8 @@ const SECURE = ORIGIN.startsWith('https:');
 // Cookies are per host, not per port: myGym on the same Tailscale name has its own (gymsid).
 const COOKIE = SECURE ? '__Host-sleepsid' : 'sleepsid';
 const KINDS = new Set(['night', 'settings']);
+const CLIP_DAYS = +(process.env.CLIP_DAYS || 7);
+const MAX_CLIP = 2 * 1024 * 1024;
 
 fs.mkdirSync(DATA, { recursive: true });
 
@@ -42,6 +44,38 @@ const db = readJSON(dbFile, { users: [], creds: [], subs: [] });
 const saveDb = () => writeJSON(dbFile, db);
 const stateFile = uid => path.join(DATA, 'state-' + uid.replace(/[^\w-]/g, '') + '.json');
 const readState = uid => readJSON(stateFile(uid), { rev: 0, entries: {} });
+
+// Sound clips of a night (docs/dev/SOUND_ANALYSIS.md): DATA_DIR/clips/<uid>/<night>_<id>.wav
+const clipDir = uid => path.join(DATA, 'clips', uid.replace(/[^\w-]/g, ''));
+const CLIP_PATH = /^\/api\/clips\/(\d{4}-\d{2}-\d{2})\/([\w-]{1,40})$/;
+function dropClips(uid, night) {
+  try { for (const f of fs.readdirSync(clipDir(uid))) if (f.startsWith(night + '_')) fs.rmSync(path.join(clipDir(uid), f), { force: true }); }
+  catch (e) { if (e.code !== 'ENOENT') console.error('clips', e.message); }
+}
+function sweepClips() {
+  const cutoff = Date.now() - CLIP_DAYS * 864e5;
+  for (const u of db.users) {
+    try { for (const f of fs.readdirSync(clipDir(u.id))) { const p = path.join(clipDir(u.id), f); if (fs.statSync(p).mtimeMs < cutoff) fs.rmSync(p, { force: true }); } }
+    catch (e) { if (e.code !== 'ENOENT') console.error('clips', e.message); }
+  }
+}
+async function clipRoute(req, res, night, id) {
+  const user = needUser(req);
+  const file = path.join(clipDir(user.id), `${night}_${id}.wav`);
+  if (req.method === 'GET') {
+    if (!fs.existsSync(file)) throw new HttpError(404, 'no such clip');
+    res.writeHead(200, { 'Content-Type': 'audio/wav', 'Cache-Control': 'private, max-age=604800' });
+    return fs.createReadStream(file).pipe(res);
+  }
+  if (req.method !== 'PUT') throw new HttpError(405, 'GET or PUT');
+  const chunks = []; let size = 0;
+  for await (const d of req) { size += d.length; if (size > MAX_CLIP) throw new HttpError(413, 'clip too large'); chunks.push(d); }
+  const body = Buffer.concat(chunks);
+  if (body.length < 44 || body.toString('latin1', 0, 4) !== 'RIFF' || body.toString('latin1', 8, 12) !== 'WAVE') throw new HttpError(400, 'not a WAV file');
+  fs.mkdirSync(clipDir(user.id), { recursive: true });
+  fs.writeFileSync(file, body, { mode: 0o600 });
+  json(res, 200, { ok: true });
+}
 
 const secretFile = path.join(DATA, 'secret');
 if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
@@ -248,6 +282,7 @@ const routes = {
     const since = Number.isFinite(body.since) ? body.since : 0;
     const state = readState(user.id);
     if (applyChanges(state, changes)) writeJSON(stateFile(user.id), state);
+    for (const c of changes) if (c.kind === 'night' && c.deleted) dropClips(user.id, c.id);
     json(res, 200, { rev: state.rev, changes: changesSince(state, since) });
   },
 
@@ -281,7 +316,8 @@ const routes = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const route = routes[req.method + ' ' + new URL(req.url, 'http://x').pathname];
+  const pathname = new URL(req.url, 'http://x').pathname, clip = pathname.match(CLIP_PATH);
+  const route = clip ? (rq, rs) => clipRoute(rq, rs, clip[1], clip[2]) : routes[req.method + ' ' + pathname];
   try {
     if (!route) throw new HttpError(404, 'not found');
     if (!csrfOk(req)) throw new HttpError(403, 'cross-origin request refused');
@@ -295,4 +331,6 @@ const server = http.createServer(async (req, res) => {
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   server.listen(PORT, () => console.log(`mySleep API on :${PORT}, RP_ID=${RP_ID}, ORIGIN=${ORIGIN}`));
   setInterval(() => tick().catch(e => console.error('tick', e)), 20000).unref();
+  sweepClips();
+  setInterval(sweepClips, 3600e3).unref();
 }

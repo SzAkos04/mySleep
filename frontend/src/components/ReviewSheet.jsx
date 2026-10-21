@@ -5,6 +5,8 @@ import { Sheet, SheetHead, Confirm } from './Sheet.jsx'
 import { Timeline } from './Charts.jsx'
 import { Icon } from './Icon.jsx'
 import { atClock, clockOf, dayLabel, nightIdOf } from '../lib/time.js'
+import { sleepScore } from '../lib/score.js'
+import { ScoreRing } from './Charts.jsx'
 
 // The morning form, a night typed in by hand, or an edit of a saved night.
 // A tracked night is already saved when this opens (Tracking.jsx), so swiping it away keeps it;
@@ -28,11 +30,14 @@ export function ReviewSheet({ night, fresh }) {
   const time = k => e => { setT({ ...t, [k]: e.target.value }); setEdited(true) }
 
   function save(close) {
-    const bed = atClock(id, t.bed), on = atClock(id, t.on), wake = atClock(id, t.wake)
+    const bed = atClock(id, t.bed), wake = atClock(id, t.wake)
+    // a recording without sleep keeps no onset unless you type one
+    const on = !edited && night.timeline && night.on == null ? null : atClock(id, t.on)
     const awakeMin = manual ? 0 : night.awakeMin || 0
     // untouched, the analysed minutes stand; once the times change, they are what counts
-    const asleepMin = !edited && night.asleepMin != null ? night.asleepMin : Math.max(0, Math.round((wake - on) / 60000 - awakeMin))
-    saveNight({ ...night, id, bed, on, wake, wakes, awakeMin, asleepMin, q, tags, note: note.trim() })
+    const asleepMin = !edited && night.asleepMin != null ? night.asleepMin : Math.max(0, Math.round((wake - (on ?? wake)) / 60000 - awakeMin))
+    // the stored night may have gained its clips since this sheet opened
+    saveNight({ ...(useStore.getState().nights[night.id] || night), id, bed, on, wake, wakes, awakeMin, asleepMin, q, tags, note: note.trim() })
     close()
     say('Night saved')
   }
@@ -41,6 +46,10 @@ export function ReviewSheet({ night, fresh }) {
   const sub = night.timeline ? `Night of ${dayLabel(id)} · filled in from sound` : isNew ? 'No recording · type it in' : dayLabel(id)
   return <Sheet label={title} onClosed={closeSheet}>{close => <div className="stack">
     <SheetHead title={title} sub={sub} close={close} />
+    {fresh && <div className="card" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 16 }}>
+      <ScoreRing score={sleepScore(night, settings).score} size={72} />
+      <div><div className="eyebrow">Sleep score</div><div className="muted small">Details on the night's page. Rate the night below; your rating is kept beside the score.</div></div>
+    </div>}
     {night.timeline && <Timeline t={night.timeline} />}
     <div className="sect-b">
       {isNew && <div className="row"><span>Night of</span><input type="date" value={id} max={nightIdOf(Date.now())} onChange={e => e.target.value && setId(e.target.value)} className="num" style={{ color: 'var(--acc)', background: 'var(--surface-2)', border: 0, borderRadius: 8, padding: '5px 8px' }} /></div>}

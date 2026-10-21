@@ -7,22 +7,42 @@
 // - The AudioContext is made inside the Start tap, so it may play the alarm hours later.
 // - While the mic is open iOS may send sound to the earpiece; the alarm closes the mic first and
 //   switches the audio session to playback, which also ignores the silent switch.
+import { events, slice } from './analysis.js'
+import { encodeWav } from './wav.js'
+import { playSound } from './sounds.js'
+// its own file, not a data: URL, which Safari may refuse for a worklet
+import ringWorklet from './ring-worklet.js?url&no-inline'
 
-const POLL_MS = 250
-export const samples = { start: 0, db: [], low: [] }   // one value per second; NaN = not recorded
+const POLL_MS = 100
+const RING_SEC = 30            // how far back a clip can reach
+export const CLIP_LIMITS = { talk: 6, snore: 3, cough: 3 }   // per night
 
-let ctx = null, stream = null, analyser = null, poll = null, wakeLock = null
-let acc = { n: 0, db: -Infinity, low: 0 }
+// One value per second from the start (analysis.js says what each is); NaN db = not recorded.
+const KEYS = ['db', 'low', 'mid', 'vr', 'at']
+export const samples = { start: 0, db: [], low: [], mid: [], vr: [], at: [] }
+export const clips = []        // { id, t, kind, sec, blob } cut tonight, uploaded when the night ends
+
+let ctx = null, stream = null, analyser = null, ringNode = null, poll = null, wakeLock = null, wallAt0 = 0
+let acc = null, lastDb = null
+const fresh = () => ({ n: 0, db: -Infinity, low: 0, mid: 0, dbs: [], at: 0 })
 
 const KEY = 'mysleep_track'
+const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100
 export function saveProgress() {
-  try { localStorage.setItem(KEY, JSON.stringify({ start: samples.start, db: samples.db.map(v => Number.isFinite(v) ? Math.round(v * 10) / 10 : null), low: samples.low.map(v => Math.round(v * 100) / 100) })) } catch {}
+  try {
+    localStorage.setItem(KEY, JSON.stringify({
+      start: samples.start, db: samples.db.map(v => Number.isFinite(v) ? r1(v) : null),
+      low: samples.low.map(r2), mid: samples.mid.map(r2), vr: samples.vr.map(r1), at: samples.at.map(r1)
+    }))
+  } catch {}
 }
 export function loadProgress() {
   try {
     const p = JSON.parse(localStorage.getItem(KEY))
     if (!p) return false
-    Object.assign(samples, { start: p.start, db: p.db.map(v => v ?? NaN), low: p.low })
+    samples.start = p.start
+    samples.db = p.db.map(v => v ?? NaN)
+    for (const k of ['low', 'mid', 'vr', 'at']) samples[k] = p[k] || p.db.map(() => 0)
     return true
   } catch { return false }
 }
@@ -40,18 +60,34 @@ async function openMic() {
   analyser.fftSize = 2048
   analyser.smoothingTimeConstant = 0
   src.connect(analyser)
+  try {
+    if (!ringNode) {
+      await ctx.audioWorklet.addModule(ringWorklet)
+      ringNode = new AudioWorkletNode(ctx, 'ring', { processorOptions: { rate: 16000, seconds: RING_SEC } })
+      const mute = ctx.createGain(); mute.gain.value = 0
+      ringNode.connect(mute).connect(ctx.destination)   // pulled by the graph, heard by nobody
+    }
+    src.connect(ringNode)
+  } catch { ringNode = null }   // no clips then; the night is still tracked
   await ctx.resume()
+  wallAt0 = Date.now() - ctx.currentTime * 1000
 }
 export const micLive = () => !!stream && stream.getAudioTracks().some(t => t.readyState === 'live')
 function closeMic() { stream?.getTracks().forEach(t => t.stop()); stream = null; analyser = null }
 
+function push(a) {
+  samples.db.push(a.n ? a.db : NaN)
+  samples.low.push(a.n ? a.low / a.n : 0)
+  samples.mid.push(a.n ? a.mid / a.n : 0)
+  const m = a.n ? a.dbs.reduce((s, v) => s + v, 0) / a.n : 0
+  samples.vr.push(a.n ? Math.sqrt(a.dbs.reduce((s, v) => s + (v - m) ** 2, 0) / a.n) : 0)
+  samples.at.push(a.at)
+}
+
 function read() {
-  const now = Date.now(), sec = Math.floor((now - samples.start) / 1000)
+  const sec = Math.floor((Date.now() - samples.start) / 1000)
   // seconds the page was not running are gaps
-  while (samples.db.length < sec) {
-    samples.db.push(acc.n ? acc.db : NaN); samples.low.push(acc.n ? acc.low / acc.n : 0)
-    acc = { n: 0, db: -Infinity, low: 0 }
-  }
+  while (samples.db.length < sec) { push(acc); acc = fresh() }
   if (!analyser || !micLive()) return
   const t = new Float32Array(analyser.fftSize), f = new Float32Array(analyser.frequencyBinCount)
   analyser.getFloatTimeDomainData(t)
@@ -61,13 +97,17 @@ function read() {
   // dB relative to full scale, +100 to keep it positive; only differences matter
   const db = 20 * Math.log10(Math.sqrt(sum / t.length) || 1e-10) + 100
   const hz = ctx.sampleRate / analyser.fftSize
-  let lo = 0, all = 0
+  let lo = 0, mid = 0, all = 0
   for (let i = Math.ceil(50 / hz); i < Math.min(f.length, 4000 / hz); i++) {
-    const p = 10 ** (f[i] / 10)
+    const p = 10 ** (f[i] / 10), at = i * hz
     all += p
-    if (i * hz < 500) lo += p
+    if (at < 500) lo += p
+    else if (at < 3000) mid += p
   }
-  acc.n++; acc.db = Math.max(acc.db, db); acc.low += all ? lo / all : 0
+  acc.n++; acc.db = Math.max(acc.db, db); acc.dbs.push(db)
+  acc.low += all ? lo / all : 0; acc.mid += all ? mid / all : 0
+  if (lastDb != null) acc.at = Math.max(acc.at, db - lastDb)
+  lastDb = db
 }
 
 async function onVisible() {
@@ -79,7 +119,8 @@ async function onVisible() {
 // Call from the Start tap. `resume` continues a night whose page was closed (gap in between).
 export async function start({ resume = false } = {}) {
   ctx = ctx || new AudioContext()
-  if (!resume) Object.assign(samples, { start: Date.now(), db: [], low: [] })
+  if (!resume) { for (const k of KEYS) samples[k] = []; samples.start = Date.now(); clips.length = 0 }
+  acc = fresh(); lastDb = null
   await openMic()
   await lockScreen()
   clearInterval(poll)
@@ -96,34 +137,53 @@ export function stop() {
   document.removeEventListener('visibilitychange', onVisible)
 }
 
+/* ---------- clips ---------- */
+function snapshot() {
+  return new Promise(res => {
+    ringNode.port.onmessage = e => res(e.data)
+    ringNode.port.postMessage('snap')
+  })
+}
+
+// Cut clips of tonight's talking, coughing and snoring while they are still in the 30 s buffer.
+// Called every few seconds by the night screen.
+export async function collectClips() {
+  if (!ringNode || !micLive()) return
+  const now = Date.now(), from = Math.max(0, samples.db.length - 90)
+  const found = events(slice(samples, from), samples.start + from * 1000)
+  for (const e of found) {
+    if (!(e.kind in CLIP_LIMITS)) continue
+    const end = e.t + e.sec * 1000
+    if (e.kind !== 'snore' && now - end < 3000) continue            // let it finish
+    if (now - e.t > (RING_SEC - 4) * 1000) continue                 // already out of the buffer
+    if (clips.some(c => c.kind === e.kind && Math.abs(c.t - e.t) < 60000)) continue
+    if (clips.filter(c => c.kind === e.kind).length >= CLIP_LIMITS[e.kind]) continue
+    const a = e.t - 1500, b = Math.min(now, end + 1500, a + 15000)
+    const { pcm, at, rate } = await snapshot()
+    const bufEnd = wallAt0 + at * 1000, bufStart = bufEnd - (pcm.length / rate) * 1000
+    const i = Math.max(0, Math.round((a - bufStart) / 1000 * rate)), j = Math.min(pcm.length, Math.round((b - bufStart) / 1000 * rate))
+    if (j - i < rate) continue
+    clips.push({ id: crypto.randomUUID().slice(0, 8), t: e.t, kind: e.kind, sec: Math.round((j - i) / rate), blob: new Blob([encodeWav(pcm.subarray(i, j), Math.round(rate))], { type: 'audio/wav' }) })
+  }
+}
+
 /* ---------- alarm ---------- */
 let ringing = null
-const NOTES = [523.25, 659.25, 783.99]   // C5 E5 G5
 
-export async function ring() {
+export async function ring(sound = 'chime', riseSec = 60) {
   closeMic()
   if (navigator.audioSession) navigator.audioSession.type = 'playback'
   await ctx.resume().catch(() => {})
   const master = ctx.createGain()
   master.gain.setValueAtTime(0.05, ctx.currentTime)
-  master.gain.linearRampToValueAtTime(1, ctx.currentTime + 60)   // gets louder over a minute
+  master.gain.linearRampToValueAtTime(1, ctx.currentTime + riseSec)   // gets louder
   master.connect(ctx.destination)
-  const chime = () => NOTES.forEach((hz, i) => {
-    const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.28
-    o.frequency.value = hz
-    g.gain.setValueAtTime(0, t)
-    g.gain.linearRampToValueAtTime(0.5, t + 0.02)
-    g.gain.exponentialRampToValueAtTime(0.001, t + 1.2)
-    o.connect(g).connect(master)
-    o.start(t); o.stop(t + 1.3)
-  })
-  chime()
-  ringing = { master, timer: setInterval(chime, 2400) }
+  ringing = { master, stop: playSound(ctx, master, sound) }
 }
 
 export function silence() {
   if (!ringing) return
-  clearInterval(ringing.timer)
+  ringing.stop()
   ringing.master.disconnect()
   ringing = null
 }
@@ -132,4 +192,18 @@ export function silence() {
 export async function snooze() {
   silence()
   try { await openMic() } catch {}
+}
+
+// Settings: a few seconds of a sound, from a tap.
+let preview = null
+export async function previewSound(id) {
+  preview?.()
+  const c = ctx || (ctx = new AudioContext())
+  if (navigator.audioSession && !micLive()) navigator.audioSession.type = 'playback'
+  await c.resume()
+  const g = c.createGain(); g.gain.value = 0.7; g.connect(c.destination)
+  const stopSound = playSound(c, g, id)
+  const done = () => { clearTimeout(t); stopSound(); g.disconnect(); preview = null }
+  const t = setTimeout(done, 5000)
+  preview = done
 }

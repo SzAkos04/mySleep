@@ -7,7 +7,8 @@ export const TAGS = ['Caffeine after 14:00', 'Alcohol', 'Late screen', 'Training
 
 export const defaultSettings = () => ({
   bedtime: '23:00', wake: '06:45', need: 450,
-  alarm: true, smart: true, window: 30, snooze: 9,
+  alarm: true, smart: true, window: 30, snooze: 9, alarmSound: 'chime', rise: 60,
+  clips: true,
   remind: true, remindMin: 30,
   tags: TAGS, tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   ts: 0   // 0: the server's copy wins on first sync

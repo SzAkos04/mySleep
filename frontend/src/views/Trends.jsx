@@ -3,6 +3,7 @@ import { useStore, nightList } from '../store.js'
 import { Bars, Windows } from '../components/Charts.jsx'
 import { summary, fromNoon, noonToClock } from '../lib/stats.js'
 import { dur } from '../lib/time.js'
+import { sleepScore } from '../lib/score.js'
 
 const toNoon = hhmm => { const [h, m] = hhmm.split(':').map(Number); return (h * 60 + m + 720) % 1440 }
 
@@ -17,6 +18,8 @@ export function Trends() {
     </div>
     {!s ? <div className="empty">Trends start after a couple of nights.</div> : <>
       <div className="tiles">
+        <div className="tile"><div className="l">Avg sleep score</div><div className="v">{Math.round(L.reduce((t, n) => t + sleepScore(n, settings).score, 0) / L.length)}</div><div className="d">out of 100</div></div>
+        <div className="tile"><div className="l">Restful</div><div className="v">{dur(L.reduce((t, n) => t + (n.restfulMin || 0), 0) / L.length)}</div><div className="d">a night, estimate</div></div>
         <div className="tile"><div className="l">Avg asleep</div><div className="v">{dur(s.avgAsleep)}</div><div className="d">need {dur(settings.need)}</div></div>
         <div className="tile"><div className="l">Sleep debt</div><div className="v">{dur(s.debt)}</div><div className="d">over {s.n} nights</div></div>
         <div className="tile"><div className="l">Fell asleep</div><div className="v">{s.on ? noonToClock(s.on.mean) : '–'}</div>{s.on && <div className="d">± {Math.round(s.on.sd)} min</div>}</div>
