@@ -172,8 +172,8 @@ export async function collectClips() {
 // normalised to -1 dBFS (public/alarm-piano.wav). Loaded when the night starts, so ringing
 // needs no network at 6 am. It starts almost silent and keeps getting louder until it is
 // very loud; a limiter lets it pass full scale without clipping.
-const QUIET_TO_FULL = 90       // seconds from almost nothing to the recording's full level
-const FULL_TO_LOUD = 60        // then this long to about +9 dB, held in by the limiter
+const QUIET_TO_FULL = 20       // seconds from almost nothing to the recording's full level
+const FULL_TO_LOUD = 40        // then this long to about +9 dB, held in by the limiter: very loud at 1 min
 let ringing = null, alarmBuffer = null
 
 async function loadAlarm() {

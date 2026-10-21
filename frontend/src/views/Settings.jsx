@@ -36,7 +36,7 @@ export function Settings() {
   return <>
     <header className="hdr"><div><h1>Settings</h1></div></header>
 
-    <Section title="Alarm" footer={s.alarm ? 'A soft piano that starts almost silent and grows very loud over 2½ minutes. Turn the phone\u2019s volume up: it plays at media volume.' : null}>
+    <Section title="Alarm" footer={s.alarm ? 'A soft piano that starts almost silent and is fully up in 20 seconds and very loud within a minute. Turn the phone\u2019s volume up: it plays at media volume.' : null}>
       <Row icon="alarm" tint="var(--awake)" title="Alarm"><Switch on={s.alarm} set={alarm => save({ alarm })} label="Alarm" /></Row>
       {s.alarm && <>
         <Row icon="sun" tint="var(--awake)" title="Wake up"><Time v={s.wake} set={wake => save({ wake })} label="Wake-up time" /></Row>
