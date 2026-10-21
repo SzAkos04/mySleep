@@ -32,7 +32,7 @@ export function PreviewSheet() {
   }
 
   return <Sheet label="Before you sleep" onClosed={closeSheet}>{close => <div className="stack">
-      <SheetHead title="Before you sleep" sub="Listening until you tap Wake up" close={close} />
+      <SheetHead title="Before you sleep" sub="Listening until you hold Wake up" close={close} />
       <div className="card stack" style={{ margin: 0, gap: 10 }}>
         <div className="check off"><Icon name="check" /><div>Phone on the charger, face up, next to your pillow</div></div>
         <div className="check off"><Icon name="check" /><div>Volume up: the alarm plays at media volume</div></div>

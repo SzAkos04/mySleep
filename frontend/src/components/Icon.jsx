@@ -5,6 +5,7 @@ const P = {
   gear: <><circle className="ic" cx="12" cy="12" r="3" /><path className="ic" d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" /></>,
   plus: <path className="ic" d="M12 5v14M5 12h14" />,
   close: <path className="ic" d="M6 6l12 12M18 6 6 18" />,
+  sun: <><circle className="ic" cx="12" cy="12" r="4" /><path className="ic" d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
   back: <path className="ic" d="M15 5l-7 7 7 7" />,
   chev: <path className="ic" d="M9 5l7 7-7 7" />,
   mic: <><rect className="ic" x="9" y="3" width="6" height="11" rx="3" /><path className="ic" d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>,

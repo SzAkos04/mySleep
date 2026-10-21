@@ -8,21 +8,86 @@ import { armBackup } from '../lib/api.js'
 import { clockOf, dur } from '../lib/time.js'
 
 const CHECK_MS = 10000
+const LIT_MS = 8000      // how long a tap shows the screen before it goes black again
+const HOLD_MS = 1500     // how long to hold before the night ends
+
+const rnd = (lo, hi) => Math.round(lo + Math.random() * (hi - lo))
+
+// Ends something only after a press held for HOLD_MS; letting go early does nothing.
+// Touch is handled natively with preventDefault: otherwise iOS treats a long press as its own
+// gesture and cancels the pointer half-way through the hold.
+function Hold({ label, icon, onDone, disabled }) {
+  const [holding, setHolding] = useState(false)
+  const btn = useRef(null), t = useRef(null), live = useRef({ disabled, onDone })
+  live.current = { disabled, onDone }
+  const start = () => {
+    if (live.current.disabled || t.current) return
+    setHolding(true)
+    t.current = setTimeout(() => { t.current = null; setHolding(false); live.current.onDone() }, HOLD_MS)
+  }
+  const stop = () => { clearTimeout(t.current); t.current = null; setHolding(false) }
+  useEffect(() => {
+    const el = btn.current
+    const down = e => { e.preventDefault(); start() }
+    el.addEventListener('touchstart', down, { passive: false })
+    el.addEventListener('touchend', stop)
+    el.addEventListener('touchcancel', stop)
+    return () => {
+      clearTimeout(t.current)
+      el.removeEventListener('touchstart', down)
+      el.removeEventListener('touchend', stop)
+      el.removeEventListener('touchcancel', stop)
+    }
+  }, [])
+  const mouse = fn => e => e.pointerType === 'mouse' && fn()
+  return <div className="hold-wrap">
+    <button ref={btn} className={'hold' + (holding ? ' holding' : '')} aria-label={label}
+      onPointerDown={mouse(start)} onPointerUp={mouse(stop)} onPointerLeave={mouse(stop)}
+      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && !e.repeat && start()} onKeyUp={stop}
+      onContextMenu={e => e.preventDefault()}>
+      <svg className="hold-ring" viewBox="0 0 92 92" aria-hidden="true"><circle cx="46" cy="46" r="44" /></svg>
+      <Icon name={icon} />
+    </button>
+    <div className="hold-label">{holding ? 'Keep holding' : label}</div>
+  </div>
+}
 
 // The night screen, then the alarm. Shown over everything while `tracking` is set.
+// Black is the resting state: on the OLED screen black pixels are off, so the phone looks
+// switched off. A tap shows the time for a few seconds; ending the night needs a held press.
 export function Tracking() {
   const tr = useStore(s => s.tracking), setTracking = useStore(s => s.setTracking), saveNight = useStore(s => s.saveNight)
   const openSheet = useUI(s => s.openSheet)
   const [now, setNow] = useState(Date.now())
   const [live, setLive] = useState(tracker.micLive())
   const [ringing, setRinging] = useState(null)
-  const lastCheck = useRef(0)
+  const [lit, setLit] = useState(true)
+  const [first, setFirst] = useState(true)
+  const [shift, setShift] = useState([0, 0])
+  const lastCheck = useRef(0), litTimer = useRef(null)
   // a page that was closed in the night comes back here with the saved seconds, not listening
   const [stale, setStale] = useState(() => {
     if (tracker.samples.start) return false
     if (!tracker.loadProgress()) Object.assign(tracker.samples, { start: tr.start, db: [], low: [] })
     return true
   })
+
+  // Light the screen for a while. The clock lands a few pixels off each time, so nothing burns in.
+  function light() {
+    setLit(true)
+    setShift([rnd(-10, 10), rnd(-16, 16)])
+    clearTimeout(litTimer.current)
+    litTimer.current = setTimeout(() => { setLit(false); setFirst(false) }, LIT_MS)
+  }
+  useEffect(() => { light(); return () => clearTimeout(litTimer.current) }, [])
+
+  // Black behind the status bar too (the page and theme colour are the app's near-black).
+  useEffect(() => {
+    const meta = document.querySelector('meta[name=theme-color]'), was = meta?.content
+    meta?.setAttribute('content', '#000000')
+    document.documentElement.style.background = document.body.style.background = '#000'
+    return () => { meta?.setAttribute('content', was); document.documentElement.style.background = document.body.style.background = '' }
+  }, [])
 
   useEffect(() => {
     if (stale || ringing) return
@@ -51,6 +116,7 @@ export function Tracking() {
     setRinging(null)
     setTracking({ ...tr, ringAt: Date.now() + snoozeMin * 60000, smart: false })
     armBackup(Date.now() + (snoozeMin + 1) * 60000)
+    light()
   }
 
   function finish() {
@@ -71,40 +137,43 @@ export function Tracking() {
   }
 
   async function resume() {
-    try { await tracker.start({ resume: true }); setStale(false); setLive(true) }
+    try { await tracker.start({ resume: true }); setStale(false); setLive(true); light() }
     catch { setLive(false) }
   }
 
-  if (ringing) return <div className="ring" role="alertdialog" aria-label="Alarm">
-    <div>
-      <div className="eyebrow" style={{ color: 'var(--acc)' }}>{tr.smart ? 'Smart alarm' : 'Alarm'}</div>
-      <div className="clock num">{clockOf(ringing.at)}</div>
-      <div style={{ fontSize: 20, fontWeight: 600 }}>Good morning</div>
-      {ringing.early > 0 && <div className="muted" style={{ marginTop: 6 }}>You were moving, so it rang {ringing.early} min early.</div>}
-    </div>
-    <div className="stack" style={{ width: 'min(340px,100%)' }}>
-      <button className="btn" onClick={finish}>Stop</button>
-      <button className="btn ghost" onClick={snooze}>Snooze {useStore.getState().settings.snooze} min</button>
+  if (ringing) return <div className="night ring" role="alertdialog" aria-label="Alarm">
+    <div className="night-ui">
+      <div className="night-status" style={{ color: 'var(--acc)' }}>{tr.smart ? 'Smart alarm' : 'Alarm'}</div>
+      <div className="night-mid">
+        <div className="night-clock">{clockOf(ringing.at)}</div>
+        <div className="ring-title">Good morning</div>
+        {ringing.early > 0 && <div className="night-sub">You were moving, so it rang {ringing.early} min early.</div>}
+      </div>
+      <div className="night-foot">
+        <button className="btn" onClick={finish}>Stop</button>
+        <button className="btn ghost" onClick={snooze}>Snooze {useStore.getState().settings.snooze} min</button>
+      </div>
     </div>
   </div>
 
-  const elapsed = Math.max(0, Math.floor((now - tracker.samples.start) / 1000))
-  return <div className="night">
-    <div>
+  const elapsed = Math.max(0, (now - tracker.samples.start) / 60000)
+  const alarm = tr.ringAt ? (tr.smart ? `Alarm ${clockOf(tr.ringFrom)}–${clockOf(tr.ringAt)}, when you stir` : `Alarm ${clockOf(tr.ringAt)}`) : 'No alarm'
+  return <div className={'night' + (lit || stale ? '' : ' dark')} onPointerDown={light} onTouchStart={light}>
+    <div className="night-ui">
       {stale
-        ? <div className="pill warn"><Icon name="mic" />Stopped listening at {clockOf(tracker.samples.start + tracker.samples.db.length * 1000)}</div>
+        ? <div className="night-status warn"><i />Stopped listening at {clockOf(tracker.samples.start + tracker.samples.db.length * 1000)}</div>
         : live
-          ? <div className="pill"><Icon name="mic" />Listening · {dur(elapsed / 60)}</div>
-          : <button className="pill warn" onClick={resume}><Icon name="mic" />Microphone stopped · tap to resume</button>}
-    </div>
-    <div>
-      <div className="clock">{clockOf(now)}</div>
-      <div>{tr.ringAt ? (tr.smart ? `Alarm ${clockOf(tr.ringFrom)}–${clockOf(tr.ringAt)} · when you stir` : `Alarm ${clockOf(tr.ringAt)}`) : 'No alarm'}</div>
-    </div>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%' }}>
-      {stale && <button className="wake" onClick={resume} style={{ color: 'var(--acc)' }}>Resume listening</button>}
-      <button className="wake" onClick={finish}>{stale ? 'Finish the night' : 'Wake up'}</button>
-      {!stale && <div className="hint">Keep this screen open. iPhone stops the microphone when a web app is locked or in the background.</div>}
+          ? <div className="night-status"><i />Listening · {elapsed < 60 ? Math.floor(elapsed) + ' min' : dur(elapsed)}</div>
+          : <button className="night-status warn" onClick={() => lit && resume()}><i />Microphone stopped · tap to resume</button>}
+      <div className="night-mid" style={{ transform: `translate(${shift[0]}px,${shift[1]}px)` }}>
+        <div className="night-clock">{clockOf(now)}</div>
+        <div className="night-sub">{alarm}</div>
+      </div>
+      <div className="night-foot">
+        {stale && <button className="btn" onClick={resume}>Resume listening</button>}
+        <Hold label={stale ? 'Hold to finish the night' : 'Hold to wake up'} icon="sun" onDone={finish} disabled={!lit && !stale} />
+        {first && !stale && <div className="night-hint">The screen goes black in a moment, so the phone looks switched off. Tap anywhere to see the time.</div>}
+      </div>
     </div>
   </div>
 }

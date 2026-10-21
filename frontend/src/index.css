@@ -132,16 +132,35 @@ textarea { width:100%; background:var(--surface); border:0; border-radius:var(--
 .check svg { width:20px; height:20px; flex:none; color:var(--good); margin-top:1px }
 .check.off svg { color:var(--label-3) }
 
-/* night: black screen, dim text, OLED pixels off */
-.night { position:fixed; inset:0; z-index:40; background:#000; color:rgba(235,235,245,.38); display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; padding:calc(40px + var(--sat)) 24px calc(30px + var(--sab)) }
-.night .clock { font-size:76px; font-weight:200; letter-spacing:-.03em; font-variant-numeric:tabular-nums; color:rgba(235,235,245,.3) }
-.night .pill { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:99px; background:#121212; font-size:13px }
-.night .pill svg { width:16px; height:16px }
-.night .pill.warn { color:var(--awake) }
-.night .wake { width:min(320px,100%); height:56px; border-radius:28px; background:#141414; color:rgba(235,235,245,.6); font-size:17px; font-weight:600 }
-.night .hint { font-size:12px; max-width:300px; margin-top:12px; line-height:1.45 }
-.ring { position:fixed; inset:0; z-index:45; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; padding:calc(70px + var(--sat)) 24px calc(40px + var(--sab)) }
-.ring .clock { font-size:88px; font-weight:200; letter-spacing:-.03em; margin:6px 0 10px }
+/* night: pure black, which on an OLED screen means the pixels are off. Everything lit is dim
+   and grey, and fades out after a tap (Tracking.jsx). No touch here selects text or scrolls. */
+.night { position:fixed; inset:0; z-index:40; background:#000; color:rgba(255,255,255,.3); text-align:center;
+  touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
+.night-ui { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+  padding:calc(28px + var(--sat)) 28px calc(28px + var(--sab)); transition:opacity .6s ease }
+.night.dark .night-ui { opacity:0; transition:opacity 2.5s ease }
+.night-status { display:inline-flex; align-items:center; gap:8px; font-size:13px; letter-spacing:.01em; color:rgba(255,255,255,.3); padding:8px 12px }
+.night-status i { width:6px; height:6px; border-radius:50%; background:rgba(48,209,88,.55) }
+.night-status.warn { color:rgba(255,159,10,.75) }
+.night-status.warn i { background:rgba(255,159,10,.75) }
+.night-mid { display:flex; flex-direction:column; align-items:center; gap:10px }
+.night-clock { font-size:96px; line-height:1; font-weight:100; letter-spacing:-.045em; font-variant-numeric:tabular-nums; color:rgba(255,255,255,.34) }
+.night-sub { font-size:15px; color:rgba(255,255,255,.26); max-width:280px }
+.night-foot { display:flex; flex-direction:column; align-items:center; gap:14px; width:min(340px,100%) }
+.night-hint { font-size:12px; line-height:1.45; color:rgba(255,255,255,.24); max-width:260px }
+.hold-wrap { display:flex; flex-direction:column; align-items:center; gap:10px }
+.hold { position:relative; width:92px; height:92px; border-radius:50%; background:#0c0c0c; color:rgba(255,255,255,.42); display:grid; place-items:center; transition:transform .2s var(--ease), background .2s }
+.hold svg:not(.hold-ring) { width:30px; height:30px }
+.hold.holding { transform:scale(1.06); background:#121218; color:rgba(139,140,248,.9) }
+.hold-ring { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg) }
+.hold-ring circle { fill:none; stroke:rgba(255,255,255,.08); stroke-width:2.5; stroke-dasharray:277; stroke-dashoffset:0 }
+.hold.holding .hold-ring circle { stroke:rgba(139,140,248,.85); stroke-dashoffset:0; animation:holdfill 1.5s linear both }
+@keyframes holdfill { from { stroke-dashoffset:277 } }
+.hold-label { font-size:13px; color:rgba(255,255,255,.3) }
+.night.ring { z-index:45; color:var(--label-2) }
+.night.ring .night-clock { color:var(--label); font-weight:200 }
+.ring-title { font-size:22px; font-weight:600; color:var(--label) }
+.night.ring .night-sub { color:var(--label-2) }
 
 .toast { position:fixed; left:50%; top:calc(10px + var(--sat)); transform:translate(-50%,-12px); opacity:0; pointer-events:none; z-index:50; background:var(--surface-3); padding:10px 16px; border-radius:99px; font-size:14px; font-weight:500; transition:transform 260ms var(--ease), opacity 200ms }
 .toast.show { transform:translate(-50%,0); opacity:1 }
