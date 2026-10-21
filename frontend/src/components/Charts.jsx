@@ -52,10 +52,12 @@ export const TimelineLegend = () => <div className="legend">
   {Object.entries(EVENT).map(([k, [name, color]]) => <span key={k}><i style={{ background: color }} />{name}</span>)}
 </div>
 
+export const scoreColor = s => s >= 80 ? 'var(--good)' : s >= 60 ? 'var(--acc)' : 'var(--awake)'
+
 // The sleep score as a ring.
 export function ScoreRing({ score, size = 96 }) {
   const r = 42, c = 2 * Math.PI * r
-  const color = score >= 80 ? 'var(--good)' : score >= 60 ? 'var(--acc)' : 'var(--awake)'
+  const color = scoreColor(score)
   return <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`Sleep score ${score}`} style={{ flex: 'none' }}>
     <circle cx="50" cy="50" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="8" />
     <circle cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c * score / 100} ${c}`} transform="rotate(-90 50 50)" />

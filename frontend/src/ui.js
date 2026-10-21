@@ -6,5 +6,5 @@ export const useUI = create(set => ({
   toast: null,
   openSheet: sheet => set({ sheet: { ...sheet, key: Date.now() } }),
   closeSheet: () => set({ sheet: null }),
-  say: text => { set({ toast: text }); setTimeout(() => set(s => s.toast === text ? { toast: null } : s), 1800) }
+  say: (text, ms = 1800) => { set({ toast: text }); setTimeout(() => set(s => s.toast === text ? { toast: null } : s), ms) }
 }))

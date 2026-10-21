@@ -26,6 +26,6 @@ export function nextAt(hhmm, from = Date.now()) {
 }
 
 export const clockOf = ms => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()) }
-export const dur = min => Math.floor(min / 60) + 'h ' + pad(Math.round(min % 60)) + 'm'
+export const dur = min => min < 59.5 ? Math.round(min) + ' min' : Math.floor(min / 60) + 'h ' + pad(Math.round(min % 60)) + 'm'
 export const dayLabel = id => { const d = noonOf(id); return `${DAY[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}` }
 export const todayLabel = (d = new Date()) => d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })

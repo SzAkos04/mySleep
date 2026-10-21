@@ -3,9 +3,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store.js'
 import { useUI } from '../ui.js'
 import { Icon } from '../components/Icon.jsx'
-import { Timeline, TimelineLegend, ScoreRing } from '../components/Charts.jsx'
+import { Timeline, TimelineLegend } from '../components/Charts.jsx'
+import { NightReport, Insights } from '../components/Report.jsx'
 import { Confirm } from '../components/Sheet.jsx'
-import { sleepScore, insights } from '../lib/score.js'
+import { sleepScore } from '../lib/score.js'
 import { clockOf, dayLabel, dur } from '../lib/time.js'
 
 const KIND = { snore: 'Snoring', talk: 'Talking', cough: 'Coughing', noise: 'Room noise' }
@@ -44,7 +45,7 @@ export function Night() {
   const back = <div className="back"><button className="iconbtn" onClick={() => morning ? nav('/', { replace: true }) : nav(-1)} aria-label="Back"><Icon name="back" /></button></div>
   if (!n || n.deleted) return <>{back}<div className="empty">This night is gone.</div></>
 
-  const inBed = (n.wake - n.bed) / 60000, s = sleepScore(n, settings), lines = insights(n)
+  const inBed = (n.wake - n.bed) / 60000, s = sleepScore(n, settings)
   const evs = (n.events || []).filter(e => KIND[e.kind])
   const clipOf = e => (n.clips || []).find(c => c.kind === e.kind && Math.abs(c.t - e.t) < 60000)
   return <>
@@ -54,26 +55,15 @@ export function Night() {
       <button className="iconbtn" onClick={() => openSheet({ type: 'review', night: n })} aria-label="Correct the times"><Icon name="edit" /></button>
     </header>
 
-    <button className="card score-card" onClick={() => setParts(!parts)} aria-expanded={parts}>
-      <ScoreRing score={s.score} />
-      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <div className="eyebrow">Sleep score</div>
-        <div className="card-title">{dur(n.asleepMin || 0)} asleep</div>
-        <div className="muted small" style={{ marginTop: 4 }}>{parts ? 'Hide' : 'See'} how it adds up</div>
-      </div>
-    </button>
+    <NightReport n={n} />
+    <button className="link score-how" onClick={() => setParts(!parts)} aria-expanded={parts}>{parts ? 'Hide' : 'How'} the score adds up</button>
     {parts && <div className="sect"><div className="sect-b">
       {s.parts.map(p => <div key={p.label} className="row"><div className="t">{p.label}<div className="s">{p.note}</div></div><div className="r">{p.pts}/{p.max}</div></div>)}
     </div></div>}
-
-    {lines.length > 0 && <div className="card">
-      <div className="eyebrow">Your night</div>
-      <ul className="insights">{lines.map(l => <li key={l}>{l}</li>)}</ul>
-    </div>}
+    <Insights n={n} />
 
     {n.timeline && <div className="card">
-      <div className="eyebrow">Night</div>
-      <div className="card-title" style={{ marginBottom: 12 }}>What the microphone heard</div>
+      <div className="eyebrow" style={{ marginBottom: 12 }}>What the microphone heard</div>
       <Timeline t={n.timeline} full />
       <TimelineLegend />
       <div className="small muted" style={{ marginTop: 10 }}>Light and restful are a rough estimate from how still and quiet you were, not measured sleep stages.{n.alarm ? ` The alarm rang at ${clockOf(n.alarm.at)}${n.alarm.early ? `, ${n.alarm.early} min early` : ''}.` : ''}</div>
@@ -93,6 +83,6 @@ export function Night() {
 
     <button className="btn danger" onClick={() => setConfirm(true)}><Icon name="trash" />{morning ? 'Discard this night' : 'Delete night'}</button>
     {confirm && <Confirm title={`Delete ${dayLabel(n.id)}?`} body="The night, its recordings and its summary go from every device." action="Delete"
-      onConfirm={() => { deleteNight(n.id); say('Night deleted'); nav('/history', { replace: true }) }} onClosed={() => setConfirm(false)} />}
+      onConfirm={() => { deleteNight(n.id); say('Night deleted'); nav('/journal', { replace: true }) }} onClosed={() => setConfirm(false)} />}
   </>
 }

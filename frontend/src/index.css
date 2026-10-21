@@ -156,35 +156,90 @@ h2.sect-t { font-weight:400 }
 .check svg { width:20px; height:20px; flex:none; color:var(--good); margin-top:1px }
 .check.off svg { color:var(--label-3) }
 
-/* night: pure black, which on an OLED screen means the pixels are off. Everything lit is dim
-   and grey, and fades out after a tap (Tracking.jsx). No touch here selects text or scrolls. */
-.night { position:fixed; inset:0; z-index:40; background:#000; color:rgba(255,255,255,.3); text-align:center;
+/* night (views/Tracking.jsx): lit for 30 s with a calm glow, then pure black with only a dim
+   clock, which on the OLED screen is all that lights. No touch selects text or scrolls here. */
+.night { position:fixed; inset:0; z-index:40; background:#000; color:rgba(255,255,255,.75); text-align:center;
   touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none }
+.night .glow { position:absolute; inset:auto 0 0 0; height:55%; background:radial-gradient(120% 80% at 50% 100%,rgba(90,92,220,.22),transparent 70%); transition:opacity 1.5s ease }
 .night-ui { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:space-between;
-  padding:calc(28px + var(--sat)) 28px calc(28px + var(--sab)); transition:opacity .6s ease }
-.night.dark .night-ui { opacity:0; transition:opacity 2.5s ease }
-.night-status { display:inline-flex; align-items:center; gap:8px; font-size:13px; letter-spacing:.01em; color:rgba(255,255,255,.3); padding:8px 12px }
-.night-status i { width:6px; height:6px; border-radius:50%; background:rgba(48,209,88,.55) }
-.night-status.warn { color:rgba(255,159,10,.75) }
-.night-status.warn i { background:rgba(255,159,10,.75) }
-.night-mid { display:flex; flex-direction:column; align-items:center; gap:10px }
-.night-clock { font-size:96px; line-height:1; font-weight:100; letter-spacing:-.045em; font-variant-numeric:tabular-nums; color:rgba(255,255,255,.34) }
-.night-sub { font-size:15px; color:rgba(255,255,255,.26); max-width:280px }
-.night-foot { display:flex; flex-direction:column; align-items:center; gap:14px; width:min(340px,100%) }
-.night-hint { font-size:12px; line-height:1.45; color:rgba(255,255,255,.24); max-width:260px }
+  padding:calc(28px + var(--sat)) 28px calc(36px + var(--sab)); transition:opacity .6s ease }
+.night.dark .night-ui, .night.dark .glow { opacity:0; transition:opacity 2.5s ease }
+.pill { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:99px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.7); font-size:14px }
+.pill i { width:8px; height:8px; border-radius:50%; background:var(--good); box-shadow:0 0 0 4px rgba(48,209,88,.18) }
+.pill.warn { color:var(--awake) }
+.pill.warn i { background:var(--awake); box-shadow:0 0 0 4px rgba(255,159,10,.18) }
+.night-clock { font-size:104px; font-weight:200; letter-spacing:-.05em; line-height:1; color:rgba(255,255,255,.9) }
+.night-line { font-size:17px; color:rgba(255,255,255,.75); margin-top:12px }
+.night-sub { font-size:14px; color:rgba(255,255,255,.45); margin-top:4px }
+.night-tags { display:flex; justify-content:center; margin-top:20px }
+.night-tags span { font-size:12px; padding:5px 11px; border-radius:99px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.55) }
+.night-foot { display:flex; flex-direction:column; align-items:center; gap:12px; width:min(340px,100%) }
+.night-hint { font-size:12px; color:rgba(255,255,255,.35) }
+.dimface { position:absolute; left:0; right:0; top:50%; margin-top:-60px; pointer-events:none; opacity:0; transition:opacity 2.5s ease, transform 2s ease }
+.night.dark .dimface { opacity:1 }
+.dim-clock { font-size:84px; font-weight:200; letter-spacing:-.05em; color:#2a2a44 }
+.dim-line { font-size:14px; color:#26263a; margin-top:8px }
 .hold-wrap { display:flex; flex-direction:column; align-items:center; gap:10px }
-.hold { position:relative; width:92px; height:92px; border-radius:50%; background:#0c0c0c; color:rgba(255,255,255,.42); display:grid; place-items:center; transition:transform .2s var(--ease), background .2s }
-.hold svg:not(.hold-ring) { width:30px; height:30px }
-.hold.holding { transform:scale(1.06); background:#121218; color:rgba(139,140,248,.9) }
+.hold { position:relative; width:96px; height:96px; border-radius:50%; background:rgba(255,255,255,.06); color:rgba(255,255,255,.8); display:grid; place-items:center; transition:transform .2s var(--ease), background .2s }
+.hold svg:not(.hold-ring) { width:32px; height:32px }
+.hold.holding { transform:scale(1.06); background:rgba(139,140,248,.14); color:var(--acc) }
 .hold-ring { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg) }
-.hold-ring circle { fill:none; stroke:rgba(255,255,255,.08); stroke-width:2.5; stroke-dasharray:277; stroke-dashoffset:0 }
-.hold.holding .hold-ring circle { stroke:rgba(139,140,248,.85); stroke-dashoffset:0; animation:holdfill 1.5s linear both }
+.hold-ring circle { fill:none; stroke:rgba(255,255,255,.12); stroke-width:3; stroke-dasharray:277; stroke-dashoffset:0 }
+.hold.holding .hold-ring circle { stroke:var(--acc); stroke-linecap:round; animation:holdfill 1.5s linear both }
 @keyframes holdfill { from { stroke-dashoffset:277 } }
-.hold-label { font-size:13px; color:rgba(255,255,255,.3) }
-.night.ring { z-index:45; color:var(--label-2) }
-.night.ring .night-clock { color:var(--label); font-weight:200 }
-.ring-title { font-size:22px; font-weight:600; color:var(--label) }
-.night.ring .night-sub { color:var(--label-2) }
+.hold-label { font-size:14px; color:rgba(255,255,255,.6) }
+/* the alarm: a sunrise, one big Stop */
+.night.alarm { z-index:45; background:linear-gradient(180deg,#0b0a09 0%,#1a1020 35%,#5a2a1a 72%,#d9783a 100%) }
+.night.alarm .pill { background:rgba(255,255,255,.1); color:#fff }
+.night.alarm .night-clock { color:#fff }
+.gm { font-size:24px; font-weight:600; color:#fff; margin-top:8px }
+.night.alarm .night-sub { color:rgba(255,255,255,.75); margin-top:6px; font-size:15px }
+.stop { width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,.92); color:#1a1020; font-size:20px; font-weight:700; box-shadow:0 10px 40px -8px rgba(255,170,90,.7) }
+.stop:active { transform:scale(.96) }
+.snooze { font-size:17px; font-weight:500; color:rgba(255,255,255,.85); margin-top:12px; padding:10px 20px }
+
+/* myGym pieces: hero card, week strip, raised Sleep button, the fade above the tab bar */
+.hero { background:linear-gradient(155deg,var(--acc-soft),transparent 70%),var(--surface); border:.5px solid color-mix(in srgb,var(--acc) 38%,transparent); border-radius:18px; padding:18px }
+.hero-row { display:flex; align-items:baseline; gap:10px; margin-top:4px }
+.hero .big { font-size:48px; font-weight:600; letter-spacing:-.03em; line-height:1 }
+.pair { display:flex; gap:10px; margin-top:14px }
+.pair > div { flex:1; background:rgba(0,0,0,.25); border-radius:12px; padding:10px 12px; min-width:0 }
+.pair b { display:block; font-size:19px; font-weight:600; letter-spacing:-.02em }
+.score { display:flex; align-items:center; gap:16px }
+.report-title { font-size:21px; font-weight:700; letter-spacing:-.02em }
+.facts { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px }
+.facts > div { background:rgba(0,0,0,.25); border-radius:12px; padding:10px }
+.facts b { display:block; font-size:18px; font-weight:600; letter-spacing:-.02em }
+.facts span { font-size:12px; color:var(--label-2) }
+.facts.kpis { grid-template-columns:1fr 1fr }
+.week { display:flex; justify-content:space-between; margin:0 2px 14px }
+.wd { display:flex; flex-direction:column; align-items:center; gap:5px; width:40px; color:inherit; text-decoration:none }
+.wd .l { font-size:11px; color:var(--label-3); font-weight:500 }
+.wd .n { font-size:16px; width:31px; height:31px; display:grid; place-items:center; border-radius:50% }
+.wd.today .n { background:var(--acc); color:var(--on-acc); font-weight:600 }
+.wd .d { width:6px; height:6px; border-radius:50% }
+.plain { display:block; color:inherit; text-decoration:none }
+.last { display:flex; align-items:center; gap:14px }
+.last-title { font-size:18px; font-weight:700; letter-spacing:-.02em }
+.chev { width:16px; height:16px; color:var(--label-3); flex:none }
+.line-card { display:flex; justify-content:space-between; gap:12px; color:inherit; text-decoration:none }
+.minibars { display:flex; align-items:flex-end; gap:8px; height:64px }
+.minibars i { flex:1; border-radius:5px }
+.hdr-btns { display:flex; gap:8px }
+.cal-card { padding:12px }
+.cal { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; text-align:center }
+.cal .h { font-size:11px; color:var(--label-3); padding-bottom:2px }
+.cal .c { height:40px; border-radius:11px; font-size:14px; color:var(--label-2); font-variant-numeric:tabular-nums }
+.cal .c.fut { color:var(--label-4) }
+.cal .c.sel { box-shadow:inset 0 0 0 2px var(--acc) }
+.score-how { display:block; margin:10px auto 12px; font-size:14px }
+#tabbar .start { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; margin-top:-26px; font-size:10px; font-weight:600; color:var(--acc) }
+#tabbar .start .cir { width:56px; height:56px; border-radius:50%; background:var(--acc); color:var(--on-acc); display:grid; place-items:center;
+  box-shadow:0 0 0 3px var(--bg),0 8px 22px -4px color-mix(in srgb,var(--acc) 60%,transparent); transition:transform 140ms var(--ease) }
+#tabbar .start .cir svg { width:28px; height:28px }
+#tabbar .start:active .cir { transform:scale(.93) }
+#tabbar { align-items:flex-end }
+#tabfade { position:fixed; left:0; right:0; bottom:0; height:calc(110px + var(--sab)); z-index:19; pointer-events:none; background:linear-gradient(to bottom,transparent,var(--bg) 78%) }
 
 .toast { position:fixed; left:50%; top:calc(10px + var(--sat)); transform:translate(-50%,-12px); opacity:0; pointer-events:none; z-index:50; background:var(--surface-3); padding:10px 16px; border-radius:99px; font-size:14px; font-weight:500; transition:transform 260ms var(--ease), opacity 200ms }
 .toast.show { transform:translate(-50%,0); opacity:1 }

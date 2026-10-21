@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store.js'
 import { Icon } from '../components/Icon.jsx'
 import * as tracker from '../lib/tracker.js'
-import { summarize, stirring } from '../lib/analysis.js'
+import { summarize, stirring, events } from '../lib/analysis.js'
+import { SOUNDS } from '../lib/sounds.js'
 import { armBackup, uploadClips } from '../lib/api.js'
 import { clockOf, dur, nextAt, nightIdOf } from '../lib/time.js'
 
 const CHECK_MS = 10000
-const LIT_MS = 8000      // how long a tap shows the screen before it goes black again
+const LIT_MS = 30000     // how long the screen stays lit before only a dim clock is left
 const HOLD_MS = 1500     // how long to hold before the night ends
 
 export function alarmPlan(settings, from = Date.now()) {
@@ -69,8 +70,9 @@ function Hold({ label, icon, onDone, disabled }) {
 }
 
 // The night screen, then the alarm. Shown over everything while `tracking` is set.
-// Black is the resting state: on the OLED screen black pixels are off, so the phone looks
-// switched off. A tap shows the time for a few seconds; ending the night needs a held press.
+// Lit for 30 s, then black with only a dim clock: on the OLED screen black pixels are off, so the
+// phone is dark apart from those digits, which drift a few pixels each minute against burn-in.
+// A tap lights it again; ending the night needs a held press.
 export function Tracking() {
   const tr = useStore(s => s.tracking), setTracking = useStore(s => s.setTracking), saveNight = useStore(s => s.saveNight)
   const nav = useNavigate()
@@ -80,6 +82,7 @@ export function Tracking() {
   const [lit, setLit] = useState(true)
   const [first, setFirst] = useState(true)
   const [shift, setShift] = useState([0, 0])
+  const [heard, setHeard] = useState('Quiet so far')
   const lastCheck = useRef(0), litTimer = useRef(null)
   // a page that was closed in the night comes back here with the saved seconds, not listening
   const [stale, setStale] = useState(() => {
@@ -113,7 +116,13 @@ export function Tracking() {
       setLive(tracker.micLive())
       if (n - lastCheck.current < CHECK_MS) return
       lastCheck.current = n
-      if (n % 60000 < CHECK_MS) tracker.saveProgress()
+      if (n % 60000 < CHECK_MS) {
+        tracker.saveProgress()
+        setShift([rnd(-12, 12), rnd(-24, 24)])
+        const ev = events(tracker.samples, tracker.samples.start), c = k => ev.filter(e => e.kind === k).length
+        const said = [c('snore') && 'Snoring', c('talk') && `talked ${c('talk') === 1 ? 'once' : c('talk') + ' times'}`, c('cough') && `coughed ${c('cough') === 1 ? 'once' : c('cough') + ' times'}`].filter(Boolean)
+        setHeard(said.length ? said.join(' · ').replace(/^./, x => x.toUpperCase()) : 'Quiet so far')
+      }
       if (useStore.getState().settings.clips !== false) tracker.collectClips().catch(() => {})
       if (!tr.ringAt) return
       if (n >= tr.ringAt || (tr.smart && n >= tr.ringFrom && stirring(tracker.samples))) wake(n)
@@ -165,39 +174,49 @@ export function Tracking() {
     catch { setLive(false) }
   }
 
-  if (ringing) return <div className="night ring" role="alertdialog" aria-label="Alarm">
+  const sound = (SOUNDS.find(o => o.id === useStore.getState().settings.alarmSound) || SOUNDS[0]).name
+  if (ringing) return <div className="night alarm" role="alertdialog" aria-label="Alarm">
     <div className="night-ui">
-      <div className="night-status" style={{ color: 'var(--acc)' }}>{tr.smart ? 'Smart alarm' : 'Alarm'}</div>
-      <div className="night-mid">
-        <div className="night-clock">{clockOf(ringing.at)}</div>
-        <div className="ring-title">Good morning</div>
-        {ringing.early > 0 && <div className="night-sub">You were moving, so it rang {ringing.early} min early.</div>}
+      <div className="pill">{tr.smart ? 'Smart alarm' : 'Alarm'} · {sound}</div>
+      <div>
+        <div className="night-clock num">{clockOf(ringing.at)}</div>
+        <div className="gm">Good morning</div>
+        {ringing.early > 0 && <div className="night-sub">You were stirring, so it rang {ringing.early} min early</div>}
       </div>
       <div className="night-foot">
-        <button className="btn" onClick={finish}>Stop</button>
-        <button className="btn ghost" onClick={snooze}>Snooze 9 min</button>
+        <button className="stop" onClick={finish}>Stop</button>
+        <button className="snooze" onClick={snooze}>Snooze 9 min</button>
       </div>
     </div>
   </div>
 
   const elapsed = Math.max(0, (now - tracker.samples.start) / 60000)
-  const alarm = tr.ringAt ? (tr.smart ? `Alarm ${clockOf(tr.ringFrom)}–${clockOf(tr.ringAt)}, when you stir` : `Alarm ${clockOf(tr.ringAt)}`) : 'No alarm'
+  const win = tr.ringAt ? (tr.smart ? `${clockOf(tr.ringFrom)} – ${clockOf(tr.ringAt)}` : clockOf(tr.ringAt)) : null
+  const left = tr.ringAt ? (tr.ringAt - now) / 60000 : null
   return <div className={'night' + (lit || stale ? '' : ' dark')} onPointerDown={light} onTouchStart={light}>
+    <div className="glow" />
     <div className="night-ui">
       {stale
-        ? <div className="night-status warn"><i />Stopped listening at {clockOf(tracker.samples.start + tracker.samples.db.length * 1000)}</div>
+        ? <div className="pill warn"><i />Stopped listening at {clockOf(tracker.samples.start + tracker.samples.db.length * 1000)}</div>
         : live
-          ? <div className="night-status"><i />Listening · {elapsed < 60 ? Math.floor(elapsed) + ' min' : dur(elapsed)}</div>
-          : <button className="night-status warn" onClick={() => lit && resume()}><i />Microphone stopped · tap to resume</button>}
-      <div className="night-mid" style={{ transform: `translate(${shift[0]}px,${shift[1]}px)` }}>
-        <div className="night-clock">{clockOf(now)}</div>
-        <div className="night-sub">{alarm}</div>
+          ? <div className="pill"><i />Listening · {elapsed < 1 ? 'just started' : dur(elapsed)}</div>
+          : <button className="pill warn" onClick={() => lit && resume()}><i />Microphone stopped · tap to resume</button>}
+      <div>
+        <div className="night-clock num">{clockOf(now)}</div>
+        <div className="night-line">{win ? `Alarm ${win}` : 'No alarm'}</div>
+        {left > 0 && <div className="night-sub">Up to {dur(left)} of sleep</div>}
+        {!stale && <div className="night-tags"><span>{heard}</span></div>}
       </div>
       <div className="night-foot">
         {stale && <button className="btn" onClick={resume}>Resume listening</button>}
         <Hold label={stale ? 'Hold to finish the night' : 'Hold to wake up'} icon="sun" onDone={finish} disabled={!lit && !stale} />
-        {first && !stale && <div className="night-hint">The screen goes black in a moment, so the phone looks switched off. Tap anywhere to see the time.</div>}
+        {!stale && <div className="night-hint">{first ? 'Dims in 30 s · tap anywhere to light it up' : 'Tap anywhere to light it up'}</div>}
       </div>
+    </div>
+    {/* all night: only these pixels light on the OLED screen */}
+    <div className="dimface" style={{ transform: `translate(${shift[0]}px,${shift[1]}px)` }} aria-hidden={lit}>
+      <div className="dim-clock num">{clockOf(now)}</div>
+      {win && <div className="dim-line num">{win}</div>}
     </div>
   </div>
 }

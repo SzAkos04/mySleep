@@ -1,4 +1,7 @@
 const P = {
+  moonfill: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="currentColor" />,
+  home: <path className="ic" d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z" />,
+  cal: <><rect className="ic" x="3.5" y="5" width="17" height="15" rx="2.5" /><path className="ic" d="M3.5 10h17M8 3v4M16 3v4" /></>,
   moon: <path className="ic" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />,
   list: <path className="ic" d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
   chart: <path className="ic" d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
