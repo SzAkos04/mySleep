@@ -217,6 +217,12 @@ h2.sect-t { font-weight:400 }
 .night.alarm .night-clock { color:#fff }
 .gm { font-size:24px; font-weight:600; color:#fff; margin-top:8px }
 .night.alarm .night-sub { color:rgba(255,255,255,.75); margin-top:6px; font-size:15px }
+.hold.light { width:120px; height:120px; background:rgba(255,255,255,.92); color:#1a1020; box-shadow:0 10px 40px -8px rgba(255,170,90,.7) }
+.hold.light.holding { background:#fff; color:#1a1020 }
+.hold.light .hold-ring circle { stroke:rgba(26,16,32,.12) }
+.hold.light.holding .hold-ring circle { stroke:#d9783a }
+.hold-text { font-size:20px; font-weight:700 }
+.night.alarm .hold-label { color:rgba(255,255,255,.85) }
 .stop { width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,.92); color:#1a1020; font-size:20px; font-weight:700; box-shadow:0 10px 40px -8px rgba(255,170,90,.7) }
 .stop:active { transform:scale(.96) }
 .snooze { font-size:17px; font-weight:500; color:rgba(255,255,255,.85); margin-top:12px; padding:10px 20px }

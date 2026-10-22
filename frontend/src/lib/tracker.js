@@ -169,12 +169,19 @@ export async function collectClips() {
 
 /* ---------- alarm ---------- */
 // The alarm is a recording: "Soft Piano Loop" by Ncone (freesound.org #710546, CC0), mono 32 kHz,
-// normalised to -1 dBFS (public/alarm-piano.wav). Loaded when the night starts, so ringing
-// needs no network at 6 am. It starts almost silent and keeps getting louder until it is
-// very loud; a limiter lets it pass full scale without clipping.
-const QUIET_TO_FULL = 20       // seconds from almost nothing to the recording's full level
-const FULL_TO_LOUD = 40        // then this long to about +9 dB, held in by the limiter: very loud at 1 min
+// made louder once with a look-ahead limiter (scripts/loud-alarm.mjs, +9 dB, peaks -1 dBFS,
+// public/alarm-piano.wav). Loaded when the night starts, so ringing needs no network at 6 am.
+// While it rings only a gain curve runs, no compressor: WebKit's added make-up gain and pumped the
+// piano, which was heard as steps. The curve is smooth in loudness: from -42 dB, easing into the
+// full level at RISE_SEC with no corner, then held there (very loud at full media volume).
+const RISE_SEC = 25, FROM_DB = -42
 let ringing = null, alarmBuffer = null
+
+function riseCurve() {
+  const n = 500, c = new Float32Array(n)
+  for (let i = 0; i < n; i++) c[i] = 10 ** (FROM_DB * (1 - i / (n - 1)) ** 2 / 20)
+  return c
+}
 
 async function loadAlarm() {
   if (alarmBuffer) return
@@ -186,14 +193,9 @@ export async function ring() {
   closeMic()
   if (navigator.audioSession) navigator.audioSession.type = 'playback'
   await ctx.resume().catch(() => {})
-  const t = ctx.currentTime, gain = ctx.createGain(), limit = ctx.createDynamicsCompressor()
-  limit.threshold.value = -3; limit.knee.value = 0; limit.ratio.value = 20; limit.attack.value = 0.003; limit.release.value = 0.25
-  gain.gain.setValueAtTime(0.002, t)
-  gain.gain.exponentialRampToValueAtTime(1, t + QUIET_TO_FULL)
-  gain.gain.linearRampToValueAtTime(2.8, t + QUIET_TO_FULL + FULL_TO_LOUD)
-  // the limiter reacts a few ms late and let peaks reach +1.7 dBFS when measured; -2.2 dB keeps them near -0.5 dBFS
-  const trim = ctx.createGain(); trim.gain.value = 0.78
-  gain.connect(limit).connect(trim).connect(ctx.destination)
+  const gain = ctx.createGain()
+  gain.gain.setValueCurveAtTime(riseCurve(), ctx.currentTime, RISE_SEC)
+  gain.connect(ctx.destination)
   let src
   if (alarmBuffer) {
     src = ctx.createBufferSource()

@@ -32,7 +32,7 @@ const rnd = (lo, hi) => Math.round(lo + Math.random() * (hi - lo))
 // Ends something only after a press held for HOLD_MS; letting go early does nothing.
 // Touch is handled natively with preventDefault: otherwise iOS treats a long press as its own
 // gesture and cancels the pointer half-way through the hold.
-function Hold({ label, icon, onDone, disabled }) {
+function Hold({ label, icon, text, onDone, disabled, light }) {
   const [holding, setHolding] = useState(false)
   const btn = useRef(null), t = useRef(null), live = useRef({ disabled, onDone })
   live.current = { disabled, onDone }
@@ -57,12 +57,12 @@ function Hold({ label, icon, onDone, disabled }) {
   }, [])
   const mouse = fn => e => e.pointerType === 'mouse' && fn()
   return <div className="hold-wrap">
-    <button ref={btn} className={'hold' + (holding ? ' holding' : '')} aria-label={label}
+    <button ref={btn} className={'hold' + (light ? ' light' : '') + (holding ? ' holding' : '')} aria-label={label}
       onPointerDown={mouse(start)} onPointerUp={mouse(stop)} onPointerLeave={mouse(stop)}
       onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && !e.repeat && start()} onKeyUp={stop}
       onContextMenu={e => e.preventDefault()}>
       <svg className="hold-ring" viewBox="0 0 92 92" aria-hidden="true"><circle cx="46" cy="46" r="44" /></svg>
-      <Icon name={icon} />
+      {text ? <span className="hold-text">{text}</span> : <Icon name={icon} />}
     </button>
     <div className="hold-label">{holding ? 'Keep holding' : label}</div>
   </div>
@@ -182,7 +182,8 @@ export function Tracking() {
         {ringing.early > 0 && <div className="night-sub">You were stirring, so it rang {ringing.early} min early</div>}
       </div>
       <div className="night-foot">
-        <button className="stop" onClick={finish}>Stop</button>
+        {/* held like ending the night, so a sleepy tap cannot silence it */}
+        <Hold light text="Stop" label="Hold to stop" onDone={finish} />
         <button className="snooze" onClick={snooze}>Snooze 9 min</button>
       </div>
     </div>

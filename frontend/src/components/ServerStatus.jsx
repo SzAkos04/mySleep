@@ -51,16 +51,27 @@ function Panel({ anchor, st, waiting, close }) {
     addEventListener('scroll', close, { passive: true }); addEventListener('keydown', esc)
     return () => { removeEventListener('scroll', close); removeEventListener('keydown', esc) }
   }, [])
-  // asked once, as the panel opens
-  useEffect(() => {
-    let live = true
+  // asked as the panel opens, and again with Sync now
+  const [busy, setBusy] = useState(false)
+  const check = async () => {
+    setPing(null)
     const t0 = performance.now(), ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 5000)
-    fetch('/api/health', { signal: ctl.signal, cache: 'no-store' })
-      .then(r => { if (!r.ok) throw 0; if (live) setPing(performance.now() - t0) })
-      .catch(() => { if (live) { setPing('none'); if (!useUI.getState().syncError) useUI.setState({ syncError: 'offline' }) } })
-      .finally(() => clearTimeout(tm))
-    return () => { live = false; ctl.abort() }
-  }, [])
+    try {
+      const r = await fetch('/api/health', { signal: ctl.signal, cache: 'no-store' })
+      if (!r.ok) throw 0
+      setPing(performance.now() - t0)
+    } catch {
+      setPing('none')
+      if (!useUI.getState().syncError) useUI.setState({ syncError: 'offline' })
+    } finally { clearTimeout(tm) }
+  }
+  useEffect(() => { check() }, [])
+  const refresh = async () => {
+    if (busy) return
+    setBusy(true)
+    await Promise.all([syncNow(), check()])
+    setBusy(false)
+  }
 
   const note = syncError === 'offline' ? 'Your nights are kept on this phone and go up as soon as the server answers.'
     : syncError === 'auth' ? 'Sign in again with your passkey.' : syncError === 'server' ? 'The server answered with an error. Your nights stay on this phone meanwhile.' : null
@@ -75,7 +86,7 @@ function Panel({ anchor, st, waiting, close }) {
         <dt>Response time</dt><dd>{ping == null ? '…' : ping === 'none' ? 'No answer' : Math.round(ping) + ' ms'}</dd>
       </dl>
       {note && <p className="pop-note">{note}</p>}
-      <button className="btn" style={{ height: 40, fontSize: 15 }} onClick={() => { syncNow(); close() }}>Sync now</button>
+      <button className="btn" style={{ height: 40, fontSize: 15 }} disabled={busy} onClick={refresh}>{busy ? 'Syncing…' : 'Sync now'}</button>
     </div>
   </>
 }
