@@ -130,9 +130,16 @@ export function Tracking() {
     return () => clearInterval(t)
   }, [stale, ringing, tr])
 
+  // the lock screen's Now Playing card says what is running
+  useEffect(() => {
+    if (stale || ringing) return
+    tracker.nowPlaying('mySleep is listening', tr.ringAt ? `Alarm ${tr.smart ? clockOf(tr.ringFrom) + '–' : ''}${clockOf(tr.ringAt)}` : 'No alarm')
+  }, [stale, ringing, tr])
+
   async function wake(n) {
     setRinging({ at: n, early: Math.max(0, Math.round((tr.ringAt - n) / 60000)) })
     await tracker.ring()
+    tracker.nowPlaying('Alarm', 'Hold Stop in mySleep to turn it off')
     setToneOnly(tracker.ringingTone() ? (tracker.alarmProblem || 'the recording did not load') : null)
   }
 

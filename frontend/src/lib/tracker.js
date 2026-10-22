@@ -135,6 +135,29 @@ export function stop() {
   silence()
   wakeLock?.release().catch(() => {}); wakeLock = null
   document.removeEventListener('visibilitychange', onVisible)
+  // An open AudioContext keeps the "Now Playing" card on the lock screen; the night is over, so
+  // close it. The next Sleep tap makes a new one (the decoded alarm works in any context).
+  nowPlaying(null)
+  ctx?.close().catch(() => {}); ctx = null; ringNode = null
+}
+
+// The lock screen's Now Playing card, which iOS shows while the AudioContext runs: say what it
+// is, and make its buttons do nothing, so a tap there cannot pause the night or the alarm.
+const ACTIONS = ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'seekto', 'previoustrack', 'nexttrack']
+export function nowPlaying(title, artist = '') {
+  const ms = navigator.mediaSession
+  if (!ms) return
+  try {
+    if (!title) {
+      ms.metadata = null
+      ms.playbackState = 'none'
+      for (const a of ACTIONS) try { ms.setActionHandler(a, null) } catch {}
+      return
+    }
+    ms.metadata = new MediaMetadata({ title, artist, album: 'mySleep', artwork: [512, 180].map(n => ({ src: new URL(`icon-${n}.png`, location.href).href, sizes: `${n}x${n}`, type: 'image/png' })) })
+    ms.playbackState = 'playing'
+    for (const a of ACTIONS) try { ms.setActionHandler(a, () => {}) } catch {}
+  } catch {}
 }
 
 /* ---------- clips ---------- */
