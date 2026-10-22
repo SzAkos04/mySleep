@@ -82,6 +82,7 @@ export function Tracking() {
   const [first, setFirst] = useState(true)
   const [shift, setShift] = useState([0, 0])
   const [heard, setHeard] = useState('Quiet so far')
+  const [toneOnly, setToneOnly] = useState(null)   // why the piano is not playing, if it is not
   const lastCheck = useRef(0), litTimer = useRef(null)
   // a page that was closed in the night comes back here with the saved seconds, not listening
   const [stale, setStale] = useState(() => {
@@ -132,6 +133,7 @@ export function Tracking() {
   async function wake(n) {
     setRinging({ at: n, early: Math.max(0, Math.round((tr.ringAt - n) / 60000)) })
     await tracker.ring()
+    setToneOnly(tracker.ringingTone() ? (tracker.alarmProblem || 'the recording did not load') : null)
   }
 
   async function snooze() {
@@ -175,11 +177,12 @@ export function Tracking() {
 
   if (ringing) return <div className="night alarm" role="alertdialog" aria-label="Alarm">
     <div className="night-ui">
-      <div className="pill">{tr.smart ? 'Smart alarm' : 'Alarm'}</div>
+      <div className="pill">{tr.smart ? 'Smart alarm' : 'Alarm'}{toneOnly ? ' · backup tone' : ''}</div>
       <div>
         <div className="night-clock num">{clockOf(ringing.at)}</div>
         <div className="gm">Good morning</div>
         {ringing.early > 0 && <div className="night-sub">You were stirring, so it rang {ringing.early} min early</div>}
+        {toneOnly && <div className="night-sub" style={{ fontSize: 12 }}>Piano not loaded: {toneOnly}</div>}
       </div>
       <div className="night-foot">
         {/* held like ending the night, so a sleepy tap cannot silence it */}

@@ -183,16 +183,39 @@ function riseCurve() {
   return c
 }
 
-async function loadAlarm() {
-  if (alarmBuffer) return
-  try { alarmBuffer = await ctx.decodeAudioData(await (await fetch('alarm-piano.wav')).arrayBuffer()) }
-  catch { alarmBuffer = null }   // offline at bedtime: the fallback tone below rings instead
+// The recording's bytes are fetched as soon as the app opens, not at the Sleep tap: a smart alarm
+// can ring within seconds of starting, and the file is 1.2 MB over Tailscale.
+let alarmBytes = null
+function fetchAlarm() {
+  return fetch('alarm-piano.wav').then(r => { if (!r.ok) throw new Error('server answered ' + r.status); return r.arrayBuffer() })
+    .catch(e => { alarmBytes = null; throw e })
+}
+if (typeof window !== 'undefined') alarmBytes = fetchAlarm()
+alarmBytes?.catch(() => {})
+
+// Why the recording is not loaded, if it is not: shown on the alarm screen when the tone rings.
+export let alarmProblem = null
+let loading = null
+function loadAlarm() {
+  if (alarmBuffer) return Promise.resolve()
+  return loading ||= (async () => {
+    try {
+      const data = (await (alarmBytes ||= fetchAlarm())).slice(0)   // decoding detaches its input
+      // the callback form too: some WebKit builds leave the promise form unsettled
+      alarmBuffer = await new Promise((res, rej) => { const p = ctx.decodeAudioData(data, res, rej); p?.then?.(res, rej) })
+      alarmProblem = null
+    } catch (e) {
+      alarmProblem = (e && (e.message || e.name)) || 'could not decode the recording'
+    } finally { loading = null }
+  })()
 }
 
 export async function ring() {
   closeMic()
   if (navigator.audioSession) navigator.audioSession.type = 'playback'
   await ctx.resume().catch(() => {})
+  // not loaded at bedtime (offline, or it failed): one more try before the tone
+  if (!alarmBuffer) await Promise.race([loadAlarm(), new Promise(r => setTimeout(r, 4000))])
   const gain = ctx.createGain()
   gain.gain.setValueCurveAtTime(riseCurve(), ctx.currentTime, RISE_SEC)
   gain.connect(ctx.destination)
@@ -207,7 +230,7 @@ export async function ring() {
   }
   src.connect(gain)
   src.start()
-  ringing = { src, gain }
+  ringing = { src, gain, tone: !alarmBuffer }
 }
 
 export function silence() {
@@ -222,3 +245,5 @@ export async function snooze() {
   silence()
   try { await openMic() } catch {}
 }
+
+export const ringingTone = () => !!ringing?.tone
