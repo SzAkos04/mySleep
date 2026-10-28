@@ -47,8 +47,60 @@ export function loadProgress() {
 }
 export const clearProgress = () => { try { localStorage.removeItem(KEY) } catch {} }
 
+/* ---------- keeping the screen on ----------
+   A home-screen web app loses the microphone the moment the phone locks, so the night depends on
+   the screen staying on. Two ways, both started from the Sleep tap itself (WebKit wants the user's
+   gesture for each):
+   1. the Screen Wake Lock, re-requested whenever iOS lets go of it;
+   2. a tiny video playing a live canvas stream. WebKit does not let the display sleep while a
+      video with a live MediaStream plays (a looping file would not do: looping media may sleep).
+   `awake` says how it went, for the night screen: 'lock', 'video', or 'none'. */
+let keeping = false, video = null, painter = null
+export let awake = 'none'
+const setAwake = () => { awake = wakeLock && !wakeLock.released ? 'lock' : video && !video.paused ? 'video' : 'none' }
+
 async function lockScreen() {
-  try { wakeLock = await navigator.wakeLock?.request('screen') } catch {}
+  if (!navigator.wakeLock || (wakeLock && !wakeLock.released)) return setAwake()
+  try {
+    wakeLock = await navigator.wakeLock.request('screen')
+    wakeLock.addEventListener('release', () => {
+      setAwake()
+      // iOS lets go of it (a call, Low Power Mode, the page hidden); ask again while the night runs
+      if (keeping && document.visibilityState === 'visible') setTimeout(lockScreen, 1000)
+    })
+  } catch {}
+  setAwake()
+}
+
+function startVideo() {
+  if (video) return video.play().then(setAwake, setAwake)
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 2
+    const g = c.getContext('2d'), stream = c.captureStream(1)
+    let on = false
+    painter = setInterval(() => { on = !on; g.fillStyle = on ? '#000' : '#010101'; g.fillRect(0, 0, 2, 2) }, 1000)
+    video = document.createElement('video')
+    Object.assign(video, { muted: true, playsInline: true, srcObject: stream })
+    video.setAttribute('playsinline', '')
+    video.setAttribute('aria-hidden', 'true')
+    // on screen (some engines pause what is not), but one pixel and invisible
+    Object.assign(video.style, { position: 'fixed', left: '0', top: '0', width: '1px', height: '1px', opacity: '0.01', pointerEvents: 'none', zIndex: '-1' })
+    document.body.appendChild(video)
+    return video.play().then(setAwake, setAwake)
+  } catch { setAwake() }
+}
+
+function stopVideo() {
+  clearInterval(painter); painter = null
+  if (!video) return
+  video.pause(); video.srcObject?.getTracks().forEach(t => t.stop()); video.remove(); video = null
+}
+
+// From the Sleep tap, before anything is awaited, so both run inside the user's gesture.
+export function keepAwake() {
+  keeping = true
+  lockScreen()
+  startVideo()
 }
 
 async function openMic() {
@@ -112,11 +164,13 @@ function read() {
 async function onVisible() {
   if (document.visibilityState !== 'visible' || !ctx) return
   await lockScreen()
+  if (keeping && video?.paused) video.play().then(setAwake, setAwake)
   if (!micLive() && !ringing) { try { await openMic() } catch {} }
 }
 
 // Call from the Start tap. `resume` continues a night whose page was closed (gap in between).
 export async function start({ resume = false } = {}) {
+  keepAwake()
   ctx = ctx || new AudioContext()
   if (!resume) { for (const k of KEYS) samples[k] = []; samples.start = Date.now(); clips.length = 0 }
   acc = fresh(); lastDb = null
@@ -133,7 +187,9 @@ export function stop() {
   read()
   closeMic()
   silence()
+  keeping = false
   wakeLock?.release().catch(() => {}); wakeLock = null
+  stopVideo(); awake = 'none'
   document.removeEventListener('visibilitychange', onVisible)
   // An open AudioContext keeps the "Now Playing" card on the lock screen; the night is over, so
   // close it. The next Sleep tap makes a new one (the decoded alarm works in any context).

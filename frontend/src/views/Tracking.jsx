@@ -82,6 +82,7 @@ export function Tracking() {
   const [first, setFirst] = useState(true)
   const [shift, setShift] = useState([0, 0])
   const [heard, setHeard] = useState('Quiet so far')
+  const [awake, setAwake] = useState(tracker.awake)   // is anything keeping the screen on
   const [toneOnly, setToneOnly] = useState(null)   // why the piano is not playing, if it is not
   const lastCheck = useRef(0), litTimer = useRef(null)
   // a page that was closed in the night comes back here with the saved seconds, not listening
@@ -114,6 +115,7 @@ export function Tracking() {
       const n = Date.now()
       setNow(n)
       setLive(tracker.micLive())
+      setAwake(tracker.awake)
       if (n - lastCheck.current < CHECK_MS) return
       lastCheck.current = n
       if (n % 60000 < CHECK_MS) {
@@ -215,6 +217,7 @@ export function Tracking() {
         <div className="night-line">{win ? `Alarm ${win}` : 'No alarm'}</div>
         {left > 0 && <div className="night-sub">Up to {dur(left)} of sleep</div>}
         {!stale && <div className="night-tags"><span>{heard}</span></div>}
+        {!stale && awake === 'none' && <div className="night-warn">The screen may lock, and the microphone stops when it does. Set Settings › Display &amp; Brightness › Auto-Lock to Never for the night, and turn off Low Power Mode.</div>}
       </div>
       <div className="night-foot">
         {stale && <button className="btn" onClick={resume}>Resume listening</button>}
