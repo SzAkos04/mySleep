@@ -75,3 +75,15 @@ test('a clip is stored, served back, and goes with its night', async () => {
   await sync({ changes: [{ kind: 'night', id: '2026-10-20', ts: 999, deleted: true }] })
   assert.equal((await fetch(url, { headers: { cookie } })).status, 404)
 })
+
+test('a night log is stored (gzipped too), read back, and kept over a later partial one', async () => {
+  const zlib = await import('node:zlib')
+  const url = base + '/api/debug/2026-10-28'
+  const put = (body, gz) => fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json', ...(gz ? { 'content-encoding': 'gzip' } : {}) }, body: gz ? zlib.gzipSync(JSON.stringify(body)) : JSON.stringify(body) })
+  assert.equal((await put({ night: '2026-10-27', events: [] })).status, 400)
+  assert.equal((await put({ night: '2026-10-28', start: 1, events: [[0, 'start']], final: true, samples: { db: [30] } }, true)).status, 200)
+  assert.equal((await put({ night: '2026-10-28', start: 1, events: [[0, 'start']], final: false })).status, 200)
+  const got = await (await fetch(url, { headers: { cookie } })).json()
+  assert.equal(got.final, true)
+  assert.deepEqual(got.samples.db, [30])
+})

@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon.jsx'
 import * as tracker from '../lib/tracker.js'
 import { summarize, stirring, events } from '../lib/analysis.js'
 import { armBackup, uploadClips } from '../lib/api.js'
+import { diag, diagStart, diagResume, diagUpload, diagSummary } from '../lib/diag.js'
 import { clockOf, dur, nextAt, nightIdOf } from '../lib/time.js'
 
 const CHECK_MS = 10000
@@ -20,11 +21,15 @@ export function alarmPlan(settings, from = Date.now()) {
 // From the Start tap (the microphone and the alarm's sound both need it). Throws a message for
 // the person when the microphone cannot start.
 export async function startNight() {
+  const { settings: st } = useStore.getState()
+  // synchronous, so the Sleep tap's gesture still reaches the wake lock and video inside start()
+  diagStart(nightIdOf(Date.now()), { settings: { wake: st.wake, bedtime: st.bedtime, alarm: st.alarm, smart: st.smart, clips: st.clips } })
   try { await tracker.start() }
-  catch (e) { throw new Error(e.name === 'NotAllowedError' ? 'mySleep needs the microphone. Allow it in Settings › Safari › Microphone, then try again.' : 'The microphone did not start: ' + e.message) }
+  catch (e) { diag('start-failed', { name: e?.name, message: e?.message }); diagUpload(null, true); throw new Error(e.name === 'NotAllowedError' ? 'mySleep needs the microphone. Allow it in Settings › Safari › Microphone, then try again.' : 'The microphone did not start: ' + e.message) }
   const { settings, setTracking } = useStore.getState(), start = tracker.samples.start, p = alarmPlan(settings, start)
   setTracking({ start, nightId: nightIdOf(start), ringFrom: p?.from ?? null, ringAt: p?.at ?? null, smart: settings.smart })
   if (p) armBackup(p.at + 60000)
+  diag('night', { ringFrom: p?.from ?? null, ringAt: p?.at ?? null, awake: tracker.awake })
 }
 
 const rnd = (lo, hi) => Math.round(lo + Math.random() * (hi - lo))
@@ -88,6 +93,7 @@ export function Tracking() {
   // a page that was closed in the night comes back here with the saved seconds, not listening
   const [stale, setStale] = useState(() => {
     if (tracker.samples.start) return false
+    diagResume(tr.nightId)
     if (!tracker.loadProgress()) Object.assign(tracker.samples, { start: tr.start, db: [], low: [] })
     return true
   })
@@ -120,6 +126,8 @@ export function Tracking() {
       lastCheck.current = n
       if (n % 60000 < CHECK_MS) {
         tracker.saveProgress()
+        tracker.heartbeat()
+        diagUpload()   // at most every 5 min; a log on the server even if the page dies
         setShift([rnd(-12, 12), rnd(-24, 24)])
         const ev = events(tracker.samples, tracker.samples.start), c = k => ev.filter(e => e.kind === k).length
         const said = [c('snore') && 'Snoring', c('talk') && `talked ${c('talk') === 1 ? 'once' : c('talk') + ' times'}`, c('cough') && `coughed ${c('cough') === 1 ? 'once' : c('cough') + ' times'}`].filter(Boolean)
@@ -139,6 +147,7 @@ export function Tracking() {
   }, [stale, ringing, tr])
 
   async function wake(n) {
+    diag('wake', { at: n, ringAt: tr.ringAt, smart: tr.smart, early: tr.ringAt - n })
     setRinging({ at: n, early: Math.max(0, Math.round((tr.ringAt - n) / 60000)) })
     await tracker.ring()
     tracker.nowPlaying('Alarm', 'Hold Stop in mySleep to turn it off')
@@ -146,6 +155,7 @@ export function Tracking() {
   }
 
   async function snooze() {
+    diag('snooze')
     const snoozeMin = 9
     await tracker.snooze()
     setRinging(null)
@@ -155,6 +165,7 @@ export function Tracking() {
   }
 
   function finish() {
+    diag('finish', { ringing: !!ringing, stale })
     tracker.stop()
     const end = Date.now(), s = tracker.samples, r = summarize(s, s.start)
     armBackup(null)
@@ -165,10 +176,12 @@ export function Tracking() {
       id: tr.nightId, bed: s.start, on: r.on, wake: end,   // on: null when no sleep was found
       wakes: r.wakes, awakeMin: r.awakeMin, asleepMin: r.asleepMin, restfulMin: r.restfulMin,
       snoreMin: r.snoreMin, talks: r.talks, coughs: r.coughs, events: r.events,
-      timeline: r.timeline, clips: [],
+      timeline: r.timeline, clips: [], diag: diagSummary(),
       ...(ringing && { alarm: { at: ringing.at, early: ringing.early } })
     }
     saveNight(night)
+    diag('summary', { asleepMin: r.asleepMin, on: r.on, wakes: r.wakes, missingSec: s.db.filter(v => !Number.isFinite(v)).length, sec: s.db.length })
+    diagUpload(s, true)
     // the morning is just the night's data; nothing to fill in
     nav('/night/' + night.id, { state: { morning: true } })
     // the recordings go up after; the night gains them when they are on the server
@@ -180,6 +193,7 @@ export function Tracking() {
   }
 
   async function resume() {
+    diag('resume-tap')
     try { await tracker.start({ resume: true }); setStale(false); setLive(true); light() }
     catch { setLive(false) }
   }

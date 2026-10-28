@@ -3,6 +3,7 @@ import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { useStore, syncNow } from './store.js'
 import { useUI } from './ui.js'
 import { api } from './lib/api.js'
+import { diagRetryPending } from './lib/diag.js'
 import { Icon } from './components/Icon.jsx'
 import { ReviewSheet } from './components/ReviewSheet.jsx'
 import { Today } from './views/Today.jsx'
@@ -22,7 +23,7 @@ export function App() {
 
   useEffect(() => {
     api('/api/me')
-      .then(r => { useStore.getState().setUser(r.user); syncNow() })
+      .then(r => { useStore.getState().setUser(r.user); syncNow(); diagRetryPending() })
       .catch(e => {
         if (e.status === 401) { useStore.getState().setUser(null); setSignup(!!e.data?.signup) }
         else syncNow()   // offline: keep the cached user, and let the server check in the corner say so

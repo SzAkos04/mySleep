@@ -81,6 +81,21 @@ export function Night() {
       })}</div>
     </div>}
 
+    {n.diag && <div className="sect">
+      <span className="sect-t">Diagnostics · full log on your server</span>
+      <div className="sect-b">
+        {[
+          ['Screen kept on', n.diag.lockOk || n.diag.videoOk ? `${n.diag.lockOk ? 'wake lock' : ''}${n.diag.lockOk && n.diag.videoOk ? ' + ' : ''}${n.diag.videoOk ? 'video' : ''}` : 'no', !(n.diag.lockOk || n.diag.videoOk)],
+          ['Wake lock released', n.diag.lockReleased, n.diag.lockReleased > 0],
+          ['Microphone lost', n.diag.micLost, n.diag.micLost > 0],
+          ['App hidden / locked', n.diag.hidden, n.diag.hidden > 0],
+          ['App stalled', n.diag.stalls, n.diag.stalls > 0],
+          ['Reloaded in the night', n.diag.reloads, n.diag.reloads > 0],
+          ['Errors', n.diag.errors, n.diag.errors > 0]
+        ].map(([l, v, bad]) => <div key={l} className="row"><span>{l}</span><span className="r" style={bad ? { color: 'var(--awake)' } : null}>{String(v)}</span></div>)}
+      </div>
+    </div>}
+
     <button className="btn danger" onClick={() => setConfirm(true)}><Icon name="trash" />{morning ? 'Discard this night' : 'Delete night'}</button>
     {confirm && <Confirm title={`Delete ${dayLabel(n.id)}?`} body="The night, its recordings and its summary go from every device." action="Delete"
       onConfirm={() => { deleteNight(n.id); say('Night deleted'); nav('/journal', { replace: true }) }} onClosed={() => setConfirm(false)} />}

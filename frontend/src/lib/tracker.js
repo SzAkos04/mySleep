@@ -9,6 +9,7 @@
 //   switches the audio session to playback, which also ignores the silent switch.
 import { events, slice } from './analysis.js'
 import { encodeWav } from './wav.js'
+import { diag } from './diag.js'
 // its own file, not a data: URL, which Safari may refuse for a worklet
 import ringWorklet from './ring-worklet.js?url&no-inline'
 
@@ -60,20 +61,25 @@ export let awake = 'none'
 const setAwake = () => { awake = wakeLock && !wakeLock.released ? 'lock' : video && !video.paused ? 'video' : 'none' }
 
 async function lockScreen() {
-  if (!navigator.wakeLock || (wakeLock && !wakeLock.released)) return setAwake()
+  if (!navigator.wakeLock) { diag('wakelock-failed', { name: 'unsupported' }); return setAwake() }
+  if (wakeLock && !wakeLock.released) return setAwake()
   try {
     wakeLock = await navigator.wakeLock.request('screen')
+    diag('wakelock', { visibility: document.visibilityState })
     wakeLock.addEventListener('release', () => {
+      diag('wakelock-released', { visibility: document.visibilityState, keeping })
       setAwake()
       // iOS lets go of it (a call, Low Power Mode, the page hidden); ask again while the night runs
       if (keeping && document.visibilityState === 'visible') setTimeout(lockScreen, 1000)
     })
-  } catch {}
+  } catch (e) { diag('wakelock-failed', { name: e?.name, message: e?.message, visibility: document.visibilityState }) }
   setAwake()
 }
 
 function startVideo() {
-  if (video) return video.play().then(setAwake, setAwake)
+  const played = () => { diag('video-playing', { paused: video?.paused, readyState: video?.readyState }); setAwake() }
+  const failed = e => { diag('video-failed', { name: e?.name, message: e?.message }); setAwake() }
+  if (video) return video.play().then(played, failed)
   try {
     const c = document.createElement('canvas'); c.width = c.height = 2
     const g = c.getContext('2d'), stream = c.captureStream(1)
@@ -85,9 +91,10 @@ function startVideo() {
     video.setAttribute('aria-hidden', 'true')
     // on screen (some engines pause what is not), but one pixel and invisible
     Object.assign(video.style, { position: 'fixed', left: '0', top: '0', width: '1px', height: '1px', opacity: '0.01', pointerEvents: 'none', zIndex: '-1' })
+    for (const ev of ['pause', 'stalled', 'suspend', 'ended', 'error', 'emptied', 'waiting']) video.addEventListener(ev, () => diag('video-' + ev, { paused: video?.paused, readyState: video?.readyState }))
     document.body.appendChild(video)
-    return video.play().then(setAwake, setAwake)
-  } catch { setAwake() }
+    return video.play().then(played, failed)
+  } catch (e) { failed(e) }
 }
 
 function stopVideo() {
@@ -105,7 +112,12 @@ export function keepAwake() {
 
 async function openMic() {
   if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'
-  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+  } catch (e) { diag('mic-failed', { name: e?.name, message: e?.message, visibility: document.visibilityState }); throw e }
+  const track = stream.getAudioTracks()[0]
+  diag('mic-open', { label: track?.label, settings: track?.getSettings?.(), session: navigator.audioSession?.type })
+  for (const ev of ['ended', 'mute', 'unmute']) track?.addEventListener(ev, () => diag('mic-' + ev, { readyState: track.readyState, muted: track.muted, visibility: document.visibilityState }))
   const src = ctx.createMediaStreamSource(stream)
   analyser = ctx.createAnalyser()
   analyser.fftSize = 2048
@@ -119,9 +131,10 @@ async function openMic() {
       ringNode.connect(mute).connect(ctx.destination)   // pulled by the graph, heard by nobody
     }
     src.connect(ringNode)
-  } catch { ringNode = null }   // no clips then; the night is still tracked
+  } catch (e) { ringNode = null; diag('clips-unavailable', { message: e?.message }) }   // no clips then; the night is still tracked
   await ctx.resume()
   wallAt0 = Date.now() - ctx.currentTime * 1000
+  diag('ctx', { state: ctx.state, sampleRate: ctx.sampleRate, clips: !!ringNode })
 }
 export const micLive = () => !!stream && stream.getAudioTracks().some(t => t.readyState === 'live')
 function closeMic() { stream?.getTracks().forEach(t => t.stop()); stream = null; analyser = null }
@@ -135,11 +148,18 @@ function push(a) {
   samples.at.push(a.at)
 }
 
+let lastRead = 0, micWasLive = true
 function read() {
-  const sec = Math.floor((Date.now() - samples.start) / 1000)
+  const now = Date.now()
+  // the page was not running (frozen, hidden, locked): say how long
+  if (lastRead && now - lastRead > 3000) diag('stall', { ms: now - lastRead, visibility: document.visibilityState })
+  lastRead = now
+  const sec = Math.floor((now - samples.start) / 1000)
   // seconds the page was not running are gaps
   while (samples.db.length < sec) { push(acc); acc = fresh() }
-  if (!analyser || !micLive()) return
+  const live = !!analyser && micLive()
+  if (live !== micWasLive) { diag(live ? 'mic-live' : 'mic-dead', { visibility: document.visibilityState, ctx: ctx?.state }); micWasLive = live }
+  if (!live) return
   const t = new Float32Array(analyser.fftSize), f = new Float32Array(analyser.frequencyBinCount)
   analyser.getFloatTimeDomainData(t)
   analyser.getFloatFrequencyData(f)
@@ -164,16 +184,17 @@ function read() {
 async function onVisible() {
   if (document.visibilityState !== 'visible' || !ctx) return
   await lockScreen()
-  if (keeping && video?.paused) video.play().then(setAwake, setAwake)
-  if (!micLive() && !ringing) { try { await openMic() } catch {} }
+  if (keeping && video?.paused) video.play().then(() => { diag('video-playing', { again: true }); setAwake() }, e => { diag('video-failed', { again: true, name: e?.name }); setAwake() })
+  if (!micLive() && !ringing) { diag('mic-reopen'); try { await openMic() } catch {} }
 }
 
 // Call from the Start tap. `resume` continues a night whose page was closed (gap in between).
 export async function start({ resume = false } = {}) {
   keepAwake()
   ctx = ctx || new AudioContext()
+  ctx.onstatechange = () => diag('ctx', { state: ctx?.state })
   if (!resume) { for (const k of KEYS) samples[k] = []; samples.start = Date.now(); clips.length = 0 }
-  acc = fresh(); lastDb = null
+  acc = fresh(); lastDb = null; lastRead = 0; micWasLive = true
   await openMic()
   await lockScreen()
   loadAlarm()
@@ -283,8 +304,10 @@ function loadAlarm() {
       // the callback form too: some WebKit builds leave the promise form unsettled
       alarmBuffer = await new Promise((res, rej) => { const p = ctx.decodeAudioData(data, res, rej); p?.then?.(res, rej) })
       alarmProblem = null
+      diag('alarm-loaded', { sec: Math.round(alarmBuffer.duration) })
     } catch (e) {
       alarmProblem = (e && (e.message || e.name)) || 'could not decode the recording'
+      diag('alarm-load-failed', { problem: alarmProblem })
     } finally { loading = null }
   })()
 }
@@ -310,10 +333,12 @@ export async function ring() {
   src.connect(gain)
   src.start()
   ringing = { src, gain, tone: !alarmBuffer }
+  diag('ring', { recording: !!alarmBuffer, problem: alarmProblem, ctx: ctx.state, session: navigator.audioSession?.type, visibility: document.visibilityState })
 }
 
 export function silence() {
   if (!ringing) return
+  diag('silence')
   try { ringing.src.stop() } catch {}
   ringing.gain.disconnect()
   ringing = null
@@ -326,3 +351,14 @@ export async function snooze() {
 }
 
 export const ringingTone = () => !!ringing?.tone
+
+// Once a minute from the night screen: the state of everything that keeps the night going.
+export function heartbeat() {
+  const last60 = samples.db.slice(-60)
+  diag('beat', {
+    sec: samples.db.length, missing60: last60.filter(v => !Number.isFinite(v)).length,
+    db: Math.round(Math.max(...last60.filter(Number.isFinite), -1)), live: micLive(), ctx: ctx?.state,
+    awake, lock: !!wakeLock && !wakeLock.released, video: video ? (video.paused ? 'paused' : 'playing') : 'none',
+    visibility: document.visibilityState, clips: clips.length, session: navigator.audioSession?.type
+  })
+}

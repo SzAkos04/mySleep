@@ -4,6 +4,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import {
   generateRegistrationOptions, verifyRegistrationResponse,
   generateAuthenticationOptions, verifyAuthenticationResponse
@@ -59,6 +60,46 @@ function sweepClips() {
     catch (e) { if (e.code !== 'ENOENT') console.error('clips', e.message); }
   }
 }
+// A night's flight recorder (frontend/src/lib/diag.js): events and, at the end, the raw readings.
+// DATA_DIR/debug/<uid>/<night>.json, replaced on each upload, kept DEBUG_DAYS (30), and kept when
+// the night itself is discarded: that is when it is most needed.
+const DEBUG_DAYS = +(process.env.DEBUG_DAYS || 30);
+const DEBUG_PATH = /^\/api\/debug\/(\d{4}-\d{2}-\d{2})$/;
+const debugDir = uid => path.join(DATA, 'debug', uid.replace(/[^\w-]/g, ''));
+async function debugRoute(req, res, night) {
+  const user = needUser(req);
+  const file = path.join(debugDir(user.id), night + '.json');
+  if (req.method === 'GET') {
+    if (!fs.existsSync(file)) throw new HttpError(404, 'no log for that night');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    return fs.createReadStream(file).pipe(res);
+  }
+  if (req.method !== 'PUT') throw new HttpError(405, 'GET or PUT');
+  const chunks = []; let size = 0;
+  for await (const d of req) { size += d.length; if (size > MAX_BODY) throw new HttpError(413, 'log too large'); chunks.push(d); }
+  let raw = Buffer.concat(chunks);
+  if (/gzip/i.test(req.headers['content-encoding'] || '')) {
+    try { raw = zlib.gunzipSync(raw, { maxOutputLength: 64 * 1024 * 1024 }); } catch { throw new HttpError(400, 'bad gzip'); }
+  }
+  let body;
+  try { body = JSON.parse(raw); } catch { throw new HttpError(400, 'invalid JSON'); }
+  if (!body || body.night !== night || !Array.isArray(body.events)) throw new HttpError(400, 'not a night log');
+  // a periodic upload must not replace a finished log that already has the readings
+  if (!body.final && fs.existsSync(file)) {
+    try { if (JSON.parse(fs.readFileSync(file, 'utf8')).final && body.start === JSON.parse(fs.readFileSync(file, 'utf8')).start) return json(res, 200, { ok: true, kept: 'final' }); } catch {}
+  }
+  fs.mkdirSync(debugDir(user.id), { recursive: true });
+  writeJSON(file, { ...body, receivedAt: Date.now() });
+  json(res, 200, { ok: true });
+}
+function sweepDebug() {
+  const cutoff = Date.now() - DEBUG_DAYS * 864e5;
+  for (const u of db.users) {
+    try { for (const f of fs.readdirSync(debugDir(u.id))) { const p = path.join(debugDir(u.id), f); if (fs.statSync(p).mtimeMs < cutoff) fs.rmSync(p, { force: true }); } }
+    catch (e) { if (e.code !== 'ENOENT') console.error('debug', e.message); }
+  }
+}
+
 async function clipRoute(req, res, night, id) {
   const user = needUser(req);
   const file = path.join(clipDir(user.id), `${night}_${id}.wav`);
@@ -317,7 +358,8 @@ const routes = {
 
 const server = http.createServer(async (req, res) => {
   const pathname = new URL(req.url, 'http://x').pathname, clip = pathname.match(CLIP_PATH);
-  const route = clip ? (rq, rs) => clipRoute(rq, rs, clip[1], clip[2]) : routes[req.method + ' ' + pathname];
+  const dbg = pathname.match(DEBUG_PATH);
+  const route = clip ? (rq, rs) => clipRoute(rq, rs, clip[1], clip[2]) : dbg ? (rq, rs) => debugRoute(rq, rs, dbg[1]) : routes[req.method + ' ' + pathname];
   try {
     if (!route) throw new HttpError(404, 'not found');
     if (!csrfOk(req)) throw new HttpError(403, 'cross-origin request refused');
@@ -331,6 +373,7 @@ const server = http.createServer(async (req, res) => {
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   server.listen(PORT, () => console.log(`mySleep API on :${PORT}, RP_ID=${RP_ID}, ORIGIN=${ORIGIN}`));
   setInterval(() => tick().catch(e => console.error('tick', e)), 20000).unref();
-  sweepClips();
+  sweepClips(); sweepDebug();
+  setInterval(sweepDebug, 864e5).unref();
   setInterval(sweepClips, 3600e3).unref();
 }
