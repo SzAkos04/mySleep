@@ -57,3 +57,12 @@ public enum RiseCurve {
     return pow(10, fromDb * (1 - x) * (1 - x) / 20)
   }
 }
+
+/// Which audio session the app runs in (AVAudioSession's names, so this stays testable on the Mac).
+/// Listening needs recording with no signal processing; ringing needs playback: through the
+/// recording session iOS plays the speaker quietly (29 October: medium even at full volume).
+public struct AudioPlan: Equatable, Sendable {
+  public let category: String, mode: String
+  public static let forListening = AudioPlan(category: "AVAudioSessionCategoryPlayAndRecord", mode: "AVAudioSessionModeMeasurement")
+  public static let forRinging = AudioPlan(category: "AVAudioSessionCategoryPlayback", mode: "AVAudioSessionModeDefault")
+}

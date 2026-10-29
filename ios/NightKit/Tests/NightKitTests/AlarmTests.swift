@@ -123,3 +123,13 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
     #expect(s.backup == at(6, 56, day: 29))
   }
 }
+
+@Suite struct AudioSessionChoice {
+  // 29 October evening: the alarm played through the recording session (.playAndRecord,
+  // .measurement), which iOS plays quietly through the speaker: medium even at full volume. Ringing
+  // is played as playback, at the phone's full media volume; listening goes back to recording.
+  @Test func ringingIsPlaybackListeningIsRecording() {
+    #expect(AudioPlan.forListening == AudioPlan(category: "AVAudioSessionCategoryPlayAndRecord", mode: "AVAudioSessionModeMeasurement"))
+    #expect(AudioPlan.forRinging == AudioPlan(category: "AVAudioSessionCategoryPlayback", mode: "AVAudioSessionModeDefault"))
+  }
+}

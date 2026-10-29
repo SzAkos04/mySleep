@@ -104,7 +104,8 @@ import UIKit
   private func startAudio(reason: String) throws {
     let session = AVAudioSession.sharedInstance()
     // .measurement: no automatic gain or noise suppression, as the web app asks for
-    try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .mixWithOthers])
+    let listening = AudioPlan.forListening
+    try session.setCategory(AVAudioSession.Category(rawValue: listening.category), mode: AVAudioSession.Mode(rawValue: listening.mode), options: [.defaultToSpeaker, .mixWithOthers])
     try session.setActive(true)
     let input = engine.inputNode, format = input.outputFormat(forBus: 0), rate = format.sampleRate
     input.removeTap(onBus: 0)
@@ -136,7 +137,7 @@ import UIKit
     // screen and sound; the piano and the night card make way
     if alarm.phase == .ringing { if selfRinging { silence(); logNow("escalated", [:]) }; live.end() }
     // nothing arriving for 10 s: restart the audio, at most once a minute, logged
-    if silent && now - lastRestart > 60_000 {
+    if silent && !selfRinging && now - lastRestart > 60_000 {   // ringing: the microphone is off on purpose
       lastRestart = now; restarts += 1
       engine.stop()
       do { try startAudio(reason: "silent") } catch { queue.async { n.log("restart-failed", ["error": "\(error)"]) } }
@@ -189,6 +190,15 @@ import UIKit
     guard let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"), let p = try? AVAudioPlayer(contentsOf: url) else {
       logNow("ring-failed", ["reason": "no piano"]); return
     }
+    // playback, not the recording session: through that iOS plays the speaker quietly (AudioPlan)
+    engine.inputNode.removeTap(onBus: 0)
+    engine.stop()
+    do {
+      let s = AVAudioSession.sharedInstance(), ringing = AudioPlan.forRinging
+      try s.setCategory(AVAudioSession.Category(rawValue: ringing.category), mode: AVAudioSession.Mode(rawValue: ringing.mode))
+      try s.setActive(true)
+      logNow("audio", ["reason": "ring", "category": s.category.rawValue, "mode": s.mode.rawValue, "volume": s.outputVolume])
+    } catch { logNow("ring-session-failed", ["error": "\(error)"]) }
     p.numberOfLoops = -1
     p.volume = Float(RiseCurve.gain(at: 0))
     p.play()
@@ -216,6 +226,8 @@ import UIKit
   func snoozeAlarm() {
     guard selfRinging else { return alarm.snooze() }
     silence()
+    // back to listening until it rings again
+    do { try startAudio(reason: "snooze") } catch { logNow("restart-failed", ["error": "\(error)"]) }
     let next = AlarmPlan.snoozed(at: Date())
     plan = next; smart = false; lastCheck = 0; rangEarly = false
     live.snoozed(until: next.at)
