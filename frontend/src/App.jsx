@@ -3,7 +3,7 @@ import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { useStore, syncNow } from './store.js'
 import { useUI } from './ui.js'
 import { api } from './lib/api.js'
-import { importNative, sleepLink } from './lib/native.js'
+import { importNative, sleepLink, isEmbedded } from './lib/native.js'
 import { Icon } from './components/Icon.jsx'
 import { ReviewSheet } from './components/ReviewSheet.jsx'
 import { Today } from './views/Today.jsx'
@@ -43,6 +43,8 @@ export function App() {
     return () => document.removeEventListener('visibilitychange', back)
   }, [])
 
+  const embedded = isEmbedded()
+  useEffect(() => { document.documentElement.classList.toggle('embedded', embedded) }, [embedded])
   if (!user) return <div id="app"><Login signup={signup} /></div>
 
   return <HashRouter>
@@ -55,16 +57,16 @@ export function App() {
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </div>
-    <div id="tabfade" />
+    {!embedded && <div id="tabfade" />}
     {/* Sleep is the raised button in the middle, the way Start is in myGym: one tap from any tab */}
-    <nav id="tabbar" aria-label="Main">
+    {!embedded && <nav id="tabbar" aria-label="Main">
       <Tab to="/" icon="home" label="Today" />
       <Tab to="/journal" icon="cal" label="Journal" />
       {/* the night is mySleep Night's (ios/): it records with the phone locked, which a web app cannot */}
       <a className="start" href={sleepLink(settings)}><span className="cir"><Icon name="moonfill" /></span><span>Sleep</span></a>
       <Tab to="/trends" icon="chart" label="Trends" />
       <Tab to="/settings" icon="gear" label="Settings" />
-    </nav>
+    </nav>}
     {sheet?.type === 'review' && <ReviewSheet key={sheet.key} night={sheet.night} />}
     <div className={'toast' + (toast ? ' show' : '')} role="status">{toast}</div>
   </HashRouter>

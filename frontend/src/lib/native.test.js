@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { sleepLink, pairLink, toImport, nightFromLog, nativeSummary, expiryNote, importNative } from './native.js'
+import { sleepLink, pairLink, toImport, nightFromLog, nativeSummary, expiryNote, importNative, isEmbedded } from './native.js'
 
 // The web app no longer listens: mySleep Night (ios/) records the night and uploads its log; the
 // web app opens it, pairs it, turns its logs into nights, and says when it needs reinstalling.
@@ -100,5 +100,14 @@ describe('when the app needs reinstalling', () => {
   })
   it('names the day it stops', () => {
     expect(expiryNote(app(new Date(2026, 10, 5, 13, 0).getTime()), now).until).toBe(new Date(2026, 10, 5, 13, 0).getTime())
+  })
+})
+
+describe('inside mySleep Night', () => {
+  it('the app opens the pages with ?embed=1', () => {
+    expect(isEmbedded('?embed=1')).toBe(true)
+    expect(isEmbedded('?x=2&embed=1')).toBe(true)
+    expect(isEmbedded('')).toBe(false)
+    expect(isEmbedded('?embedded=1')).toBe(false)
   })
 })

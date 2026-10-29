@@ -56,3 +56,7 @@ export function expiryNote(devices, now = Date.now()) {
   const level = d.expires <= now ? 'expired' : days === 0 ? 'today' : days <= 2 ? 'soon' : null
   return level && { level, until: d.expires }
 }
+
+// mySleep Night shows the Journal and Trends inside itself (its tabs) and opens them with ?embed=1:
+// then the app's own tab bar and Sleep button are the way around, not this page's.
+export const isEmbedded = (search = typeof location !== 'undefined' ? location.search : '') => new URLSearchParams(search).has('embed')

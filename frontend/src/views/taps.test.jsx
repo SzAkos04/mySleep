@@ -290,6 +290,17 @@ describe('the app', () => {
     expect(useUI.getState().devices).toEqual([])
   })
 
+  it('inside mySleep Night (?embed=1): no tab bar and no Sleep button of its own, the app has them', async () => {
+    api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' }, devices: [] }
+    history.replaceState(null, '', '/?embed=1#/journal')
+    try {
+      await mount(<App />)
+      expect(document.querySelector('#tabbar')).toBeNull()
+      expect(document.documentElement.classList.contains('embedded')).toBe(true)
+      expect(document.querySelector('h1').textContent).toMatch(/October|November/)   // the Journal
+    } finally { history.replaceState(null, '', '/') }
+  })
+
   it('the tabs lead to their screens', async () => {
     api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' } }
     await mount(<App />)

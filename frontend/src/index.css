@@ -233,3 +233,5 @@ h2.sect-t { font-weight:400 }
 .app-note span { font-size:13px; color:var(--label-2) }
 /* a Settings row that is a link (Open mySleep Night to pair) */
 a.srow { text-decoration:none; color:inherit }
+/* inside mySleep Night: its tab bar sits below this page, so no room kept for ours */
+.embedded #app { padding-bottom:calc(24px + var(--sab)) }
