@@ -7,6 +7,8 @@ struct SettingsTab: View {
   @EnvironmentObject var engine: NightEngine
   @EnvironmentObject var alarm: AlarmController
   @EnvironmentObject var server: ServerLink
+  @EnvironmentObject var data: NightData
+  @State private var pickingBedtime = false
   @StateObject private var volume = VolumeWatcher()
   @State private var micOn = AVAudioApplication.shared.recordPermission == .granted
   @State private var liveOn = ActivityAuthorizationInfo().areActivitiesEnabled
@@ -27,6 +29,15 @@ struct SettingsTab: View {
                 detail: "In mySleep on the web: Settings › Pair mySleep Night", detailWarn: true)
           }
         }
+
+        Section {
+          Button { pickingBedtime = true } label: {
+            HStack { Label("Go to bed", systemImage: "moon.fill"); Spacer(); Text(data.settings.bedtime).foregroundStyle(Theme.accent).monospacedDigit() }
+          }
+          Toggle(isOn: Binding(get: { data.settings.remind }, set: { data.change(["remind": $0]) })) {
+            VStack(alignment: .leading, spacing: 1) { Text("Reminder"); Text("30 min before").font(.footnote).foregroundStyle(Theme.text2) }
+          }
+        } header: { Text("Bedtime") }
 
         Section("Allowed") {
           Allowed(title: "Microphone", on: micOn)
@@ -80,6 +91,7 @@ struct SettingsTab: View {
       .contentMargins(.bottom, 28, for: .scrollContent)
       .background(Theme.bg)
       .navigationTitle("Settings")
+      .sheet(isPresented: $pickingBedtime) { TimeSheet(title: "Go to bed", time: Binding(get: { data.settings.bedtime }, set: { data.change(["bedtime": $0]) })).presentationDetents([.height(320)]) }
     }
     .onAppear { volume.start() }
     .onChange(of: phase) { _, p in

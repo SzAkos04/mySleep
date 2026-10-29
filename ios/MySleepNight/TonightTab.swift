@@ -27,15 +27,16 @@ struct EveningView: View {
   @EnvironmentObject var alarm: AlarmController
   @EnvironmentObject var server: ServerLink
   @EnvironmentObject var nav: Navigation
-  @AppStorage("alarmOn") private var on = true
-  @AppStorage("smart") private var smart = true
-  @AppStorage("wakeHour") private var hour = 6
-  @AppStorage("wakeMinute") private var minute = 45
+  @EnvironmentObject var data: NightData
   @State private var picking = false
   @State private var error: String?
   @State private var starting = false
 
-  private var settings: AlarmSettings { AlarmSettings(on: on, smart: smart, hour: hour, minute: minute) }
+  // tonight's alarm is the synced settings' (Settings.swift): a change is saved and goes up
+  private var on: Bool { data.settings.alarm }
+  private var smart: Bool { data.settings.smart }
+  private var settings: AlarmSettings { data.settings.alarmSettings }
+  private func flag(_ key: String) -> Binding<Bool> { Binding(get: { key == "alarm" ? data.settings.alarm : data.settings.smart }, set: { data.change([key: $0]) }) }
 
   var body: some View {
     TimelineView(.everyMinute) { ctx in
@@ -67,7 +68,7 @@ struct EveningView: View {
             HStack {
               Eyebrow(text: "Wake up")
               Spacer()
-              Toggle("Alarm", isOn: $on).labelsHidden()
+              Toggle("Alarm", isOn: flag("alarm")).labelsHidden()
             }
             if let plan {
               VStack(alignment: .leading, spacing: 0) {
@@ -91,7 +92,7 @@ struct EveningView: View {
                       .font(.footnote).foregroundStyle(Theme.text2).contentTransition(.opacity)
                   }
                   Spacer()
-                  Toggle("Smart alarm", isOn: $smart).labelsHidden()
+                  Toggle("Smart alarm", isOn: flag("smart")).labelsHidden()
                 }
               }
               .transition(.opacity.combined(with: .offset(y: -8)))
@@ -163,32 +164,33 @@ struct EveningView: View {
       }
     }
     .background(Theme.bg)
-    .sheet(isPresented: $picking) { WakePicker(hour: $hour, minute: $minute).presentationDetents([.height(320)]) }
+    .sheet(isPresented: $picking) { WakePicker(time: Binding(get: { data.settings.wake }, set: { data.change(["wake": $0]) })).presentationDetents([.height(320)]) }
   }
 }
 
-/// The wake-up time, as a wheel in a short sheet.
-private struct WakePicker: View {
-  @Binding var hour: Int
-  @Binding var minute: Int
+/// A time of day ("HH:MM"), as a wheel in a short sheet.
+struct TimeSheet: View {
+  let title: String
+  @Binding var time: String
   @Environment(\.dismiss) private var dismiss
+  static let format: DateFormatter = { let f = DateFormatter(); f.dateFormat = "HH:mm"; f.locale = Locale(identifier: "en_US_POSIX"); return f }()
   var body: some View {
-    let time = Binding<Date>(
-      get: { Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date() },
-      set: { let c = Calendar.current.dateComponents([.hour, .minute], from: $0); hour = c.hour ?? 6; minute = c.minute ?? 45 })
+    let date = Binding<Date>(get: { Self.format.date(from: time) ?? Date() }, set: { time = Self.format.string(from: $0) })
     VStack(spacing: 0) {
       HStack {
-        Text("Wake up").font(.headline)
+        Text(title).font(.headline)
         Spacer()
         Button("Done") { dismiss() }.font(.headline)
       }
       .padding(20)
-      DatePicker("Wake-up time", selection: time, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden()
+      DatePicker(title, selection: date, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).labelsHidden()
       Spacer()
     }
     .background(Theme.card)
   }
 }
+
+private func WakePicker(time: Binding<String>) -> some View { TimeSheet(title: "Wake up", time: time) }
 
 // MARK: morning
 

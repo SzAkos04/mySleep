@@ -16,12 +16,12 @@ import SwiftUI
           switch AppLink.parse(url) {
           case .pair(let p)?: server.pair(p); Task { await data.refresh(pairing: p) }
           case .sleep(let s)?:
-            if let s { Self.remember(s) }
-            if engine.night == nil { Task { try? await engine.start(Self.stored) } }
+            if let s { data.saveAlarm(s) }
+            if engine.night == nil { Task { try? await engine.start(data.settings.alarmSettings) } }
           case nil: break
           }
         }
-        .onAppear { engine.onFinished = { Task { await sync() } } }
+        .onAppear { engine.onFinished = { Task { await sync() } }; data.pairing = { server.pairing } }
         // at launch: a night iOS cut short is finished first, then everything goes up
         .task { await NightEngine.finishCutShort(); await sync() }
     }
@@ -32,17 +32,6 @@ import SwiftUI
   private func sync() async {
     await server.refresh()
     await data.refresh(pairing: server.pairing)
-  }
-
-  // the alarm as the Tonight tab keeps it (@AppStorage), so a Sleep link sets it there too
-  static func remember(_ s: AlarmSettings) {
-    let d = UserDefaults.standard
-    d.set(s.on, forKey: "alarmOn"); d.set(s.smart, forKey: "smart"); d.set(s.hour, forKey: "wakeHour"); d.set(s.minute, forKey: "wakeMinute")
-  }
-  static var stored: AlarmSettings {
-    let d = UserDefaults.standard
-    return AlarmSettings(on: d.object(forKey: "alarmOn") as? Bool ?? true, smart: d.object(forKey: "smart") as? Bool ?? true,
-                         hour: d.object(forKey: "wakeHour") as? Int ?? 6, minute: d.object(forKey: "wakeMinute") as? Int ?? 45)
   }
 }
 

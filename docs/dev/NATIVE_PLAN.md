@@ -149,7 +149,8 @@ events. The Settings "clips" switch goes: nothing records clips any more.
 
 ## Phase 3: settings and reminders on the phone
 
-### 3.1 Settings in the synced record
+### 3.1 Settings in the synced record *(done)*
+*(`AppSettings`/`NightStore.settings`, `change`, `adopt(legacy:)` in NightKit; NightData saves a change and syncs 0.8 s later; Tonight's toggles and the wake time, the Sleep link and Settings' Bedtime section all use it. The old @AppStorage alarm moves in once as the oldest edit, so the server's wins.)*
 Bedtime, wake, alarm, smart and reminder live in the store's `settings` (synced as
 `settings:main`), not only in `@AppStorage`; on first run the AppStorage values move in unless
 the server's are newer.
