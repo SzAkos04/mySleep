@@ -52,7 +52,7 @@ the web app keeps working until the last phase.
 
 ## Phase 0: groundwork
 
-### 0.1 A device token may sync
+### 0.1 A device token may sync *(done)*
 `POST /api/sync` accepts `Authorization: Bearer <device token>` as the debug upload does, so the
 app reads and writes the paired profile's nights and settings.
 - Tests first (api): sync with the token returns the profile's changes and stores a pushed one;

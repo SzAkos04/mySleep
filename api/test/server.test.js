@@ -10,13 +10,15 @@ const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'mysleep-test-'));
 const PORT = 20000 + Math.floor(Math.random() * 20000);
 const base = `http://127.0.0.1:${PORT}`;
 const PUSH_LOG = path.join(DATA, 'pushes.jsonl');
-let proc, cookie;
+let proc, cookie, otherCookie;
 
 // Registered at the top level, not inside before (node:test).
 after(() => { proc?.kill(); fs.rmSync(DATA, { recursive: true, force: true }); });
 
 before(async () => {
   cookie = execFileSync('node', [path.join(dir, '../scripts/dev-session.mjs'), '--create', 'Test'], { env: { ...process.env, DATA_DIR: DATA } }).toString().trim();
+  // a second profile, to see that one's token never reaches the other's nights
+  otherCookie = execFileSync('node', [path.join(dir, '../scripts/dev-session.mjs'), '--create', 'Other'], { env: { ...process.env, DATA_DIR: DATA } }).toString().trim();
   // TICK_MS: reminders checked often; PUSH_LOG: pushes written to a file instead of sent
   proc = spawn('node', [path.join(dir, '../server.js')], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), TICK_MS: '200', PUSH_LOG: PUSH_LOG }, stdio: 'inherit' });
   for (let i = 0; i < 50; i++) {
@@ -136,9 +138,9 @@ test('pairing mySleep Night: a token for the app, which uploads its night and sa
   const logs = await (await fetch(base + '/api/debug', { headers: { cookie } })).json();
   const listed = logs.find(l => l.night === '2026-11-01');
   assert.deepEqual({ ...listed, uploadedAt: typeof listed.uploadedAt }, { night: '2026-11-01', start: nativeLog.start, final: true, app: 'native', uploadedAt: 'number' });
-  // a device token is not a session: nothing else opens with it
-  assert.equal((await sync({ changes: [] }, { cookie: '', ...bearer(token) })).status, 401);
+  // a device token is not a session: it syncs (below) and uploads logs, and opens nothing else
   assert.equal((await fetch(base + '/api/debug', { headers: bearer(token) })).status, 401);
+  assert.equal((await fetch(base + '/api/devices', { method: 'POST', headers: bearer(token), body: '{}' })).status, 401);
   // pairing again replaces it: the old token stops working
   const { token: again } = await (await pair()).json();
   assert.equal((await put(token)).status, 401);
@@ -220,4 +222,33 @@ test('signing out clears the cookie', async () => {
   const r = await fetch(base + '/api/logout', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin' } });
   assert.equal(r.status, 200);
   assert.match(r.headers.get('set-cookie'), /sleepsid=; Path=\/; Max-Age=0/);
+});
+
+// The app syncs nights and settings itself (NATIVE_PLAN 0.1): the same route as the web app, with
+// its device token, and only ever for the profile it was paired with.
+test('the app syncs with its device token, for its own profile only', async () => {
+  const { token } = await (await pair()).json();
+  const send = (t, body) => fetch(base + '/api/sync', { method: 'POST', headers: { ...bearer(t), 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  // as the app sends it: no cookie, no Sec-Fetch-Site
+  let r = await send(token, { since: 0, changes: [night('2026-11-03', 100, 7)] });
+  assert.equal(r.status, 200);
+  assert.ok((await r.json()).changes.some(c => c.id === '2026-11-03' && c.data.q === 7));
+  // the web app (a session) sees what the app pushed, and the app sees what the web app pushed
+  await sync({ changes: [night('2026-11-04', 100, 8)] });
+  const web = await (await sync({ since: 0, changes: [] })).json();
+  assert.ok(web.changes.some(c => c.id === '2026-11-03'));
+  const app = await (await send(token, { since: 0, changes: [] })).json();
+  assert.ok(app.changes.some(c => c.id === '2026-11-04'));
+  // the newer edit wins as ever
+  await send(token, { since: 0, changes: [night('2026-11-04', 50, 1)] });
+  assert.equal((await (await send(token, { since: 0, changes: [] })).json()).changes.find(c => c.id === '2026-11-04').data.q, 8);
+  // another profile never sees these nights, nor can its token be had by the first
+  const other = await (await fetch(base + '/api/sync', { method: 'POST', headers: { cookie: otherCookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: '{"since":0,"changes":[]}' })).json();
+  assert.deepEqual(other.changes, []);
+  // refused: no token, a wrong one, bad changes
+  assert.equal((await send('x'.repeat(30), { changes: [] })).status, 401);
+  assert.equal((await fetch(base + '/api/sync', { method: 'POST', body: '{}' })).status, 401);
+  assert.equal((await send(token, { changes: [{ kind: 'user', id: 'x', ts: 1, data: {} }] })).status, 400);
+  // a web page cannot use it cross-site: the token is the app's, a browser never has it
+  assert.equal((await fetch(base + '/api/sync', { method: 'POST', headers: { ...bearer(token), 'sec-fetch-site': 'cross-site' }, body: '{"changes":[]}' })).status, 403);
 });

@@ -255,7 +255,8 @@ function needUser(req) { const u = readSession(req); if (!u) throw new HttpError
 /* ---------- devices: mySleep Night, the native app ----------
    It cannot use the passkey (a free Apple ID gives no associated domain), so the web app pairs it:
    POST /api/devices makes a token, shown once, kept here only as a hash. With it the app may only
-   upload its nights' logs and say when it expires; it is not a session. One device per name. */
+   upload its nights' logs, sync its nights and settings, open its web pages and say when it
+   expires; it is not a session. One device per name. */
 const hashToken = t => crypto.createHash('sha256').update(String(t)).digest('base64url');
 function deviceOf(req) {
   const m = (req.headers.authorization || '').match(/^Bearer ([\w-]{20,})$/);
@@ -265,6 +266,8 @@ function deviceOf(req) {
   return null;
 }
 function needDevice(req) { const d = deviceOf(req); if (!d) throw new HttpError(401, 'not a paired device'); d.device.lastSeen = Date.now(); return d; }
+// A session (the web app) or a device token (the app): the profile a request is for.
+function needUserOrDevice(req) { return readSession(req) || needDevice(req).user; }
 // One-time codes that sign mySleep Night's embedded web pages in: 60 s, once, in memory.
 const webCodes = new Map();
 setInterval(() => { for (const [k, v] of webCodes) if (v.exp < Date.now()) webCodes.delete(k); }, 60000).unref();
@@ -389,7 +392,7 @@ const routes = {
 
   // Push what changed, get back what this device has not seen. One round trip both ways.
   'POST /api/sync': async (req, res) => {
-    const user = needUser(req);
+    const user = needUserOrDevice(req);
     const body = await readBody(req);
     const changes = Array.isArray(body.changes) ? body.changes : [];
     if (changes.length > 1000 || !changes.every(validChange)) throw new HttpError(400, 'invalid changes');
