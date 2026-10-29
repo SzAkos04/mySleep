@@ -8,4 +8,6 @@ cd "$(dirname "$0")/.."
 [ -x /opt/homebrew/opt/node@22/bin/node ] && PATH="/opt/homebrew/opt/node@22/bin:$PATH"
 echo "== frontend tests"; (cd frontend && npx vitest run --reporter=dot)
 echo "== api tests";      (cd api && node --test --test-reporter=dot test/*.test.js && echo)
+# the native night app's logic (ios/NightKit), on a Mac with Swift
+command -v swift >/dev/null && { echo "== ios tests"; (cd ios/NightKit && swift test --quiet); }
 echo "== build";          (cd frontend && npx vite build --logLevel error >/dev/null && echo ok)

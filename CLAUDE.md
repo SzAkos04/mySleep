@@ -11,13 +11,18 @@ frontend/  React + Vite + Zustand + react-router, nothing else. src/lib/ pure lo
            src/components/ shared UI, src/store.js the persisted, synced store.
 api/       server.js on node:http, JSON files in DATA_DIR. Deps: @simplewebauthn/server, web-push.
 web/       multi-stage Dockerfile (builds frontend/, nginx) + nginx.conf.template (proxies /api).
-scripts/   server-update.sh (runs on the server).
+scripts/   server-update.sh (runs on the server), test.sh, ios-install.sh, ios-fetch-night.sh.
+ios/       mySleep Night, the native app for the night only (record with the phone locked; the PWA
+           does the rest). NightKit/: its logic as a Swift package with tests (swift test on the
+           Mac); MySleepNight/: the SwiftUI app. Logs in the web app's format (lib/diag.js).
 ```
 
 ## Commands
 
 ```bash
-scripts/test.sh                    # everything: frontend tests, API tests, build (~3 s)
+scripts/test.sh                    # everything: frontend tests, API tests, ios/NightKit tests, build
+scripts/ios-install.sh             # mySleep Night onto the iPhone (free Apple ID: weekly, 7 days)
+scripts/ios-fetch-night.sh         # its night logs from the iPhone into debug/ios/, with the report
 cd frontend && npm run test:watch  # vitest while writing code
 cd api && npm test                 # node:test, boots server.js on a temp DATA_DIR
 scripts/dev-local.sh               # API + hot-reload frontend on http://localhost:5173, signed in as

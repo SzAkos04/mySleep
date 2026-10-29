@@ -37,3 +37,5 @@ function png(size) {
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
 }
 for (const s of [180, 512]) writeFileSync(new URL(`../public/icon-${s}.png`, import.meta.url), png(s))
+// the native night app's icon (ios/MySleepNight): one 1024 px image, iOS makes the rest
+writeFileSync(new URL('../../ios/MySleepNight/Assets.xcassets/AppIcon.appiconset/icon-1024.png', import.meta.url), png(1024))
