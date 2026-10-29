@@ -46,6 +46,24 @@ import Foundation
     #expect(LiveCard.Status.handedOver.text == "Still listening · live status in the app")
   }
 
+  @Test func ringingItSaysGoodMorningAndHowToStop() {
+    var r = card; r.ringing = true
+    #expect(r.status(stale: false, calendar: cal) == .ringing)
+    #expect(LiveCard.Status.ringing.text == "Good morning")   // beside the Snooze button: short
+    #expect(LiveCard.Status.ringing.hint == "Stop it in the app")
+    #expect(LiveCard.Status.listening.hint == nil)
+    var both = r; both.handedOver = true
+    #expect(both.status(stale: true, calendar: cal) == .ringing)   // ringing says so above all
+  }
+
+  @Test func snoozedItShowsWhenItRingsAgain() {
+    var r = card; r.ringing = true
+    let s = r.snoozed(until: at(6, 54, day: 29), now: at(6, 45, day: 29))
+    #expect(s.ringing == false)
+    #expect(s.alarmLine(calendar: cal) == "Alarm 06:54")
+    #expect(s.updated == at(6, 45, day: 29))
+  }
+
   @Test func theAlarmLine() {
     #expect(card.alarmLine(calendar: cal) == "Alarm 06:15 – 06:45")
     var plain = card; plain.ringFrom = plain.ringAt

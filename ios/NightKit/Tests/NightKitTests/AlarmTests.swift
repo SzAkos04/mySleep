@@ -101,3 +101,25 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
     }
   }
 }
+
+@Suite struct GentleFirst {
+  // The system alarm (AlarmKit) rings at full volume at once (29 October: it frightened). So the
+  // app rings first, rising from near silence, and the system alarm waits behind it: it rings only
+  // if the app could not, or nobody stopped it.
+  let p = AlarmPlan(from: at(6, 15, day: 29), at: at(6, 45, day: 29))
+
+  @Test func theSystemAlarmIsSetTwoMinutesBehindTheWakeTime() {
+    #expect(AlarmPlan.backupDelay == 120)
+    #expect(p.backup == at(6, 47, day: 29))
+  }
+
+  @Test func whenTheAppRingsTheSystemAlarmMovesTwoMinutesBehindIt() {
+    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29)) == at(6, 22, day: 29))
+  }
+
+  @Test func snoozeNineMinutesWithTheSystemAlarmBehindItAgain() {
+    let s = AlarmPlan.snoozed(at: at(6, 45, day: 29))
+    #expect(s == AlarmPlan(from: at(6, 54, day: 29), at: at(6, 54, day: 29)))
+    #expect(s.backup == at(6, 56, day: 29))
+  }
+}

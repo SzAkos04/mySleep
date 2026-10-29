@@ -10,26 +10,37 @@ public struct LiveCard: Codable, Hashable, Sendable {
   public var hearing: Bool
   public var updated: Date   // when the app last said how it is
   public var handedOver = false   // ended by the app before iOS's 8 hours: no more updates
+  public var ringing = false      // the app's own, gentle alarm is ringing
   public init(started: Date, ringFrom: Date?, ringAt: Date?, hearing: Bool, updated: Date, handedOver: Bool = false) {
     self.started = started; self.ringFrom = ringFrom; self.ringAt = ringAt; self.hearing = hearing; self.updated = updated; self.handedOver = handedOver
   }
 
   public enum Status: Hashable, Sendable {
-    case listening, notHearing, handedOver, stale(since: String)
+    case listening, notHearing, handedOver, ringing, stale(since: String)
     public var text: String {
       switch self {
       case .listening: "Listening"
       case .notHearing: "Not hearing anything"
       case .handedOver: "Still listening · live status in the app"
+      case .ringing: "Good morning"
       case .stale(let since): "Not heard from since \(since) · open mySleep Night"
       }
     }
+    /// A second, small line, where one is needed.
+    public var hint: String? { self == .ringing ? "Stop it in the app" : nil }
   }
 
   /// `stale`: iOS marks the card stale when the app has not updated it (LivePlan.staleDate):
   /// the app was closed, so it must not claim to listen.
   public func status(stale: Bool, calendar: Calendar = .current) -> Status {
-    handedOver ? .handedOver : stale ? .stale(since: clock(updated, calendar)) : hearing ? .listening : .notHearing
+    ringing ? .ringing : handedOver ? .handedOver : stale ? .stale(since: clock(updated, calendar)) : hearing ? .listening : .notHearing
+  }
+
+  /// Snoozed: quiet again, and the alarm line says when it rings next.
+  public func snoozed(until next: Date, now: Date) -> LiveCard {
+    var c = self
+    c.ringing = false; c.ringFrom = next; c.ringAt = next; c.updated = now
+    return c
   }
 
   public func alarmLine(calendar: Calendar = .current) -> String {

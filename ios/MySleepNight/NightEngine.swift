@@ -28,6 +28,10 @@ import UIKit
   init() {
     alarm.log = { [weak self] type, data in self?.logNow(type, data) }
     live.log = { [weak self] type, data in self?.logNow(type, data) }
+    // Snooze on the lock screen card (SnoozeIntent)
+    NotificationCenter.default.addObserver(forName: .mySleepSnooze, object: nil, queue: .main) { [weak self] _ in
+      MainActor.assumeIsolated { self?.logNow("snooze-card", [:]); self?.snoozeAlarm() }
+    }
     // Stop on the lock screen ends the night: nothing to do on waking but get up
     alarm.onStopped = { [weak self] in self?.stop() }
   }
@@ -67,7 +71,9 @@ import UIKit
     plan = AlarmPlan.make(settings, from: Date())
     if let p = plan {
       n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart, "analysis": analysis != nil])
-      await alarm.set(at: p.at)
+      // the system alarm rings at full volume at once (29 October: it frightened): it waits behind
+      // the app's own, gentle one, ringing only if the app could not, or nobody stopped it
+      await alarm.set(at: p.backup)
     }
     // the lock screen card: only now, while the app is in front, may it be started
     await live.start(night: n.night, started: Date(timeIntervalSince1970: Double(start) / 1000), plan: plan)
@@ -126,7 +132,9 @@ import UIKit
     level = lvl
     // the card follows the microphone at once; the alarm's own screen replaces it when it rings
     if !silent != wasHearing { wasHearing = !silent; live.update(hearing: wasHearing) }
-    if alarm.phase == .ringing || selfRinging { live.end() }
+    // the system alarm took over (nobody stopped the gentle one, or the app was not running): its own
+    // screen and sound; the piano and the night card make way
+    if alarm.phase == .ringing { if selfRinging { silence(); logNow("escalated", [:]) }; live.end() }
     // nothing arriving for 10 s: restart the audio, at most once a minute, logged
     if silent && now - lastRestart > 60_000 {
       lastRestart = now; restarts += 1
@@ -138,13 +146,12 @@ import UIKit
     if let p = plan, !rangEarly, !selfRinging, now - lastCheck >= 10_000 {
       lastCheck = now
       let date = Date(), early = max(0, Int(p.at.timeIntervalSince(date) / 60))
-      if p.shouldRing(at: date, smart: smart, isStirring: { [queue, analysis] in queue.sync { analysis?.stirring(n) ?? false } }) {
-        if alarm.phase == .set {
-          // the system alarm rings by itself at the wake time; earlier, it is brought forward
-          if date < p.at { rangEarly = true; queue.async { n.log("wake", ["early": early], at: now) }; Task { await alarm.ringNow() } }
-        } else if alarm.phase == .none {
-          ringItself(early: early)
-        }
+      if alarm.phase != .ringing, p.shouldRing(at: date, smart: smart, isStirring: { [queue, analysis] in queue.sync { analysis?.stirring(n) ?? false } }) {
+        // the app rings first, rising from near silence; the system alarm moves behind it
+        rangEarly = true
+        queue.async { n.log("wake", ["early": early], at: now) }
+        ringItself(early: early)
+        if alarm.phase != .none { Task { await alarm.set(at: AlarmPlan.backup(afterRingingAt: date)) } }
       }
     }
   }
@@ -175,8 +182,8 @@ import UIKit
     saved = Date()
   }
 
-  // MARK: ringing without the system alarm (Alarms off for the app): the piano through the audio
-  // session kept all night, rising as in the web app. It can only be stopped here, in the app.
+  // MARK: the app's own alarm, first: the piano through the audio session kept all night, rising from
+  // near silence as in the web app. Stopped here (held), or snoozed here or on the lock screen card.
 
   private func ringItself(early: Int) {
     guard let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"), let p = try? AVAudioPlayer(contentsOf: url) else {
@@ -190,6 +197,7 @@ import UIKit
       Task { @MainActor in guard let self, let p = self.player else { return }; p.volume = Float(RiseCurve.gain(at: Date().timeIntervalSince(self.ringStart))) }
     }
     logNow("ring", ["self": true, "early": early])
+    live.ringing(true)
   }
 
   private func silence() {
@@ -198,16 +206,20 @@ import UIKit
     selfRinging = false
   }
 
-  /// Stop, from the alarm screen: the night is over.
+  /// Stop, from the alarm screen: the night is over (stop() cancels the system alarm behind it).
   func stopAlarm() {
     if selfRinging { silence(); logNow("silence", [:]); stop() } else { alarm.stop() }
   }
 
+  /// Snooze, from the alarm screen or the lock screen card: quiet for 9 minutes, then gently again,
+  /// the system alarm behind that.
   func snoozeAlarm() {
     guard selfRinging else { return alarm.snooze() }
     silence()
-    let at = Date().addingTimeInterval(Double(AlarmPlan.snoozeMinutes) * 60)
-    plan = AlarmPlan(from: at, at: at); smart = false; lastCheck = 0
+    let next = AlarmPlan.snoozed(at: Date())
+    plan = next; smart = false; lastCheck = 0; rangEarly = false
+    live.snoozed(until: next.at)
+    if alarm.phase != .none { Task { await alarm.set(at: next.backup) } }
     logNow("snooze", [:])
   }
 

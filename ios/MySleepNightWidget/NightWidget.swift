@@ -47,7 +47,7 @@ private struct NightCard: View {
 
   var body: some View {
     let status = card.status(stale: stale)
-    let warn = status != .listening && status != .handedOver
+    let warn = status != .listening && status != .handedOver && status != .ringing
     VStack(alignment: .leading, spacing: compact ? 6 : 12) {
       if !compact {
         HStack(spacing: 6) {
@@ -73,9 +73,23 @@ private struct NightCard: View {
           }
         }
       }
-      HStack(spacing: 6) {
-        Circle().fill(warn ? Color.orange : good).frame(width: 7, height: 7)
-        Text(status.text).font(.footnote).foregroundStyle(warn ? Color.orange : .white.opacity(0.8)).lineLimit(1)
+      if status == .ringing {
+        // the app's own alarm, rising gently: snooze here, stop in the app (held, as in the app)
+        HStack(spacing: 10) {
+          Image(systemName: "sun.max.fill").foregroundStyle(.orange)
+          VStack(alignment: .leading, spacing: 1) {
+            Text(status.text).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+            if let hint = status.hint { Text(hint).font(.caption2).foregroundStyle(.white.opacity(0.55)) }
+          }
+          Spacer()
+          Button(intent: SnoozeIntent()) { Label("Snooze \(AlarmPlan.snoozeMinutes) min", systemImage: "zzz").font(.footnote.weight(.semibold)) }
+            .buttonStyle(.borderedProminent).tint(accent)
+        }
+      } else {
+        HStack(spacing: 6) {
+          Circle().fill(warn ? Color.orange : good).frame(width: 7, height: 7)
+          Text(status.text).font(.footnote).foregroundStyle(warn ? Color.orange : .white.opacity(0.8)).lineLimit(1)
+        }
       }
     }
     .padding(compact ? 0 : 16)

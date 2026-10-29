@@ -15,6 +15,16 @@ public struct AlarmSettings: Codable, Equatable, Sendable {
 public struct AlarmPlan: Equatable, Sendable {
   public static let smartMinutes = 30
   public static let snoozeMinutes = 9
+  /// The system alarm (AlarmKit) rings at full volume at once, so it waits this long behind the
+  /// app's own alarm, which rises from near silence: it rings only if the app could not, or nobody
+  /// stopped it.
+  public static let backupDelay: TimeInterval = 120
+  public var backup: Date { at.addingTimeInterval(Self.backupDelay) }
+  public static func backup(afterRingingAt t: Date) -> Date { t.addingTimeInterval(backupDelay) }
+  public static func snoozed(at t: Date) -> AlarmPlan {
+    let next = t.addingTimeInterval(Double(snoozeMinutes) * 60)
+    return AlarmPlan(from: next, at: next)
+  }
   public let from: Date
   public let at: Date
   public init(from: Date, at: Date) { self.from = from; self.at = at }

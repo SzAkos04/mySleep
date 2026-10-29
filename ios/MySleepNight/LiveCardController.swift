@@ -41,7 +41,25 @@ import Foundation
     card = c
   }
 
-  /// The alarm rings (its own screen takes over) or the night ends.
+  /// The app's own alarm rings, or stops ringing (snooze): the card says Good morning, with Snooze.
+  func ringing(_ on: Bool) {
+    guard let activity, var c = card else { return }
+    c.ringing = on; c.updated = Date()
+    // a card already handed over (iOS's 8 hours) is ended: it cannot ring along
+    if c.handedOver { return }
+    Task { await activity.update(ActivityContent(state: c, staleDate: LivePlan.staleDate(updated: c.updated))) }
+    card = c
+  }
+
+  /// Snoozed: back to listening, the card saying when it rings next.
+  func snoozed(until next: Date) {
+    guard let activity, let c = card, !c.handedOver else { return }
+    let s = c.snoozed(until: next, now: Date())
+    Task { await activity.update(ActivityContent(state: s, staleDate: LivePlan.staleDate(updated: s.updated))) }
+    card = s
+  }
+
+  /// The system alarm rings (its own screen takes over) or the night ends.
   func end() {
     guard let activity else { return }
     self.activity = nil; card = nil
