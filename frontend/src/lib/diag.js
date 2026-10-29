@@ -57,6 +57,7 @@ export function diag(type, data) {
 }
 
 export const diagActive = () => !!log
+export const diagEvents = () => log?.events ?? []   // for tests: what was logged
 export const diagNight = () => log?.night
 
 // Every few minutes during the night (log only), and once at the end with the raw readings.

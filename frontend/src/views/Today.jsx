@@ -6,7 +6,7 @@ import { Timeline, ScoreRing, scoreColor } from '../components/Charts.jsx'
 import { NightReport, Insights } from '../components/Report.jsx'
 import { sleepScore } from '../lib/score.js'
 import { summary, noonToClock } from '../lib/stats.js'
-import { alarmPlan } from './Tracking.jsx'
+import { alarmPlan } from '../lib/night.js'
 import { clockOf, dur, nextAt, todayLabel } from '../lib/time.js'
 
 const pad = n => String(n).padStart(2, '0')

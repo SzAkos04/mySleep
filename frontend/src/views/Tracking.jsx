@@ -3,20 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store.js'
 import { Icon } from '../components/Icon.jsx'
 import * as tracker from '../lib/tracker.js'
-import { summarize, stirring, events } from '../lib/analysis.js'
+import { stirring, events } from '../lib/analysis.js'
+import { alarmPlan, shouldRing, snoozePlan, heardLabel, windowLabel, stoppedAt, nightRecord, micErrorMessage, SNOOZE_MIN } from '../lib/night.js'
 import { armBackup, uploadClips } from '../lib/api.js'
 import { diag, diagStart, diagResume, diagUpload, diagSummary } from '../lib/diag.js'
-import { clockOf, dur, nextAt, nightIdOf } from '../lib/time.js'
+import { clockOf, dur, nightIdOf } from '../lib/time.js'
 
 const CHECK_MS = 10000
 const LIT_MS = 30000     // how long the screen stays lit before only a dim clock is left
 const HOLD_MS = 1500     // how long to hold before the night ends
-
-export function alarmPlan(settings, from = Date.now()) {
-  if (!settings.alarm) return null
-  const at = nextAt(settings.wake, from)
-  return { at, from: settings.smart ? at - 30 * 60000 : at }   // the smart window: 30 min
-}
 
 // From the Start tap (the microphone and the alarm's sound both need it). Throws a message for
 // the person when the microphone cannot start.
@@ -25,7 +20,7 @@ export async function startNight() {
   // synchronous, so the Sleep tap's gesture still reaches the wake lock and video inside start()
   diagStart(nightIdOf(Date.now()), { settings: { wake: st.wake, bedtime: st.bedtime, alarm: st.alarm, smart: st.smart, clips: st.clips } })
   try { await tracker.start() }
-  catch (e) { diag('start-failed', { name: e?.name, message: e?.message }); diagUpload(null, true); throw new Error(e.name === 'NotAllowedError' ? 'mySleep needs the microphone. Allow it in Settings › Safari › Microphone, then try again.' : 'The microphone did not start: ' + e.message) }
+  catch (e) { diag('start-failed', { name: e?.name, message: e?.message }); diagUpload(null, true); throw new Error(micErrorMessage(e)) }
   const { settings, setTracking } = useStore.getState(), start = tracker.samples.start, p = alarmPlan(settings, start)
   setTracking({ start, nightId: nightIdOf(start), ringFrom: p?.from ?? null, ringAt: p?.at ?? null, smart: settings.smart })
   if (p) armBackup(p.at + 60000)
@@ -129,13 +124,10 @@ export function Tracking() {
         tracker.heartbeat()
         diagUpload()   // at most every 5 min; a log on the server even if the page dies
         setShift([rnd(-12, 12), rnd(-24, 24)])
-        const ev = events(tracker.samples, tracker.samples.start), c = k => ev.filter(e => e.kind === k).length
-        const said = [c('snore') && 'Snoring', c('talk') && `talked ${c('talk') === 1 ? 'once' : c('talk') + ' times'}`, c('cough') && `coughed ${c('cough') === 1 ? 'once' : c('cough') + ' times'}`].filter(Boolean)
-        setHeard(said.length ? said.join(' · ').replace(/^./, x => x.toUpperCase()) : 'Quiet so far')
+        setHeard(heardLabel(events(tracker.samples, tracker.samples.start)))
       }
       if (useStore.getState().settings.clips !== false) tracker.collectClips().catch(() => {})
-      if (!tr.ringAt) return
-      if (n >= tr.ringAt || (tr.smart && n >= tr.ringFrom && stirring(tracker.samples))) wake(n)
+      if (shouldRing(n, tr, () => stirring(tracker.samples))) wake(n)
     }, 1000)
     return () => clearInterval(t)
   }, [stale, ringing, tr])
@@ -143,7 +135,7 @@ export function Tracking() {
   // the lock screen's Now Playing card says what is running
   useEffect(() => {
     if (stale || ringing) return
-    tracker.nowPlaying('mySleep is listening', tr.ringAt ? `Alarm ${tr.smart ? clockOf(tr.ringFrom) + '–' : ''}${clockOf(tr.ringAt)}` : 'No alarm')
+    tracker.nowPlaying('mySleep is listening', tr.ringAt ? 'Alarm ' + windowLabel(tr, '–') : 'No alarm')
   }, [stale, ringing, tr])
 
   async function wake(n) {
@@ -156,31 +148,25 @@ export function Tracking() {
 
   async function snooze() {
     diag('snooze')
-    const snoozeMin = 9
     await tracker.snooze()
     setRinging(null)
-    setTracking({ ...tr, ringAt: Date.now() + snoozeMin * 60000, smart: false })
-    armBackup(Date.now() + (snoozeMin + 1) * 60000)
+    const p = snoozePlan(tr, Date.now())
+    setTracking(p.tracking)
+    armBackup(p.backupAt)
     light()
   }
 
   function finish() {
     diag('finish', { ringing: !!ringing, stale })
     tracker.stop()
-    const end = Date.now(), s = tracker.samples, r = summarize(s, s.start)
+    const s = tracker.samples
     armBackup(null)
     tracker.clearProgress()
     setTracking(null)
     // saved now, so closing the review keeps the night; the review has Discard
-    const night = {
-      id: tr.nightId, bed: s.start, on: r.on, wake: end,   // on: null when no sleep was found
-      wakes: r.wakes, awakeMin: r.awakeMin, asleepMin: r.asleepMin, restfulMin: r.restfulMin,
-      snoreMin: r.snoreMin, talks: r.talks, coughs: r.coughs, events: r.events,
-      timeline: r.timeline, clips: [], diag: diagSummary(),
-      ...(ringing && { alarm: { at: ringing.at, early: ringing.early } })
-    }
+    const night = nightRecord({ tr, samples: s, end: Date.now(), ringing, diag: diagSummary() })
     saveNight(night)
-    diag('summary', { asleepMin: r.asleepMin, on: r.on, wakes: r.wakes, missingSec: s.db.filter(v => !Number.isFinite(v)).length, sec: s.db.length })
+    diag('summary', { asleepMin: night.asleepMin, on: night.on, wakes: night.wakes, missingSec: s.db.filter(v => !Number.isFinite(v)).length, sec: s.db.length })
     diagUpload(s, true)
     // the morning is just the night's data; nothing to fill in
     nav('/night/' + night.id, { state: { morning: true } })
@@ -210,19 +196,19 @@ export function Tracking() {
       <div className="night-foot">
         {/* held like ending the night, so a sleepy tap cannot silence it */}
         <Hold light text="Stop" label="Hold to stop" onDone={finish} />
-        <button className="snooze" onClick={snooze}>Snooze 9 min</button>
+        <button className="snooze" onClick={snooze}>Snooze {SNOOZE_MIN} min</button>
       </div>
     </div>
   </div>
 
   const elapsed = Math.max(0, (now - tracker.samples.start) / 60000)
-  const win = tr.ringAt ? (tr.smart ? `${clockOf(tr.ringFrom)} – ${clockOf(tr.ringAt)}` : clockOf(tr.ringAt)) : null
+  const win = windowLabel(tr)
   const left = tr.ringAt ? (tr.ringAt - now) / 60000 : null
   return <div className={'night' + (lit || stale ? '' : ' dark')} onPointerDown={light} onTouchStart={light}>
     <div className="glow" />
     <div className="night-ui">
       {stale
-        ? <div className="pill warn"><i />Stopped listening at {clockOf(tracker.samples.start + tracker.samples.db.length * 1000)}</div>
+        ? <div className="pill warn"><i />Stopped listening at {clockOf(stoppedAt(tracker.samples))}</div>
         : live
           ? <div className="pill"><i />Listening · {elapsed < 1 ? 'just started' : dur(elapsed)}</div>
           : <button className="pill warn" onClick={() => lit && resume()}><i />Microphone stopped · tap to resume</button>}

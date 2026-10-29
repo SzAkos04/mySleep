@@ -23,8 +23,9 @@ export const samples = { start: 0, db: [], low: [], mid: [], vr: [], at: [] }
 export const clips = []        // { id, t, kind, sec, blob } cut tonight, uploaded when the night ends
 
 let ctx = null, stream = null, analyser = null, ringNode = null, poll = null, wakeLock = null, wallAt0 = 0
-let acc = null, lastDb = null
 const fresh = () => ({ n: 0, db: -Infinity, low: 0, mid: 0, dbs: [], at: 0 })
+// a page reloaded in the night can be finished without listening again, so never null
+let acc = fresh(), lastDb = null
 
 const KEY = 'mysleep_track'
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100
@@ -154,6 +155,7 @@ function push(a) {
 
 let lastRead = 0, micWasLive = true
 function read() {
+  if (!samples.start) return   // no night yet
   const now = Date.now()
   // the page was not running (frozen, hidden, locked): say how long
   if (lastRead && now - lastRead > 3000) diag('stall', { ms: now - lastRead, visibility: document.visibilityState })

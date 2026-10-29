@@ -10,7 +10,8 @@ import { Trends } from './Trends.jsx'
 import { Settings } from './Settings.jsx'
 import { Night } from './Night.jsx'
 import { Login } from './Login.jsx'
-import { alarmPlan } from './Tracking.jsx'
+import { Tracking } from './Tracking.jsx'
+import * as tracker from '../lib/tracker.js'
 
 // Every screen as HTML, the way the phone would first draw it: a crash or a missing figure fails
 // here, before a build. Taps, animations and the microphone are checked on the iPhone.
@@ -71,16 +72,29 @@ describe('screens', () => {
   })
 })
 
-describe('alarmPlan', () => {
-  const at = (h, m) => { const d = new Date(2026, 9, 28, h, m); return d.getTime() }
-  it('rings at the wake time, or from 30 min before it when smart', () => {
-    const p = alarmPlan({ ...defaultSettings(), smart: false }, at(23, 0))
-    expect(p.from).toBe(p.at)
-    expect(new Date(p.at).getHours()).toBe(6)
-    const s = alarmPlan(defaultSettings(), at(23, 0))
-    expect((s.at - s.from) / 60000).toBe(30)
+describe('the night screen', () => {
+  const at = (h, m) => new Date(2026, 9, 29, h, m).getTime()
+  const tracking = { start: at(0, 30), nightId: '2026-10-28', ringFrom: at(6, 15), ringAt: at(6, 45), smart: true }
+  const show = () => {
+    useStore.setState({ tracking }); Object.assign(useStore.getInitialState(), { tracking })
+    return text(render(<Tracking />))
+  }
+
+  it('while listening: the alarm window, what was heard, and a held button to end it', () => {
+    Object.assign(tracker.samples, { start: tracking.start, db: [], low: [], mid: [], vr: [], at: [] })
+    const t = show()
+    expect(t).toMatch(/Alarm 06:15 – 06:45/)
+    expect(t).toMatch(/Quiet so far/)
+    expect(t).toMatch(/Hold to wake up/)
+    expect(t).toMatch(/Dims in 30 s/)
   })
-  it('plans nothing with the alarm off', () => {
-    expect(alarmPlan({ ...defaultSettings(), alarm: false }, at(23, 0))).toBeFalsy()
+
+  it('after the page was closed in the night: when it stopped, Resume, and finish without listening', () => {
+    Object.assign(tracker.samples, { start: 0 })
+    localStorage.setItem('mysleep_track', JSON.stringify({ start: tracking.start, db: Array(600).fill(40), low: [], mid: [], vr: [], at: [] }))
+    const t = show()
+    expect(t).toMatch(/Stopped listening at 00:40/)
+    expect(t).toMatch(/Resume listening/)
+    expect(t).toMatch(/Hold to finish the night/)
   })
 })
