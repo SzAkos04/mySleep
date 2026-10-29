@@ -273,6 +273,11 @@ function deviceOf(req) {
   return null;
 }
 function needDevice(req) { const d = deviceOf(req); if (!d) throw new HttpError(401, 'not a paired device'); d.device.lastSeen = Date.now(); return d; }
+// One-time codes that sign mySleep Night's embedded web pages in: 60 s, once, in memory.
+const webCodes = new Map();
+setInterval(() => { for (const [k, v] of webCodes) if (v.exp < Date.now()) webCodes.delete(k); }, 60000).unref();
+// where a code may send the page: a path on this site, never another host
+const safeTarget = to => typeof to === 'string' && /^\/(?![\/\\])/.test(to) ? to : '/';
 const publicDevice = d => ({ id: d.id, name: d.name, expires: d.expires, lastSeen: d.lastSeen, build: d.build });
 const b64u = s => Buffer.from(s, 'base64url');
 
@@ -292,6 +297,24 @@ const routes = {
     user.devices = [...(user.devices || []).filter(d => d.name !== name), device];
     saveDb();
     json(res, 200, { id: device.id, token });
+  },
+
+  'POST /api/devices/web-code': (req, res) => {
+    const { user } = needDevice(req);
+    const code = crypto.randomBytes(24).toString('base64url'), exp = Date.now() + 60000;
+    webCodes.set(code, { userId: user.id, exp });
+    saveDb();
+    json(res, 200, { code, expires: exp });
+  },
+
+  // the page inside the app opens this: a session cookie, then the page asked for
+  'GET /api/session/code': (req, res) => {
+    const q = new URL(req.url, 'http://x').searchParams, c = webCodes.get(q.get('c') || '');
+    webCodes.delete(q.get('c') || '');
+    const user = c && c.exp > Date.now() && db.users.find(u => u.id === c.userId);
+    if (!user) throw new HttpError(401, 'that code is used or too old: open the page again from the app');
+    res.writeHead(302, { Location: safeTarget(q.get('to')), 'Set-Cookie': sessionCookie(user), 'Cache-Control': 'no-store' });
+    res.end();
   },
 
   'POST /api/devices/status': async (req, res) => {

@@ -153,3 +153,34 @@ test('a reminder to reinstall goes out once when mySleep Night is about to stop'
   await new Promise(r => setTimeout(r, 800));   // several ticks later: still once
   assert.equal(sent().length, 1);
 });
+
+// mySleep Night shows the web app's Journal and Trends inside itself: it signs those pages in with
+// a one-time code it gets with its device token (no passkey inside an app).
+test('the app signs its web pages in with a one-time code', async () => {
+  const { token } = await (await pair()).json();
+  const code = () => fetch(base + '/api/devices/web-code', { method: 'POST', headers: bearer(token) });
+  assert.equal((await fetch(base + '/api/devices/web-code', { method: 'POST' })).status, 401);
+  const r = await code();
+  assert.equal(r.status, 200);
+  const { code: c, expires } = await r.json();
+  assert.ok(c.length >= 30);
+  assert.ok(expires - Date.now() <= 60000 && expires > Date.now());
+  // exchanged for a session and sent on to the page asked for, inside this site only
+  const go = (cc, to) => fetch(base + '/api/session/code?c=' + encodeURIComponent(cc) + (to ? '&to=' + encodeURIComponent(to) : ''), { redirect: 'manual' });
+  const ok = await go(c, '/?embed=1#/journal');
+  assert.equal(ok.status, 302);
+  assert.equal(ok.headers.get('location'), '/?embed=1#/journal');
+  const cookieSet = ok.headers.get('set-cookie');
+  assert.match(cookieSet, /sleepsid=[^;]+; Path=\//);
+  const me = await fetch(base + '/api/me', { headers: { cookie: cookieSet.split(';')[0] } });
+  assert.equal(me.status, 200);
+  // once only
+  assert.equal((await go(c, '/')).status, 401);
+  // never off the site
+  for (const to of ['https://evil.example/', '//evil.example/x', '/\\evil.example']) {
+    const { code: fresh } = await (await code()).json();
+    assert.equal((await go(fresh, to)).headers.get('location'), '/');
+  }
+  // nonsense
+  assert.equal((await go('nope', '/')).status, 401);
+});
