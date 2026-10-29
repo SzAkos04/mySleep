@@ -1,0 +1,4 @@
+#!/bin/sh
+# Test-driven: nothing is committed while a test or the build fails (scripts/test.sh).
+# Enabled per clone with: git config core.hooksPath scripts/hooks
+exec "$(git rev-parse --show-toplevel)/scripts/test.sh"

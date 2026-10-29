@@ -49,5 +49,5 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(pkg.version + (process.env.APP_BUILD ? '+' + process.env.APP_BUILD : '+dev')) },
   server: { proxy },
   preview: { proxy },
-  test: { environment: 'node' }
+  test: { environment: 'node', setupFiles: ['src/test-setup.js'] }
 })

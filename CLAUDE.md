@@ -17,7 +17,8 @@ scripts/   server-update.sh (runs on the server).
 ## Commands
 
 ```bash
-cd frontend && npm test            # vitest
+scripts/test.sh                    # everything: frontend tests, API tests, build (~3 s)
+cd frontend && npm run test:watch  # vitest while writing code
 cd api && npm test                 # node:test, boots server.js on a temp DATA_DIR
 scripts/dev-local.sh               # API + hot-reload frontend on http://localhost:5173, signed in as
                                    # Test (data/), Ctrl-C stops both; API_PORT/WEB_PORT to move them
@@ -52,6 +53,27 @@ Use Node 22 (Homebrew `node@22`). Homebrew's npm 10 crashes resolving this tree
 - Back up `data/` before touching it on the server (MVP.md, Hosting).
 - `https://csodabogar2.tailbd3336.ts.net:8443` (Tailscale serve → 127.0.0.1:8081). `RP_ID` is
   the hostname, shared with myGym; never change it (the passkeys are bound to it).
+
+## Test-driven (the user's rule since 2026-10-29)
+
+Every change starts with a test, so anything can be checked for working or broken:
+1. Write the test first and run it: it must fail, for the reason you expect.
+2. Write the least code that makes it pass; then tidy with the tests green.
+3. A bug is fixed only after a test reproduces it (it fails before the fix, passes after).
+4. `scripts/test.sh` green before every commit. The pre-commit hook runs it
+   (`git config core.hooksPath scripts/hooks` in a new clone); never bypass it with `--no-verify`.
+   The Docker builds run the tests too, so a failing change cannot be deployed.
+
+Where tests go:
+- Logic: `frontend/src/lib/*.test.js` beside the code. Keep logic out of views and `tracker.js`
+  so it can be tested; move it into `src/lib` when it grows.
+- Screens: `frontend/src/views/screens.test.jsx` renders each one to HTML with seeded nights (no
+  DOM library: `react-dom/server`). New screen, new figure or new text → a case there.
+- Page globals for tests: `frontend/src/test-setup.js` (document, localStorage, matchMedia).
+- API: `api/test/server.test.js`, a real server on a temp DATA_DIR. Every route and its refusals.
+- What only the iPhone can show (microphone, wake lock, lock screen, sound): check it in the
+  Simulator (below) and say what was not verified. A failure found there gets a unit test when
+  its cause is in code.
 
 ## Rules
 

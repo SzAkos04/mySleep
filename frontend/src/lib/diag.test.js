@@ -1,13 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// diag.js runs in the page; give it the little of one it touches
-const store = new Map()
-Object.assign(globalThis, {
-  localStorage: { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) },
-  document: { visibilityState: 'visible' },
-  screen: { width: 414, height: 896 }, devicePixelRatio: 3,
-  matchMedia: () => ({ matches: true })
-})
+// the page itself is src/test-setup.js; localStorage starts empty in each test
+const store = { has: k => localStorage.getItem(k) !== null, get: k => localStorage.getItem(k) }
 const { diag, diagStart, diagResume, diagUpload, diagRetryPending, diagSummary, diagActive } = await import('./diag.js')
 
 let sent, answer
@@ -18,7 +12,7 @@ globalThis.fetch = vi.fn(async (url, o) => {
   if (answer instanceof Error) throw answer
   return { ok: answer < 300, status: answer }
 })
-beforeEach(() => { store.clear(); sent = []; answer = 200 })
+beforeEach(() => { sent = []; answer = 200 })
 
 const night = sec => ({ start: 1e12, db: Array.from({ length: sec }, (_, i) => i % 97 ? 40 + (i % 13) * 1.234 : NaN),
   low: Array(sec).fill(0.123), mid: Array(sec).fill(0.456), vr: Array(sec).fill(3.21), at: Array(sec).fill(1.05) })

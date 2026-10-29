@@ -5,6 +5,8 @@ WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+# a build that fails its tests never reaches the server
+RUN npm test
 ARG APP_BUILD=""
 RUN APP_BUILD="$APP_BUILD" npm run build
 
