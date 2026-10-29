@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY server.js ./
 COPY test/ ./test/
+COPY scripts/ ./scripts/
 RUN npm test
 
 FROM node:22-alpine
