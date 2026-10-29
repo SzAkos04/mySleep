@@ -14,6 +14,7 @@ import UIKit
   @Published private(set) var lastNight: (file: URL, minutes: Int, heard: Int)?   // the night just finished
 
   let alarm = AlarmController()
+  var onFinished: (() -> Void)?   // the night saved: send it up
   @Published private(set) var selfRinging = false   // no system alarm: the app rings itself
   private var smart = false, rangEarly = false, lastCheck: Int64 = 0
   private var player: AVAudioPlayer?, ramp: Timer?, ringStart = Date()
@@ -81,6 +82,7 @@ import UIKit
     let heard = queue.sync { n.db.filter { !$0.isNaN }.count }
     lastNight = (fileURL(n), n.db.count / 60, heard / 60)
     night = nil; nightForQueue = nil; level = nil; plan = nil
+    onFinished?()
   }
 
   // MARK: audio

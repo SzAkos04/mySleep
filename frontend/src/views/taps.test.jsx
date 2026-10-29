@@ -268,6 +268,17 @@ describe('the app', () => {
     expect(useStore.getState()).not.toHaveProperty('tracking')
   })
 
+  it('back from pairing in mySleep Night, Settings knows it is paired', async () => {
+    api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' }, devices: [] }
+    await mount(<App />)
+    await flush()
+    expect(useUI.getState().devices).toEqual([])
+    api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' }, devices: [{ id: 'd1', name: 'mySleep Night', expires: null, lastSeen: 1, build: '1' }] }
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')) })
+    await flush()
+    expect(useUI.getState().devices).toHaveLength(1)
+  })
+
   it('opening the app takes in the nights mySleep Night recorded', async () => {
     const s = quietNight()
     api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' }, devices: [] }

@@ -13,6 +13,18 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<!-- the alarm is the system's (AlarmKit): it rings on the lock screen, through silent mode -->
+	<!-- the web app opens it: mysleepnight://pair (Settings) and mysleepnight://sleep (Sleep) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>hu.szakos.mysleep.night</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>mysleepnight</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSAlarmKitUsageDescription</key>

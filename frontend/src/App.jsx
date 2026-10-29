@@ -31,9 +31,14 @@ export function App() {
         else syncNow()   // offline: keep the cached user, and let the server check in the corner say so
       })
   }, [])
-  // back from mySleep Night in the morning: its night is on the server by now
+  // back from mySleep Night in the morning: its night is on the server by now;
   useEffect(() => {
-    const back = () => document.visibilityState === 'visible' && useStore.getState().user && takeInNights()
+    // and from pairing it: the device list again
+    const back = () => {
+      if (document.visibilityState !== 'visible' || !useStore.getState().user) return
+      api('/api/me').then(r => useUI.setState({ devices: r.devices || [] })).catch(() => {})
+      takeInNights()
+    }
     document.addEventListener('visibilitychange', back)
     return () => document.removeEventListener('visibilitychange', back)
   }, [])

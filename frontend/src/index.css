@@ -231,3 +231,5 @@ h2.sect-t { font-weight:400 }
 .app-note { display:flex; flex-direction:column; gap:3px; margin-bottom:12px; border:1px solid color-mix(in srgb,var(--awake) 40%,transparent) }
 .app-note b { color:var(--awake); font-size:15px }
 .app-note span { font-size:13px; color:var(--label-2) }
+/* a Settings row that is a link (Open mySleep Night to pair) */
+a.srow { text-decoration:none; color:inherit }

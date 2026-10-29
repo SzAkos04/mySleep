@@ -4,8 +4,36 @@ import SwiftUI
 // the nights. The night's log is saved in the app's Documents, for scripts/ios-fetch-night.sh.
 @main struct MySleepNightApp: App {
   @StateObject private var engine = NightEngine()
+  @StateObject private var server = ServerLink()
+  @Environment(\.scenePhase) private var phase
   var body: some Scene {
-    WindowGroup { RootView().environmentObject(engine).environmentObject(engine.alarm).preferredColorScheme(.dark).tint(Theme.accent) }
+    WindowGroup {
+      RootView().environmentObject(engine).environmentObject(engine.alarm).environmentObject(server)
+        .preferredColorScheme(.dark).tint(Theme.accent)
+        // the web app opens this app: to pair it, and from its Sleep button
+        .onOpenURL { url in
+          switch AppLink.parse(url) {
+          case .pair(let p)?: server.pair(p)
+          case .sleep(let s)?:
+            if let s { Self.remember(s) }
+            if engine.night == nil { Task { try? await engine.start(Self.stored) } }
+          case nil: break
+          }
+        }
+        .onAppear { engine.onFinished = { Task { await server.refresh() } } }
+    }
+    .onChange(of: phase) { _, p in if p == .active { Task { await server.refresh() } } }
+  }
+
+  // the alarm as the evening screen keeps it (@AppStorage), so a Sleep link sets it there too
+  static func remember(_ s: AlarmSettings) {
+    let d = UserDefaults.standard
+    d.set(s.on, forKey: "alarmOn"); d.set(s.smart, forKey: "smart"); d.set(s.hour, forKey: "wakeHour"); d.set(s.minute, forKey: "wakeMinute")
+  }
+  static var stored: AlarmSettings {
+    let d = UserDefaults.standard
+    return AlarmSettings(on: d.object(forKey: "alarmOn") as? Bool ?? true, smart: d.object(forKey: "smart") as? Bool ?? true,
+                         hour: d.object(forKey: "wakeHour") as? Int ?? 6, minute: d.object(forKey: "wakeMinute") as? Int ?? 45)
   }
 }
 
@@ -37,6 +65,7 @@ struct RootView: View {
 struct EveningView: View {
   @EnvironmentObject var engine: NightEngine
   @EnvironmentObject var alarm: AlarmController
+  @EnvironmentObject var server: ServerLink
   @AppStorage("alarmOn") private var on = true
   @AppStorage("smart") private var smart = true
   @AppStorage("wakeHour") private var hour = 6
@@ -88,6 +117,7 @@ struct EveningView: View {
             }
             .buttonStyle(.plain)
           }
+          ServerCard()
           if let lastNight = engine.lastNight {
             HStack {
               VStack(alignment: .leading, spacing: 2) {
@@ -119,6 +149,26 @@ struct EveningView: View {
       }
     }
     .background(Theme.bg)
+  }
+}
+
+/// Paired with the server or not, until when this install runs, and whether the nights went up.
+private struct ServerCard: View {
+  @EnvironmentObject var server: ServerLink
+  var body: some View {
+    let until = server.expires.map { $0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) }
+    VStack(alignment: .leading, spacing: 4) {
+      if let p = server.pairing {
+        Text("Sends nights to \(p.server.host ?? "your server")").font(.subheadline.weight(.semibold))
+      } else {
+        Text("Not paired with your server").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.warn)
+        Text("In mySleep (the web app): Settings › Pair mySleep Night.").font(.footnote).foregroundStyle(.secondary)
+      }
+      if let until { Text("This install runs until \(until): reinstall it from the Mac before then.").font(.footnote).foregroundStyle(.secondary) }
+      if let problem = server.problem { Text(problem).font(.footnote).foregroundStyle(Theme.warn) }
+      if let at = server.lastUpload { Text("Last night sent \(at.formatted(.dateTime.hour().minute()))").font(.footnote).foregroundStyle(.secondary) }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading).padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
   }
 }
 
