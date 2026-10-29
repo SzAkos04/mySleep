@@ -62,6 +62,14 @@ describe('screens', () => {
     expect(render(<Settings />)).toMatch(/value="06:45"/)
   })
 
+  it('Settings says how the alarm rings, as mySleep Night rings it', () => {
+    seed([])
+    const t = text(render(<Settings />))
+    expect(t).toMatch(/rises from near silence in 25 seconds/)
+    expect(t).toMatch(/system alarm rings 2 minutes later/)
+    expect(t).not.toMatch(/20 seconds|within a minute/)
+  })
+
   it('a night’s page shows its report and the diagnostics', () => {
     const n = night(); seed([n])
     const t = text(render(<Routes><Route path="/night/:id" element={<Night />} /></Routes>, '/night/' + n.id))

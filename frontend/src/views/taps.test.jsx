@@ -7,7 +7,7 @@ import { mount, unmount, button, byText, text, input, click, type, key, flush } 
 // Every tap outside the night screen: a night's page, correcting its times, Settings, the server
 // check, signing in, and the Sleep button. The server is a stand-in (lib/api.js mocked).
 const api = vi.hoisted(() => {
-  // nothing reaches a real server, not even what modules fetch as they load (the alarm sound)
+  // nothing reaches a real server
   globalThis.fetch = async () => ({ ok: true, json: async () => ({}), arrayBuffer: async () => new ArrayBuffer(8) })
   return { calls: [], reply: {} }
 })
@@ -18,7 +18,6 @@ vi.mock('../lib/api.js', () => ({
     if (r instanceof Error) throw r
     return typeof r === 'function' ? r(body) : r ?? { rev: 0, changes: [] }
   }),
-  armBackup: vi.fn(async () => {}), uploadClips: vi.fn(async () => []),
   enablePush: vi.fn(async () => { throw new Error('Add mySleep to the home screen first') }),
   passkeyLogin: vi.fn(async () => ({ id: 'u1', name: 'Test' })), passkeyRegister: vi.fn(async name => ({ id: 'u2', name }))
 }))

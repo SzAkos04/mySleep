@@ -7,7 +7,7 @@ import { useUI } from './ui.js'
 export const defaultSettings = () => ({
   bedtime: '23:00', wake: '06:45',
   alarm: true, smart: true,
-  remind: true, clips: true,
+  remind: true,
   tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   ts: 0   // 0: the server's copy wins on first sync
 })

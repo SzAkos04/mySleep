@@ -1,4 +1,4 @@
-/* mySleep service worker: the app shell offline, and the bedtime / backup alarm pushes.
+/* mySleep service worker: the app shell offline, and the bedtime and reinstall reminders' pushes.
    CACHE carries the build hash (vite.config.js), so a deploy is a new worker with a new cache. */
 const CACHE = 'mysleep-__BUILD__'
 
@@ -10,8 +10,7 @@ self.addEventListener('install', e => {
     const html = await res.clone().text()
     const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(m => m[1]).filter(u => !/^(https?:)?\/\//.test(u))
     await c.put('index.html', res)
-    // the alarm is not referenced by index.html, but must be here at 6 am with no network
-    await c.addAll([...refs, 'alarm-piano.wav'])
+    await c.addAll(refs)
     await self.skipWaiting()
   })())
 })
@@ -30,7 +29,7 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     try {
       const res = await fetch(e.request)
-      if (res.ok && (url.pathname.startsWith('/assets/') || url.pathname.endsWith('/alarm-piano.wav'))) (await caches.open(CACHE)).put(e.request, res.clone())
+      if (res.ok && url.pathname.startsWith('/assets/')) (await caches.open(CACHE)).put(e.request, res.clone())
       return res
     } catch {
       return (await caches.match(e.request)) || (e.request.mode === 'navigate' ? caches.match('index.html') : Response.error())
@@ -40,7 +39,7 @@ self.addEventListener('fetch', e => {
 
 self.addEventListener('push', e => {
   const p = e.data ? e.data.json() : { title: 'mySleep' }
-  e.waitUntil(self.registration.showNotification(p.title, { body: p.body, tag: p.tag, icon: 'icon-180.png', requireInteraction: p.tag === 'alarm' }))
+  e.waitUntil(self.registration.showNotification(p.title, { body: p.body, tag: p.tag, icon: 'icon-180.png' }))
 })
 
 self.addEventListener('notificationclick', e => {

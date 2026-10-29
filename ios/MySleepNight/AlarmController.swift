@@ -4,7 +4,7 @@ import SwiftUI
 /// The alarm is the system's (AlarmKit): it rings on the lock screen, through silent mode and Focus,
 /// with Stop and Snooze there, and it rings even if iOS has closed this app in the night. The app
 /// sets it for the wake time when the night starts; in the smart window it brings it forward to now.
-/// The sound is the web app's piano (alarm-piano.wav, copied into the app when it is built).
+/// The sound is the app's piano (alarm-piano.wav, a resource of the app).
 @MainActor final class AlarmController: ObservableObject {
   enum Phase: Equatable { case none, set, ringing, snoozed }
   @Published private(set) var phase: Phase = .none
