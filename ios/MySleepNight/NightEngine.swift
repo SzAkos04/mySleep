@@ -25,9 +25,9 @@ import UIKit
   @Published private(set) var selfRinging = false   // no system alarm: the app rings itself
   private var smart = false, rangEarly = false, lastCheck: Int64 = 0
   private var player: AVAudioPlayer?, ramp: Timer?, ringStart = Date()
-  // the web app's analysis.js, copied into the app when it is built: the smart alarm's judge
-  private let analysis: Analysis? = Bundle.main.url(forResource: "analysis", withExtension: "js")
-    .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.flatMap { try? Analysis(source: $0) }
+  // the web app's night rules (rules.js, built from frontend/src/lib/rules.js): the smart alarm's judge
+  private let rules: Rules? = Bundle.main.url(forResource: "rules", withExtension: "js")
+    .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.flatMap { try? Rules(source: $0) }
 
   private let live = LiveCardController()
   private var wasHearing = true
@@ -92,7 +92,7 @@ import UIKit
     smart = settings.smart; rangEarly = false; rangEarlyBy = nil; snoozes = 0; lastNight = nil
     plan = AlarmPlan.make(settings, from: Date())
     if let p = plan {
-      n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart, "analysis": analysis != nil])
+      n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart, "analysis": rules != nil])
       // the system alarm rings at full volume at once (29 October: it frightened): it waits behind
       // the app's own, gentle one, ringing only if the app could not, or nobody stopped it
       await alarm.set(at: p.backup)
@@ -170,7 +170,7 @@ import UIKit
     if let p = plan, !rangEarly, !selfRinging, now - lastCheck >= 10_000 {
       lastCheck = now
       let date = Date(), early = max(0, Int(p.at.timeIntervalSince(date) / 60))
-      if alarm.phase != .ringing, p.shouldRing(at: date, smart: smart, isStirring: { [queue, analysis] in queue.sync { analysis?.stirring(n) ?? false } }) {
+      if alarm.phase != .ringing, p.shouldRing(at: date, smart: smart, isStirring: { [queue, rules] in queue.sync { rules?.stirring(n) ?? false } }) {
         // the app rings first, rising from near silence; the system alarm moves behind it
         rangEarly = true
         if rangEarlyBy == nil { rangEarlyBy = early }   // the first ring, not a snooze's

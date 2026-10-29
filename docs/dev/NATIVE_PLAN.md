@@ -60,7 +60,12 @@ app reads and writes the paired profile's nights and settings.
   nights.
 - Done when: `curl -H "Authorization: Bearer …" -d '{"since":0,"changes":[]}'` returns every night.
 
-### 0.2 The rules as one bundle for the app
+### 0.2 The rules as one bundle for the app *(done)*
+*(`frontend/src/lib/rules.js` is the entry, `node scripts/build-rules.mjs` bundles it with rolldown into
+`ios/MySleepNight/rules.js`, committed; `rules.test.js` fails when it or `golden.json` is stale. NightKit's
+`Rules` runs it; `RulesTests` compares a fixed night's record, score, sentences, summary, plan and
+labels with node's, as strings, in UTC. To add something to the app: export it from `rules.js`, rebuild,
+regenerate `golden.mjs` if it should be checked.)*
 A build script (`frontend/scripts/build-rules.mjs`, esbuild from the installed Vite) bundles one
 entry, `lib/rules.js`, re-exporting `nightFromLog`, `sleepScore`, `insights`, `summary`,
 `alarmPlan`, `nightIdOf`, `dur`, `clockOf` and the analysis, into an IIFE `MySleepRules`, written

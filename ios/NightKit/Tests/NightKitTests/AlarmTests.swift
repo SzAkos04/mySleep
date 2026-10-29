@@ -49,9 +49,8 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
 }
 
 @Suite struct SharedAnalysis {
-  // the web app's analysis.js itself, run by JavaScriptCore: one implementation for both apps
-  static let source = try! String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-    .appendingPathComponent("../../../../frontend/src/lib/analysis.js").standardized, encoding: .utf8)
+  // the web app's rules, bundled (ios/MySleepNight/rules.js), run by JavaScriptCore: one implementation for both apps
+  static let source = Rules.bundleSource
 
   func night(_ seconds: Int, moving: (Int) -> Bool) -> Night {
     let n = Night(start: 0)
@@ -63,24 +62,24 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
   }
 
   @Test func aStillSleeperIsNotStirring() throws {
-    let a = try Analysis(source: Self.source)
+    let a = try Rules(source: Self.source)
     #expect(a.stirring(night(900) { _ in false }) == false)
   }
 
   @Test func turningOverInTheLastMinuteIsStirring() throws {
-    let a = try Analysis(source: Self.source)
+    let a = try Rules(source: Self.source)
     #expect(a.stirring(night(900) { $0 > 860 && $0 % 10 < 2 }) == true)
   }
 
   @Test func gapsAreNotMovement() throws {
-    let a = try Analysis(source: Self.source)
+    let a = try Rules(source: Self.source)
     let n = night(900) { _ in false }
     for _ in 0..<60 { n.append(db: .nan, low: 0, mid: 0, vr: 0, at: 0) }
     #expect(a.stirring(n) == false)
   }
 
   @Test func aBrokenSourceSaysSo() {
-    #expect(throws: (any Error).self) { try Analysis(source: "this is not javascript (") }
+    #expect(throws: (any Error).self) { try Rules(source: "this is not javascript (") }
   }
 }
 

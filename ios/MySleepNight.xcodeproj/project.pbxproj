@@ -133,7 +133,6 @@
 				A10000000000000000000040 /* Sources */,
 				A10000000000000000000041 /* Frameworks */,
 				A10000000000000000000042 /* Resources */,
-				A10000000000000000000043 /* Copy the web app's analysis */,
 				A10000000000000000000090 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -219,29 +218,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A10000000000000000000043 /* Copy the web app's analysis */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/../frontend/src/lib/analysis.js",
-			);
-			name = "Copy the web app's analysis";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/analysis.js",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# the web app's own file: both apps judge a night with the same analysis\ncp \"$SCRIPT_INPUT_FILE_0\" \"$SCRIPT_OUTPUT_FILE_0\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000040 /* Sources */ = {
