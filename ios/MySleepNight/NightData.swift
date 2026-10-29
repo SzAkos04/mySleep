@@ -8,6 +8,8 @@ import Foundation
   @Published private(set) var syncResult: NightStore.SyncResult?
   @Published private(set) var lastSync: Date?
   @Published private(set) var settings = AppSettings()
+  /// What came of scheduling the reminders (Notifier): shown in Settings.
+  @Published var notify: NotifyStatus = .unknown
   private(set) var store: NightStore?
   /// The pairing, for the sync that follows an edit (set by the app).
   var pairing: () -> Pairing? = { nil }

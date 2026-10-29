@@ -26,12 +26,15 @@ import SwiftUI
         .task { await NightEngine.finishCutShort(); await sync() }
     }
     .onChange(of: phase) { _, p in if p == .active { Task { await sync() } } }
+    // a changed bedtime or reminder switch: scheduled again
+    .onChange(of: data.settings) { _, s in Task { data.notify = await Notifier.apply(s, expires: server.expires) } }
   }
 
   /// The night into the nights here, then everything to and from the server.
   private func sync() async {
     await server.refresh()
     await data.refresh(pairing: server.pairing)
+    data.notify = await Notifier.apply(data.settings, expires: server.expires)
   }
 }
 

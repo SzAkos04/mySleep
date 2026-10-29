@@ -156,13 +156,14 @@ Bedtime, wake, alarm, smart and reminder live in the store's `settings` (synced 
 the server's are newer.
 - Tests first: the merge (newer `ts` wins), the first-run move, the Sleep link still setting them.
 
-### 3.2 Bedtime reminder as a local notification
+### 3.2 Bedtime reminder as a local notification *(done)*
+*(NightKit `Reminders` plans 3.2 and 3.3 (tested against the server's words and rules, incl. the stages at 9:00 and an install that stops before 9); the app's `Notifier` replaces its pending notifications whenever the settings or the install change; Settings says when it is scheduled or when notifications are off. What is left for the phone: that a notification scheduled by an app whose signature has run out still arrives.)*
 Daily at bedtime − 30 min, rescheduled when the settings change, off with the switch. The server
 stops sending its web push for it in phase 5.
 - Tests first: `ReminderPlan(settings)` → the notification's time and text; off → none.
 - Phone only: that it fires.
 
-### 3.3 Reinstall reminder as a local notification
+### 3.3 Reinstall reminder as a local notification *(done, phone check pending)*
 Scheduled at each launch from `Provisioning.expiry`: two days before, the last day, after; 9:00.
 The stages and texts as `api/reminders.js` has them.
 - Tests first: the same cases as the api's reminder tests, in NightKit.
