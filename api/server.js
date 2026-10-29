@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { expiryReminder } from './reminders.js';
 import {
   generateRegistrationOptions, verifyRegistrationResponse,
   generateAuthenticationOptions, verifyAuthenticationResponse
@@ -66,8 +67,10 @@ function sweepClips() {
 const DEBUG_DAYS = +(process.env.DEBUG_DAYS || 30);
 const DEBUG_PATH = /^\/api\/debug\/(\d{4}-\d{2}-\d{2})$/;
 const debugDir = uid => path.join(DATA, 'debug', uid.replace(/[^\w-]/g, ''));
+const DEBUG_FILE = /^\d{4}-\d{2}-\d{2}\.json$/;
 async function debugRoute(req, res, night) {
-  const user = needUser(req);
+  // reading needs the session; mySleep Night uploads with its device token
+  const user = req.method === 'PUT' && !readSession(req) ? needDevice(req).user : needUser(req);
   const file = path.join(debugDir(user.id), night + '.json');
   if (req.method === 'GET') {
     if (!fs.existsSync(file)) throw new HttpError(404, 'no log for that night');
@@ -192,6 +195,8 @@ setInterval(() => { for (const [k, v] of challenges) if (v.exp < Date.now()) cha
 
 /* ---------- push ---------- */
 async function sendPush(userId, payload) {
+  // tests: pushes written to a file instead of sent (web-push only speaks https)
+  if (process.env.PUSH_LOG) { fs.appendFileSync(process.env.PUSH_LOG, JSON.stringify({ userId, payload }) + '\n'); return 1; }
   const subs = db.subs.filter(s => s.userId === userId);
   let dropped = false;
   for (const s of subs) {
@@ -223,6 +228,13 @@ async function tick() {
       await sendPush(user.id, { title: 'Wake up', body: 'mySleep stopped listening, so this is your backup alarm.', tag: 'alarm' });
     }
     const s = readState(user.id).entries['settings:main']?.data;
+    // mySleep Night, signed with a free Apple ID, stops 7 days after it was installed
+    for (const d of user.devices || []) {
+      const r = expiryReminder(d, now, s?.tz);
+      if (!r) continue;
+      d.reminded = r.stage; changed = true;
+      await sendPush(user.id, { title: r.title, body: r.body, tag: r.tag });
+    }
     if (!s?.remind || !s.bedtime) continue;
     const { date, min } = localNow(s.tz);
     const at = (toMin(s.bedtime) - (s.remindMin ?? 30) + 1440) % 1440;
@@ -247,6 +259,21 @@ async function readBody(req) {
 }
 const publicUser = u => ({ id: u.id, name: u.name });
 function needUser(req) { const u = readSession(req); if (!u) throw new HttpError(401, 'not signed in'); return u; }
+
+/* ---------- devices: mySleep Night, the native app ----------
+   It cannot use the passkey (a free Apple ID gives no associated domain), so the web app pairs it:
+   POST /api/devices makes a token, shown once, kept here only as a hash. With it the app may only
+   upload its nights' logs and say when it expires; it is not a session. One device per name. */
+const hashToken = t => crypto.createHash('sha256').update(String(t)).digest('base64url');
+function deviceOf(req) {
+  const m = (req.headers.authorization || '').match(/^Bearer ([\w-]{20,})$/);
+  if (!m) return null;
+  const h = hashToken(m[1]);
+  for (const user of db.users) { const device = (user.devices || []).find(d => d.hash === h); if (device) return { user, device }; }
+  return null;
+}
+function needDevice(req) { const d = deviceOf(req); if (!d) throw new HttpError(401, 'not a paired device'); d.device.lastSeen = Date.now(); return d; }
+const publicDevice = d => ({ id: d.id, name: d.name, expires: d.expires, lastSeen: d.lastSeen, build: d.build });
 const b64u = s => Buffer.from(s, 'base64url');
 
 const routes = {
@@ -254,7 +281,38 @@ const routes = {
 
   'GET /api/me': (req, res) => {
     const u = readSession(req);
-    json(res, u ? 200 : 401, u ? { user: publicUser(u) } : { error: 'not signed in', signup: ALLOW_SIGNUP || !db.users.length });
+    json(res, u ? 200 : 401, u ? { user: publicUser(u), devices: (u.devices || []).map(publicDevice) } : { error: 'not signed in', signup: ALLOW_SIGNUP || !db.users.length });
+  },
+
+  'POST /api/devices': async (req, res) => {
+    const user = needUser(req), body = await readBody(req);
+    const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : 'mySleep Night';
+    const token = crypto.randomBytes(32).toString('base64url');
+    const device = { id: crypto.randomBytes(8).toString('base64url'), name, hash: hashToken(token), created: Date.now(), lastSeen: null, expires: null, build: null, reminded: null };
+    user.devices = [...(user.devices || []).filter(d => d.name !== name), device];
+    saveDb();
+    json(res, 200, { id: device.id, token });
+  },
+
+  'POST /api/devices/status': async (req, res) => {
+    const { device } = needDevice(req), body = await readBody(req);
+    if (body.expires !== null && !Number.isFinite(body.expires)) throw new HttpError(400, 'expires must be a time or null');
+    if (body.expires !== device.expires) device.reminded = null;   // reinstalled: remind afresh
+    device.expires = body.expires;
+    device.build = typeof body.build === 'string' ? body.build.slice(0, 40) : null;
+    saveDb();
+    json(res, 200, { ok: true });
+  },
+
+  // the nights' logs (frontend/src/lib/diag.js, and mySleep Night's): the web app imports the app's
+  'GET /api/debug': (req, res) => {
+    const user = needUser(req);
+    let files = [];
+    try { files = fs.readdirSync(debugDir(user.id)).filter(f => DEBUG_FILE.test(f)); } catch {}
+    json(res, 200, files.map(f => {
+      const l = readJSON(path.join(debugDir(user.id), f), {});
+      return { night: l.night, start: l.start, final: !!l.final, app: l.env?.app || 'web', uploadedAt: l.uploadedAt ?? l.receivedAt };
+    }));
   },
 
   'POST /api/register/options': async (req, res) => {
@@ -372,7 +430,7 @@ const server = http.createServer(async (req, res) => {
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   server.listen(PORT, () => console.log(`mySleep API on :${PORT}, RP_ID=${RP_ID}, ORIGIN=${ORIGIN}`));
-  setInterval(() => tick().catch(e => console.error('tick', e)), 20000).unref();
+  setInterval(() => tick().catch(e => console.error('tick', e)), +(process.env.TICK_MS || 20000)).unref();
   sweepClips(); sweepDebug();
   setInterval(sweepDebug, 864e5).unref();
   setInterval(sweepClips, 3600e3).unref();

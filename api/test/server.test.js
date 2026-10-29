@@ -9,6 +9,7 @@ const dir = path.dirname(new URL(import.meta.url).pathname);
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'mysleep-test-'));
 const PORT = 20000 + Math.floor(Math.random() * 20000);
 const base = `http://127.0.0.1:${PORT}`;
+const PUSH_LOG = path.join(DATA, 'pushes.jsonl');
 let proc, cookie;
 
 // Registered at the top level, not inside before (node:test).
@@ -16,7 +17,8 @@ after(() => { proc?.kill(); fs.rmSync(DATA, { recursive: true, force: true }); }
 
 before(async () => {
   cookie = execFileSync('node', [path.join(dir, '../scripts/dev-session.mjs'), '--create', 'Test'], { env: { ...process.env, DATA_DIR: DATA } }).toString().trim();
-  proc = spawn('node', [path.join(dir, '../server.js')], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT) }, stdio: 'inherit' });
+  // TICK_MS: reminders checked often; PUSH_LOG: pushes written to a file instead of sent
+  proc = spawn('node', [path.join(dir, '../server.js')], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), TICK_MS: '200', PUSH_LOG: PUSH_LOG }, stdio: 'inherit' });
   for (let i = 0; i < 50; i++) {
     try { if ((await fetch(base + '/api/health')).ok) return; } catch {}
     await new Promise(r => setTimeout(r, 100));
@@ -99,3 +101,55 @@ test('a night log is stored (gzipped too), read back, and kept over a later part
   const bomb = zlib.gzipSync(Buffer.alloc(80 * 1024 * 1024, 32))
   assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-encoding': 'gzip' }, body: bomb })).status, 400)
 })
+
+// mySleep Night (the native app) has no passkey: the web app pairs it, and it signs its requests
+// with the token it got (Authorization: Bearer), for its own few routes only.
+const bearer = t => ({ authorization: 'Bearer ' + t });
+const pair = () => fetch(base + '/api/devices', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: JSON.stringify({ name: 'mySleep Night' }) });
+const nativeLog = { night: '2026-11-01', start: 1793570000000, final: true, env: { app: 'native' }, events: [[0, 'start']], samples: { start: 1793570000000, db: [40, null], low: [0.3, 0], mid: [0.3, 0], vr: [1, 0], at: [1, 0] } };
+
+test('pairing mySleep Night: a token for the app, which uploads its night and says when it expires', async () => {
+  assert.equal((await fetch(base + '/api/devices', { method: 'POST', body: '{}' })).status, 401)
+  const r = await pair();
+  assert.equal(r.status, 200);
+  const { token } = await r.json();
+  assert.ok(token.length >= 40);
+  // the app, as an app sends it: no cookie, no Sec-Fetch-Site
+  const put = (t, body = nativeLog) => fetch(base + '/api/debug/2026-11-01', { method: 'PUT', headers: { ...bearer(t), 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await put(token)).status, 200);
+  assert.equal((await put('not-the-token')).status, 401);
+  const expires = Date.now() + 6 * 864e5;
+  const st = await fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), 'content-type': 'application/json' }, body: JSON.stringify({ expires, build: '202611011200' }) });
+  assert.equal(st.status, 200);
+  // the web app sees the device (never its token) and the night's log
+  const me = await (await fetch(base + '/api/me', { headers: { cookie } })).json();
+  assert.equal(me.devices.length, 1);
+  assert.deepEqual(Object.keys(me.devices[0]).sort(), ['build', 'expires', 'id', 'lastSeen', 'name']);
+  assert.equal(me.devices[0].expires, expires);
+  const logs = await (await fetch(base + '/api/debug', { headers: { cookie } })).json();
+  const listed = logs.find(l => l.night === '2026-11-01');
+  assert.deepEqual({ ...listed, uploadedAt: typeof listed.uploadedAt }, { night: '2026-11-01', start: nativeLog.start, final: true, app: 'native', uploadedAt: 'number' });
+  // a device token is not a session: nothing else opens with it
+  assert.equal((await sync({ changes: [] }, { cookie: '', ...bearer(token) })).status, 401);
+  assert.equal((await fetch(base + '/api/debug', { headers: bearer(token) })).status, 401);
+  // pairing again replaces it: the old token stops working
+  const { token: again } = await (await pair()).json();
+  assert.equal((await put(token)).status, 401);
+  assert.equal((await put(again)).status, 200);
+  assert.equal((await (await fetch(base + '/api/me', { headers: { cookie } })).json()).devices.length, 1);
+});
+
+test('a reminder to reinstall goes out once when mySleep Night is about to stop', async () => {
+  // a time zone where it is midday now, so the reminder's waking hours hold whenever this runs
+  const off = (12 - new Date().getUTCHours() + 24) % 24, o = off > 12 ? off - 24 : off;
+  const tz = o === 0 ? 'UTC' : 'Etc/GMT' + (o > 0 ? '-' : '+') + Math.abs(o);
+  assert.equal((await sync({ changes: [{ kind: 'settings', id: 'main', ts: Date.now(), data: { tz, remind: false } }] })).status, 200);
+  const { token } = await (await pair()).json();
+  await fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), 'content-type': 'application/json' }, body: JSON.stringify({ expires: Date.now() + 3600e3, build: 'x' }) });
+  const sent = () => fs.existsSync(PUSH_LOG) ? fs.readFileSync(PUSH_LOG, 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(p => p.payload.tag === 'reinstall') : [];
+  for (let i = 0; i < 30 && !sent().length; i++) await new Promise(r => setTimeout(r, 100));
+  assert.equal(sent().length, 1);
+  assert.match(sent()[0].payload.title, /mySleep Night stops tonight/);
+  await new Promise(r => setTimeout(r, 800));   // several ticks later: still once
+  assert.equal(sent().length, 1);
+});
