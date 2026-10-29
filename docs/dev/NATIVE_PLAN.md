@@ -77,22 +77,16 @@ before the iOS tests, so it is never stale.
   fails until the bundle exists. `Analysis.stirring` moves onto the bundle with its tests unchanged.
 - Done when: both test suites green, and the app still rings the smart alarm off the bundle.
 
-### 0.3 Store and sync logic in Swift (NightKit)
-A `NightStore` value: `nights` (id → JSON), `settings`, `rev`, `dirty`, as `store.js` holds them.
-`pendingChanges`, `mergeRemote` and `stillDirty` ported from `sync.js` as pure functions.
-`save` marks dirty, `delete` leaves a tombstone, newest `ts` wins. Persisted as one JSON file in
-Application Support, written atomically.
-- Tests first: every case in `sync.test.js` and `store.test.js`, one for one; a file round trip; a
-  half-written file is never what loads.
-
-### 0.4 Sync in the app
-When: at launch, on coming to the foreground, after a night, 0.8 s after an edit, every 60 s while
-open; offline, again in 30 s; a 401 means the pairing is gone (Settings says so). The *when* and
-the outcome (synced, offline, server error, unpaired) are a NightKit `SyncPlan` over a fake
-transport; `ServerLink` only does the HTTP.
-- Tests first: the schedule; a failed push keeps the edits dirty; an edit made during a push
-  stays dirty; 401 stops retrying; the first sync from `rev 0` pulls everything.
-- Simulator: pair against the local API (`scripts/dev-local.sh`) and see the night count match.
+### 0.3 and 0.4 Store and sync *(done, the short way)*
+Not ported to Swift: the store's edits and the end of a sync are pure functions in `lib/sync.js`
+(`withNight`, `withoutNight`, `withSettings`, `afterSync`, tested there, used by the web store too),
+bundled in `rules.js`. NightKit's `NightStore` only holds the web store's JSON state, runs those
+functions in JavaScriptCore, and does the round trip with a `send` closure; the app's `NightData`
+keeps it in `Application Support/nights.json` and syncs (`ServerAPI.sync`, the device token) at
+launch, on coming back, after a night and on pairing. Tested against a stand-in server: push,
+merge, newer edit wins, an edit during the push stays to send, offline/502/401/500, tombstones.
+Still to do: the every-minute sync while open and the retry after 30 s offline (the app syncs
+when it is opened, which is when it is read).
 
 ## Phase 1: the night lands in the app
 
@@ -102,7 +96,9 @@ finished log goes up even if a partial one did earlier (it did not before), a ni
 finished at launch (`Night.recovered`), and logs the server has are deleted from the phone after
 30 days. The server's copy is the history this plan relies on.
 
-### 1.1 The app makes its own night
+### 1.1 The app makes its own night *(done)*
+(`takeIn` in `lib/native.js`, `NightStore.takeIn`, `NightData.takeInLogs`: the same rule as the web's
+import, so the two never make it twice.)
 At the end of a night, `MySleepRules.nightFromLog` makes the record, the store saves it, sync sends
 it. The log upload stays (diagnostics), but turning it into a night stops being the web's job.
 - Tests first: NightKit, a fixture log → the same record as the golden file; JS, a night the app

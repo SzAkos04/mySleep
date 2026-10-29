@@ -4,16 +4,13 @@ import Foundation
 
 // The app runs the web app's night rules as one bundled script (frontend/src/lib/rules.js, built
 // into ios/MySleepNight/rules.js) in JavaScriptCore. A fixed night goes through it here and must
-// come out as node made it (golden.json, frontend/scripts/golden.mjs), letter for letter: scores,
+// come out as node made it (golden.json, frontend/scripts/golden.mjs), letter for letter, in any time
+// zone (the fixture makes local time UTC): scores,
 // the night record, the sentences about it.
 @Suite struct RulesTests {
   static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures")
 
-  /// The golden file was written in UTC, so JavaScriptCore runs in UTC here.
-  static func utc() { setenv("TZ", "UTC", 1); tzset() }
-
   @Test func theFixedNightComesOutAsNodeMadeIt() throws {
-    Self.utc()
     let rules = try Rules(source: Rules.bundleSource)
     let fixture = try String(contentsOf: Self.fixtures.appendingPathComponent("fixture.js"), encoding: .utf8)
     let mine = try #require(try rules.evaluate(fixture + "\n;JSON.stringify(goldenOutputs())")?.data(using: .utf8))

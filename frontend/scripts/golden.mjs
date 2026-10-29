@@ -1,7 +1,6 @@
 // What the rules make of the fixed night (ios/NightKit/Tests/NightKitTests/Fixtures/fixture.js),
-// run in node as the bundle runs in the app: node scripts/golden.mjs [--print]. In UTC, so the
-// clock times in it do not depend on the Mac; NightKit's RulesTests run JavaScriptCore in UTC too.
-process.env.TZ = 'UTC'
+// run in node as the bundle runs in the app: node scripts/golden.mjs [--print]. The fixture makes
+// local time UTC, so the clock times in it do not depend on the Mac.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { sleepLink, pairLink, toImport, nightFromLog, nativeSummary, expiryNote, importNative, isEmbedded } from './native.js'
+import { sleepLink, pairLink, toImport, nightFromLog, nativeSummary, expiryNote, importNative, isEmbedded, takeIn } from './native.js'
 
 // The web app no longer listens: mySleep Night (ios/) records the night and uploads its log; the
 // web app opens it, pairs it, turns its logs into nights, and says when it needs reinstalling.
@@ -109,5 +109,20 @@ describe('inside mySleep Night', () => {
     expect(isEmbedded('?x=2&embed=1')).toBe(true)
     expect(isEmbedded('')).toBe(false)
     expect(isEmbedded('?embedded=1')).toBe(false)
+  })
+})
+
+describe('takeIn: the night to make of a log, if there is one (mySleep Night does it itself)', () => {
+  it('a finished log of a night not here yet becomes the night', () => {
+    expect(takeIn(log(), {})).toMatchObject({ id: '2026-10-29', source: 'native', bed: start })
+  })
+  it('not an unfinished one, not one already here (same start), not over a night deleted or from elsewhere', () => {
+    expect(takeIn(log({ final: false }), {})).toBeNull()
+    expect(takeIn(log(), { '2026-10-29': { id: '2026-10-29', source: 'native', bed: start } })).toBeNull()
+    expect(takeIn(log(), { '2026-10-29': { id: '2026-10-29', deleted: true } })).toBeNull()
+    expect(takeIn(log(), { '2026-10-29': { id: '2026-10-29', source: 'web', bed: start } })).toBeNull()
+  })
+  it('a later night under the same date replaces the earlier one', () => {
+    expect(takeIn(log({ from: start + 3600e3 }), { '2026-10-29': { id: '2026-10-29', source: 'native', bed: start } })).not.toBeNull()
   })
 })

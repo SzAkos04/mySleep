@@ -35,3 +35,20 @@ export function stillDirty(state, pushed) {
   for (const c of pushed) if (entryOf(state, c.kind + ':' + c.id)?.ts === c.ts) delete dirty[c.kind + ':' + c.id]
   return dirty
 }
+
+// The store's edits, as functions of the state (the store and mySleep Night both use them): the
+// pieces of state that change. `ts` is the time of the edit.
+export const withNight = (state, n, ts) => ({ nights: { ...state.nights, [n.id]: { ...n, ts } }, dirty: { ...state.dirty, ['night:' + n.id]: true } })
+export const withoutNight = (state, id, ts) => ({ nights: { ...state.nights, [id]: { id, deleted: true, ts } }, dirty: { ...state.dirty, ['night:' + id]: true } })
+export const withSettings = (state, patch, ts) => ({ settings: { ...state.settings, ...patch, ts }, dirty: { ...state.dirty, 'settings:main': true } })
+
+// The state after a sync: what the server sent merged in, its revision, and what was pushed clean.
+export const afterSync = (state, reply, pushed, now) => ({ ...mergeRemote(state, reply.changes), rev: reply.rev, dirty: stillDirty(state, pushed), lastSynced: now })
+
+export const defaultSettings = () => ({
+  bedtime: '23:00', wake: '06:45',
+  alarm: true, smart: true,
+  remind: true,
+  tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  ts: 0   // 0: the server's copy wins on first sync
+})

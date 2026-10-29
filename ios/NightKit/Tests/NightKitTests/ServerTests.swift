@@ -73,6 +73,17 @@ import Foundation
   }
 }
 
+@Suite struct SyncRequest {
+  @Test func isAPostToTheSyncRouteWithTheDeviceToken() {
+    let p = Pairing(server: URL(string: "https://host.example:8443/")!, token: "t".padding(toLength: 40, withPad: "t", startingAt: 0))
+    let r = ServerAPI.sync(p, body: Data(#"{"since":0,"changes":[]}"#.utf8))
+    #expect(r.httpMethod == "POST")
+    #expect(r.url?.absoluteString == "https://host.example:8443/api/sync")
+    #expect(r.value(forHTTPHeaderField: "Authorization") == "Bearer " + p.token)
+    #expect(r.httpBody == Data(#"{"since":0,"changes":[]}"#.utf8))
+  }
+}
+
 @Suite struct Uploads {
   // the night logs in Documents, each with its version (when it was last written); the versions the
   // server took are remembered, the rest go next time

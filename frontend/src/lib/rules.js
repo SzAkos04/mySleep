@@ -3,8 +3,9 @@
 // JavaScriptCore. So both apps judge, score and summarise a night the same way, and the tests
 // here cover both. Add what a native screen needs here, then rebuild (scripts/test.sh does).
 export { stirring } from './analysis.js'
-export { nightFromLog, toImport } from './native.js'
+export { nightFromLog, takeIn, toImport } from './native.js'
 export { alarmPlan, corrected } from './night.js'
+export { defaultSettings, pendingChanges, withNight, withoutNight, withSettings, afterSync } from './sync.js'
 export { sleepScore, insights, unrecorded } from './score.js'
 export { summary, noonToClock, fromNoon } from './stats.js'
 export { atClock, clockOf, dayLabel, dur, nightIdOf } from './time.js'

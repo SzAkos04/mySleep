@@ -400,6 +400,116 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		const have = nights[l.night];
 		return !have || !have.deleted && have.source === "native" && have.bed !== l.start;
 	});
+	const takeIn = (log, nights) => toImport([{
+		app: "native",
+		final: !!log.final,
+		night: log.night,
+		start: log.start
+	}], nights).length ? nightFromLog(log) : null;
+
+//#endregion
+//#region src/lib/sync.js
+	const entryOf = (state, key) => {
+		const [kind, id] = key.split(/:(.*)/);
+		return kind === "settings" ? state.settings : state.nights[id];
+	};
+	function pendingChanges(state) {
+		return Object.keys(state.dirty).map((key) => {
+			const [kind, id] = key.split(/:(.*)/);
+			const data = entryOf(state, key);
+			return data?.deleted ? {
+				kind,
+				id,
+				ts: data.ts,
+				deleted: true
+			} : {
+				kind,
+				id,
+				ts: data.ts,
+				data
+			};
+		});
+	}
+	function mergeRemote(state, changes) {
+		const nights = { ...state.nights };
+		let settings = state.settings;
+		for (const c of changes) {
+			const local = c.kind === "settings" ? settings : nights[c.id];
+			if (local && local.ts >= c.ts) continue;
+			const v = c.deleted ? {
+				id: c.id,
+				deleted: true,
+				ts: c.ts
+			} : {
+				...c.data,
+				ts: c.ts
+			};
+			if (c.kind === "settings") settings = v;
+			else nights[c.id] = v;
+		}
+		return {
+			nights,
+			settings
+		};
+	}
+	function stillDirty(state, pushed) {
+		const dirty = { ...state.dirty };
+		for (const c of pushed) if (entryOf(state, c.kind + ":" + c.id)?.ts === c.ts) delete dirty[c.kind + ":" + c.id];
+		return dirty;
+	}
+	const withNight = (state, n, ts) => ({
+		nights: {
+			...state.nights,
+			[n.id]: {
+				...n,
+				ts
+			}
+		},
+		dirty: {
+			...state.dirty,
+			["night:" + n.id]: true
+		}
+	});
+	const withoutNight = (state, id, ts) => ({
+		nights: {
+			...state.nights,
+			[id]: {
+				id,
+				deleted: true,
+				ts
+			}
+		},
+		dirty: {
+			...state.dirty,
+			["night:" + id]: true
+		}
+	});
+	const withSettings = (state, patch, ts) => ({
+		settings: {
+			...state.settings,
+			...patch,
+			ts
+		},
+		dirty: {
+			...state.dirty,
+			"settings:main": true
+		}
+	});
+	const afterSync = (state, reply, pushed, now) => ({
+		...mergeRemote(state, reply.changes),
+		rev: reply.rev,
+		dirty: stillDirty(state, pushed),
+		lastSynced: now
+	});
+	const defaultSettings = () => ({
+		bedtime: "23:00",
+		wake: "06:45",
+		alarm: true,
+		smart: true,
+		remind: true,
+		tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+		ts: 0
+	});
 
 //#endregion
 //#region src/lib/stats.js
@@ -557,22 +667,29 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	const canonical = (v) => JSON.stringify(v, (k, x) => typeof x === "number" ? Math.round(x * 1e6) / 1e6 : x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a < b ? -1 : 1)) : x);
 
 //#endregion
+exports.afterSync = afterSync;
 exports.alarmPlan = alarmPlan;
 exports.atClock = atClock;
 exports.canonical = canonical;
 exports.clockOf = clockOf;
 exports.corrected = corrected;
 exports.dayLabel = dayLabel;
+exports.defaultSettings = defaultSettings;
 exports.dur = dur;
 exports.fromNoon = fromNoon;
 exports.insights = insights;
 exports.nightFromLog = nightFromLog;
 exports.nightIdOf = nightIdOf;
 exports.noonToClock = noonToClock;
+exports.pendingChanges = pendingChanges;
 exports.sleepScore = sleepScore;
 exports.stirring = stirring;
 exports.summary = summary;
+exports.takeIn = takeIn;
 exports.toImport = toImport;
 exports.unrecorded = unrecorded;
+exports.withNight = withNight;
+exports.withSettings = withSettings;
+exports.withoutNight = withoutNight;
 return exports;
 })({});

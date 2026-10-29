@@ -1,6 +1,21 @@
 // A fixed night and what the rules make of it, run by node (frontend/scripts/golden.mjs writes
 // golden.json) and by NightKit's RulesTests in JavaScriptCore, after ios/MySleepNight/rules.js.
 // Both must print the same: that is what "both apps judge a night the same way" means.
+// The rules read the clock in local time (clockOf, fromNoon, atClock ...). The process's time zone
+// is fixed by whichever test touches it first, so here local time is made UTC, the same way in
+// node and in JavaScriptCore: the golden file does not depend on the machine.
+(function () {
+  const D = Date
+  function UTCDate(...a) { if (!new.target) return D(); return a.length > 1 ? new D(D.UTC(...a)) : new D(...a) }
+  UTCDate.prototype = D.prototype; UTCDate.now = D.now; UTCDate.UTC = D.UTC; UTCDate.parse = D.parse
+  for (const k of ['FullYear', 'Month', 'Date', 'Day', 'Hours', 'Minutes', 'Seconds', 'Milliseconds']) {
+    D.prototype['get' + k] = D.prototype['getUTC' + k]
+    if (k !== 'Day') D.prototype['set' + k] = D.prototype['setUTC' + k]
+  }
+  D.prototype.getTimezoneOffset = () => 0
+  globalThis.Date = UTCDate
+})()
+
 function fixtureLog() {
   const start = Date.UTC(2026, 9, 29, 22, 0), n = 3 * 3600
   const s = { start, db: [], low: [], mid: [], vr: [], at: [] }

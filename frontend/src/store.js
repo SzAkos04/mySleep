@@ -1,16 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { api } from './lib/api.js'
-import { pendingChanges, mergeRemote, stillDirty } from './lib/sync.js'
+import { pendingChanges, withNight, withoutNight, withSettings, afterSync, defaultSettings } from './lib/sync.js'
 import { useUI } from './ui.js'
 
-export const defaultSettings = () => ({
-  bedtime: '23:00', wake: '06:45',
-  alarm: true, smart: true,
-  remind: true,
-  tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  ts: 0   // 0: the server's copy wins on first sync
-})
+export { defaultSettings }
 
 // Everything here is persisted and synced, except `user`, `rev` and `dirty`, which are this
 // device's bookkeeping.
@@ -28,9 +22,9 @@ export const useStore = create(persist((set, get) => ({
   setUser: user => set(s => !user ? { user } : s.owner && s.owner !== user.id
     ? { user, owner: user.id, nights: {}, settings: defaultSettings(), rev: 0, dirty: {} }
     : { user, owner: user.id }),
-  saveNight: n => { set(s => ({ nights: { ...s.nights, [n.id]: { ...n, ts: Date.now() } }, dirty: { ...s.dirty, ['night:' + n.id]: true } })); schedule() },
-  deleteNight: id => { set(s => ({ nights: { ...s.nights, [id]: { id, deleted: true, ts: Date.now() } }, dirty: { ...s.dirty, ['night:' + id]: true } })); schedule() },
-  saveSettings: patch => { set(s => ({ settings: { ...s.settings, ...patch, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, ts: Date.now() }, dirty: { ...s.dirty, 'settings:main': true } })); schedule() },
+  saveNight: n => { set(s => withNight(s, n, Date.now())); schedule() },
+  deleteNight: id => { set(s => withoutNight(s, id, Date.now())); schedule() },
+  saveSettings: patch => { set(s => withSettings(s, { ...patch, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }, Date.now())); schedule() },
   signOut: () => set({ user: null, owner: null, nights: {}, settings: defaultSettings(), rev: 0, dirty: {} })
 }), { name: 'mysleep_v1' }))
 
@@ -52,7 +46,7 @@ export async function syncNow() {
     const s = useStore.getState()
     const changes = pendingChanges(s)
     const r = await api('/api/sync', { since: s.rev, changes })
-    useStore.setState(cur => ({ ...mergeRemote(cur, r.changes), rev: r.rev, dirty: stillDirty(cur, changes), lastSynced: Date.now() }))
+    useStore.setState(cur => afterSync(cur, r, changes, Date.now()))
     useUI.setState({ syncError: null })
   } catch (e) {
     // no status: the request never got an answer (offline, Tailscale down); 502-504: nginx is up

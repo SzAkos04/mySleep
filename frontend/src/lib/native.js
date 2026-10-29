@@ -38,6 +38,10 @@ export const toImport = (logs, nights) => logs.filter(l => {
   return !have || (!have.deleted && have.source === 'native' && have.bed !== l.start)
 })
 
+// The night mySleep Night makes of one of its own finished logs (null: nothing to make), by the
+// same rule as toImport, so the app and the web app do not make it twice.
+export const takeIn = (log, nights) => toImport([{ app: 'native', final: !!log.final, night: log.night, start: log.start }], nights).length ? nightFromLog(log) : null
+
 // Runs when the app opens. A log that does not come now is tried again next time.
 export async function importNative({ get, nights, save }) {
   let done = 0

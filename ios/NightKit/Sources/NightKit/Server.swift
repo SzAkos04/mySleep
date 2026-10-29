@@ -41,7 +41,7 @@ public enum Provisioning {
   }
 }
 
-/// The two requests the app makes, with its device token.
+/// The requests the app makes, with its device token.
 public enum ServerAPI {
   static func request(_ p: Pairing, _ method: String, _ path: String, _ body: Data) -> URLRequest {
     var r = URLRequest(url: p.server.appendingPathComponent(path))
@@ -55,6 +55,9 @@ public enum ServerAPI {
 
   /// A night's log (Night.json), for the web app to turn into the night.
   public static func upload(_ p: Pairing, night: String, body: Data) -> URLRequest { request(p, "PUT", "api/debug/\(night)", body) }
+
+  /// The nights and settings, both ways (NightStore.sync): the body is {since, changes}.
+  public static func sync(_ p: Pairing, body: Data) -> URLRequest { request(p, "POST", "api/sync", body) }
 
   /// When the app stops working, so the server can remind before it does.
   public static func status(_ p: Pairing, expires: Date?, build: String) -> URLRequest {

@@ -6,26 +6,33 @@ import SwiftUI
 @main struct MySleepNightApp: App {
   @StateObject private var engine = NightEngine()
   @StateObject private var server = ServerLink()
+  @StateObject private var data = NightData()
   @Environment(\.scenePhase) private var phase
   var body: some Scene {
     WindowGroup {
-      RootView().environmentObject(engine).environmentObject(engine.alarm).environmentObject(server)
+      RootView().environmentObject(engine).environmentObject(engine.alarm).environmentObject(server).environmentObject(data)
         .preferredColorScheme(.dark).tint(Theme.accent)
         // the web app opens this app: to pair it, and from its Sleep button
         .onOpenURL { url in
           switch AppLink.parse(url) {
-          case .pair(let p)?: server.pair(p)
+          case .pair(let p)?: server.pair(p); Task { await data.refresh(pairing: p) }
           case .sleep(let s)?:
             if let s { Self.remember(s) }
             if engine.night == nil { Task { try? await engine.start(Self.stored) } }
           case nil: break
           }
         }
-        .onAppear { engine.onFinished = { Task { await server.refresh() } } }
+        .onAppear { engine.onFinished = { Task { await sync() } } }
         // at launch: a night iOS cut short is finished first, then everything goes up
-        .task { await NightEngine.finishCutShort(); await server.refresh() }
+        .task { await NightEngine.finishCutShort(); await sync() }
     }
-    .onChange(of: phase) { _, p in if p == .active { Task { await server.refresh() } } }
+    .onChange(of: phase) { _, p in if p == .active { Task { await sync() } } }
+  }
+
+  /// The night into the nights here, then everything to and from the server.
+  private func sync() async {
+    await server.refresh()
+    await data.refresh(pairing: server.pairing)
   }
 
   // the alarm as the Tonight tab keeps it (@AppStorage), so a Sleep link sets it there too
