@@ -252,3 +252,26 @@ test('the app syncs with its device token, for its own profile only', async () =
   // a web page cannot use it cross-site: the token is the app's, a browser never has it
   assert.equal((await fetch(base + '/api/sync', { method: 'POST', headers: { ...bearer(token), 'sec-fetch-site': 'cross-site' }, body: '{"changes":[]}' })).status, 403);
 });
+
+// Without the web app there is no page to pair from: a script on the server asks the running server
+// for the token as the profile (api/scripts/pair.mjs) and prints the link the phone opens.
+test('pairing without the web app: a script on the server prints the link', async () => {
+  const run = (...args) => execFileSync('node', [path.join(dir, '../scripts/pair.mjs'), ...args], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), ORIGIN: 'https://host.example:8443' }, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
+  const link = new URL(run('Test'));
+  assert.equal(link.protocol, 'mysleepnight:');
+  assert.equal(link.host, 'pair');
+  assert.equal(link.searchParams.get('server'), 'https://host.example:8443');
+  const token = link.searchParams.get('token');
+  assert.ok(token.length >= 40);
+  // the token is the app's: it syncs the profile it was made for, and nobody else's
+  const as = (t, body) => fetch(base + '/api/sync', { method: 'POST', headers: { ...bearer(t), 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await as(token, { since: 0, changes: [night('2026-11-09', 100, 1)] })).status, 200);
+  assert.ok((await (await sync({ since: 0, changes: [] })).json()).changes.some(c => c.id === '2026-11-09'));
+  // pairing again replaces the device, as the web page did
+  const again = new URL(run('Test')).searchParams.get('token');
+  assert.equal((await as(token, { changes: [] })).status, 401);
+  assert.equal((await as(again, { changes: [] })).status, 200);
+  // a profile it does not know, or none named when there are several: refused, and it says which there are
+  assert.throws(() => run('Nobody'), e => /Nobody|Test/.test(String(e.stderr)));
+  assert.throws(() => run(), e => /Other/.test(String(e.stderr)));
+});

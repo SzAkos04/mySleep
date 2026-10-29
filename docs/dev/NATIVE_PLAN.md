@@ -172,7 +172,8 @@ The stages and texts as `api/reminders.js` has them.
 
 ## Phase 4: pairing without the web
 
-### 4.1 A pairing link from the server
+### 4.1 A pairing link from the server *(done, phone check pending)*
+*(`api/scripts/pair.mjs` asks the running server for the token as the profile (POST /api/devices) and prints the link; it is in the image with `session.mjs`; `scripts/pair.sh` runs it over SSH and copies the link, so it can be pasted on the iPhone. Tested: the link carries the server and a working token, pairing again replaces it, an unknown or unnamed profile is refused. Needs a deploy before it can be run on the server.)*
 `api/scripts/pair.mjs <profile>` (run with `docker compose exec api`) makes a device token and
 prints the `mysleepnight://pair?…` link; `scripts/pair.sh` runs it over SSH from the Mac. Tap the
 link on the phone (Notes, Messages). The token is in the Keychain, which survives the weekly
