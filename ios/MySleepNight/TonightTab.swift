@@ -5,14 +5,18 @@ import SwiftUI
 /// The first tab: the evening (the alarm, then Sleep) or, after a night, the morning's summary.
 struct TonightTab: View {
   @EnvironmentObject var engine: NightEngine
-  @AppStorage("morningSeen") private var morningSeen = ""
+  @AppStorage("morningSeenEnd") private var seenEnd = 0.0
 
   var body: some View {
-    if let last = engine.lastNight, last.id != morningSeen, Date().timeIntervalSince(last.end) < 12 * 3600 {
-      MorningView(night: last) { morningSeen = last.id }
-    } else {
-      EveningView()
+    let morning = engine.lastNight.flatMap { Morning.shows(end: $0.end, seen: Date(timeIntervalSince1970: seenEnd), now: Date()) ? $0 : nil }
+    ZStack {
+      if let last = morning {
+        MorningView(night: last) { seenEnd = last.end.timeIntervalSince1970 }.transition(.opacity.combined(with: .offset(y: -12)))
+      } else {
+        EveningView().transition(.opacity.combined(with: .offset(y: 12)))
+      }
     }
+    .animation(.smooth(duration: 0.45), value: morning?.end)
   }
 }
 
@@ -47,13 +51,16 @@ struct EveningView: View {
             Spacer()
             Button { nav.tab = .settings } label: {
               Image(systemName: server.pairing == nil ? "icloud.slash" : server.problem == nil ? "checkmark.icloud" : "exclamationmark.icloud")
+                .contentTransition(.symbolEffect(.replace))
                 .font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44)
                 .foregroundStyle(server.pairing != nil && server.problem == nil ? Theme.good : Theme.warn)
                 .background(Theme.card, in: Circle())
             }
+            .buttonStyle(Pressable())
             .accessibilityLabel("Server")
           }
           .padding(.bottom, 12)
+          .rise(0)
 
           // the alarm, the screen's one decision
           Card {
@@ -63,66 +70,96 @@ struct EveningView: View {
               Toggle("Alarm", isOn: $on).labelsHidden()
             }
             if let plan {
-              Button { picking = true } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                  Text(settings.time).font(.system(size: 64, weight: .ultraLight)).monospacedDigit().kerning(-2)
-                  Text("in \(duration(plan.at.timeIntervalSince(ctx.date) / 60))").foregroundStyle(Theme.text2)
+              VStack(alignment: .leading, spacing: 0) {
+                Button { picking = true } label: {
+                  HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(settings.time).font(.system(size: 64, weight: .ultraLight)).monospacedDigit().kerning(-2)
+                      .contentTransition(.numericText())
+                    Text("in \(duration(plan.at.timeIntervalSince(ctx.date) / 60))").foregroundStyle(Theme.text2)
+                      .contentTransition(.numericText())
+                  }
+                }
+                .buttonStyle(Pressable()).accessibilityHint("Change the wake-up time")
+                Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 14)
+                HStack(spacing: 12) {
+                  Image(systemName: "sparkles").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.bg)
+                    .frame(width: 30, height: 30).background(smart ? Theme.accent : Theme.line, in: RoundedRectangle(cornerRadius: 8))
+                    .symbolEffect(.bounce, value: smart)
+                  VStack(alignment: .leading, spacing: 1) {
+                    Text("Smart alarm")
+                    Text(smart ? "From \(InstallStatus.clock(plan.at.addingTimeInterval(-Double(AlarmPlan.smartMinutes) * 60), .current)), as soon as you stir" : "Up to 30 min earlier, when you stir")
+                      .font(.footnote).foregroundStyle(Theme.text2).contentTransition(.opacity)
+                  }
+                  Spacer()
+                  Toggle("Smart alarm", isOn: $smart).labelsHidden()
                 }
               }
-              .buttonStyle(.plain).accessibilityHint("Change the wake-up time")
-              Rectangle().fill(Theme.line).frame(height: 1).padding(.vertical, 14)
-              HStack(spacing: 12) {
-                Image(systemName: "sparkles").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.bg)
-                  .frame(width: 30, height: 30).background(Theme.accent, in: RoundedRectangle(cornerRadius: 8))
-                VStack(alignment: .leading, spacing: 1) {
-                  Text("Smart alarm")
-                  Text(smart ? "From \(InstallStatus.clock(plan.at.addingTimeInterval(-Double(AlarmPlan.smartMinutes) * 60), .current)), as soon as you stir" : "Up to 30 min earlier, when you stir")
-                    .font(.footnote).foregroundStyle(Theme.text2)
-                }
-                Spacer()
-                Toggle("Smart alarm", isOn: $smart).labelsHidden()
-              }
+              .transition(.opacity.combined(with: .offset(y: -8)))
             } else {
-              Text("No alarm").font(.system(size: 44, weight: .ultraLight)).foregroundStyle(Theme.text2).padding(.top, 6)
-              Text("Turn it on to be woken gently.").font(.footnote).foregroundStyle(Theme.text2)
+              VStack(alignment: .leading, spacing: 0) {
+                Text("No alarm").font(.system(size: 44, weight: .ultraLight)).foregroundStyle(Theme.text2).padding(.top, 6)
+                Text("Turn it on to be woken gently.").font(.footnote).foregroundStyle(Theme.text2)
+              }
+              .transition(.opacity.combined(with: .offset(y: 8)))
             }
           }
+          .animation(.snappy(duration: 0.35), value: on)
+          .animation(.smooth(duration: 0.3), value: smart)
+          .animation(.smooth(duration: 0.4), value: settings.time)
+          .rise(1)
 
-          HStack(spacing: 10) {
+          // about the alarm, so gone with it
+          VStack {
             if let plan {
-              FactCard(value: duration(plan.at.timeIntervalSince(ctx.date) / 60), label: "of sleep if you go now")
+              HStack(spacing: 10) {
+                FactCard(value: duration(plan.at.timeIntervalSince(ctx.date) / 60), label: "of sleep if you go now")
+                FactCard(value: "Gentle", label: "piano, rising in 25 s")
+              }
+              .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
             }
-            FactCard(value: "Gentle", label: "piano, rising in 25 s")
           }
+          .animation(.snappy(duration: 0.35), value: on)
+          .rise(2)
 
           // what needs you before the night, and only that
           FlowRow {
-            if server.pairing == nil { Button { nav.tab = .settings } label: { Chip(text: "Not paired with your server", warn: true) }.buttonStyle(.plain) }
-            else { Chip(text: "Sends to \(server.pairing?.server.host ?? "your server")") }
-            if install.level != .unknown {
-              Button { nav.tab = .settings } label: { Chip(text: install.title, warn: install.level != .fine) }.buttonStyle(.plain)
+            Group {
+              if server.pairing == nil { Button { nav.tab = .settings } label: { Chip(text: "Not paired with your server", warn: true) } }
+              else { Chip(text: "Sends to \(server.pairing?.server.host ?? "your server")") }
+              if install.level != .unknown {
+                Button { nav.tab = .settings } label: { Chip(text: install.title, warn: install.level != .fine) }
+              }
+              if alarm.allowed == false && on {
+                Button { nav.tab = .settings } label: { Chip(text: "Alarms off · no loud backup", warn: true) }
+              }
             }
-            if alarm.allowed == false && on {
-              Button { nav.tab = .settings } label: { Chip(text: "Alarms off · no loud backup", warn: true) }.buttonStyle(.plain)
-            }
+            .buttonStyle(Pressable())
+            .transition(.scale(scale: 0.85).combined(with: .opacity))
           }
+          .animation(.snappy(duration: 0.3), value: on)
+          .animation(.snappy(duration: 0.3), value: server.pairing == nil)
           .padding(.top, 4)
+          .rise(3)
         }
         .padding(.horizontal, 20).padding(.top, 8)
       }
       .scrollBounceBehavior(.basedOnSize)
       .safeAreaInset(edge: .bottom) {
         VStack(spacing: 10) {
-          if let error { Text(error).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center) }
+          if let error {
+            Text(error).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+              .transition(.opacity.combined(with: .offset(y: 6)))
+          }
           PrimaryButton(title: "Sleep", systemImage: "moon.fill") {
             guard !starting else { return }
             starting = true
             Task { defer { starting = false }
-              do { try await engine.start(settings) } catch { self.error = error.localizedDescription } }
+              do { try await engine.start(settings) } catch { withAnimation(.snappy) { self.error = error.localizedDescription } } }
           }
           Text("Then lock the phone and leave it on the charger.").font(.footnote).foregroundStyle(Theme.text2)
         }
         .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 8).background(Theme.bg)
+        .rise(4)
       }
     }
     .background(Theme.bg)
@@ -196,37 +233,46 @@ struct MorningView: View {
           Text(night.end, format: .dateTime.weekday(.wide).day().month(.wide)).foregroundStyle(Theme.text2)
         }
         .padding(.bottom, 12)
+        .rise(0)
 
         Card {
           HStack {
             Eyebrow(text: "Last night")
             Spacer()
-            if let sent = server.lastUpload { Text("Sent \(InstallStatus.clock(sent, .current)) ✓").font(.footnote).foregroundStyle(Theme.good) }
-            else if server.pairing == nil { Text("Not paired").font(.footnote).foregroundStyle(Theme.warn) }
-            else { Text("Sending…").font(.footnote).foregroundStyle(Theme.text2) }
+            Group {
+              if let sent = server.lastUpload { Label("Sent \(InstallStatus.clock(sent, .current))", systemImage: "checkmark").foregroundStyle(Theme.good) }
+              else if server.pairing == nil { Text("Not paired").foregroundStyle(Theme.warn) }
+              else { Text("Sending…").foregroundStyle(Theme.text2) }
+            }
+            .font(.footnote).labelStyle(.titleAndIcon)
+            .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .trailing)))
           }
+          .animation(.snappy, value: server.lastUpload)
           Text(m.range).font(.system(size: 44, weight: .ultraLight)).monospacedDigit().kerning(-1.5).padding(.top, 6)
           Text(m.line).foregroundStyle(Theme.text2).padding(.top, 2)
         }
+        .rise(1)
 
         HStack(spacing: 10) {
           if let a = m.alarm { FactCard(value: a.value, label: a.label) }
           if let s = m.snooze { FactCard(value: s.value, label: s.label) }
         }
+        .rise(2)
       }
       .padding(.horizontal, 20).padding(.top, 8)
     }
     .safeAreaInset(edge: .bottom) {
       VStack(spacing: 10) {
-        PrimaryButton(title: opening ? "Sending the night…" : "See your night and score", systemImage: "chevron.right", trailing: true) {
+        PrimaryButton(title: opening ? "Sending the night…" : "See your night and score", systemImage: opening ? "arrow.up.circle" : "chevron.right", trailing: true) {
           guard !opening else { return }
           opening = true
           // the night must be on the server before its page is opened
           Task { await server.refresh(); opening = false; nav.openNight(night.id); done() }
         }
-        Button("Done", action: done).font(.subheadline).foregroundStyle(Theme.text2).padding(.bottom, 4)
+        Button("Done", action: done).font(.subheadline).foregroundStyle(Theme.text2).padding(.bottom, 4).buttonStyle(Pressable())
       }
       .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 8).background(Theme.bg)
+      .rise(3)
     }
     .background(Theme.bg)
   }

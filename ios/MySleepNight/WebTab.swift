@@ -18,16 +18,21 @@ struct WebTab: View {
       if server.pairing == nil {
         Message(icon: "link", title: "Pair with your server first",
                 text: "Open mySleep on the web once (Safari is fine), then Settings › Pair mySleep Night. Your nights will show here.")
+          .transition(.opacity)
       } else if failed {
         Message(icon: "icloud.slash", title: "Your server is not answering",
                 text: "Is Tailscale on? Your nights are kept on this phone and go up when it answers.") { Task { await load() } }
+          .transition(.opacity)
       } else if let url {
+        // shown once drawn: the page fades in instead of building up in front of you
         WebView(url: url, loading: $loading).ignoresSafeArea(edges: .top)
-        if loading { ProgressView().tint(Theme.text2) }
+          .opacity(loading ? 0 : 1).animation(.easeOut(duration: 0.3), value: loading)
+        if loading { ProgressView().tint(Theme.text2).transition(.opacity) }
       } else {
-        ProgressView().tint(Theme.text2)
+        ProgressView().tint(Theme.text2).transition(.opacity)
       }
     }
+    .animation(.smooth(duration: 0.3), value: failed)
     // one task, so the page and the pairing arriving together do not fetch two codes
     .task(id: server.pairing == nil ? nil : page) { await load() }
   }
@@ -50,6 +55,7 @@ private struct Message: View {
       if let retry { Button("Try again", action: retry).buttonStyle(.bordered).padding(.top, 6) }
     }
     .padding(32)
+    .rise()
   }
 }
 

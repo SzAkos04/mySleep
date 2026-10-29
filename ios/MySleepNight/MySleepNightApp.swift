@@ -75,18 +75,48 @@ struct RootView: View {
         SettingsTab().tag(Tab.settings)
           .tabItem { Label("Settings", systemImage: "gearshape") }
       }
+      // the night fades in slowly, as lights going out; the alarm comes up from a little larger
       if engine.night != nil { NightScreen().transition(.opacity) }
-      if alarm.phase == .ringing || engine.selfRinging { RingingView().transition(.opacity) }
+      if alarm.phase == .ringing || engine.selfRinging { RingingView().transition(.opacity.combined(with: .scale(scale: 1.06))) }
     }
     .environmentObject(nav)
     // a night ends on Tonight, where its morning summary is
     .onChange(of: engine.night == nil) { _, ended in if ended { nav.tab = .tonight } }
-    .animation(.easeInOut(duration: 0.35), value: engine.night == nil)
-    .animation(.easeInOut(duration: 0.35), value: alarm.phase == .ringing || engine.selfRinging)
+    .animation(.easeInOut(duration: 0.6), value: engine.night == nil)
+    .animation(.spring(duration: 0.6, bounce: 0.1), value: alarm.phase == .ringing || engine.selfRinging)
   }
 }
 
 // MARK: shared pieces
+
+// Motion: opacity, offset, scale, numbers rolling and symbol effects only; these the A13 draws at
+// 60 fps without effort. No animated blur, nothing running for good; none of it with Reduce Motion.
+
+/// Buttons sink a little under the finger.
+struct Pressable: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .scaleEffect(configuration.isPressed ? 0.96 : 1)
+      .opacity(configuration.isPressed ? 0.88 : 1)
+      .animation(.spring(duration: 0.25, bounce: 0.35), value: configuration.isPressed)
+  }
+}
+
+/// Rises into place the first time it shows (the tabs keep their state, so once); `order`
+/// staggers a screen's parts.
+struct Rise: ViewModifier {
+  let order: Int
+  @State private var shown = false
+  @Environment(\.accessibilityReduceMotion) private var still
+  func body(content: Content) -> some View {
+    content.opacity(shown || still ? 1 : 0).offset(y: shown || still ? 0 : 16)
+      .onAppear {
+        guard !shown else { return }
+        withAnimation(.spring(duration: 0.55, bounce: 0.2).delay(Double(order) * 0.07)) { shown = true }
+      }
+  }
+}
+extension View { func rise(_ order: Int = 0) -> some View { modifier(Rise(order: order)) } }
 
 /// A card: the app's one surface, rounded like the web app's.
 struct Card<Content: View>: View {
@@ -112,6 +142,7 @@ struct FactCard: View {
     VStack(alignment: .leading, spacing: 2) {
       Text(value).font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
         .foregroundStyle(warn ? Theme.warn : .primary)
+        .contentTransition(.numericText()).animation(.smooth, value: value)
       Text(label).font(.footnote).foregroundStyle(Theme.text2).lineLimit(2, reservesSpace: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 14)
@@ -135,18 +166,21 @@ struct PrimaryButton: View {
   let title: String, systemImage: String
   var trailing = false
   let action: () -> Void
+  @State private var taps = 0
   var body: some View {
-    Button(action: action) {
+    Button { taps += 1; action() } label: {
       HStack(spacing: 10) {
-        if !trailing { Image(systemName: systemImage) }
-        Text(title)
-        if trailing { Image(systemName: systemImage).font(.body.weight(.bold)) }
+        if !trailing { Image(systemName: systemImage).contentTransition(.symbolEffect(.replace)) }
+        Text(title).contentTransition(.opacity)
+        if trailing { Image(systemName: systemImage).font(.body.weight(.bold)).contentTransition(.symbolEffect(.replace)) }
       }
+      .animation(.smooth(duration: 0.3), value: title)
       .font(.title3.weight(.semibold)).frame(maxWidth: .infinity).frame(height: 58)
       .foregroundStyle(Theme.bg).background(Theme.accent, in: Capsule())
       .contentShape(Capsule())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(Pressable())
+    .sensoryFeedback(.impact(weight: .medium), trigger: taps)
   }
 }
 

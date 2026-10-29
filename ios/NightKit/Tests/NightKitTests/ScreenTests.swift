@@ -55,6 +55,16 @@ import Foundation
     #expect(m.alarm == nil)
     #expect(m.snooze == nil)
   }
+  @Test func showsUntilPutAwayEachNightByItsEnd() {
+    let now = end.addingTimeInterval(600)
+    #expect(Morning.shows(end: end, seen: nil, now: now))
+    #expect(!Morning.shows(end: end, seen: end, now: now))                       // Done
+    // kept as seconds since 1970 (AppStorage): back as a Date, a hair off
+    #expect(!Morning.shows(end: end.addingTimeInterval(0.123456), seen: Date(timeIntervalSince1970: end.addingTimeInterval(0.1234).timeIntervalSince1970), now: now))
+    // a night started again the same evening (same date, so same id) is another night
+    #expect(Morning.shows(end: end, seen: end.addingTimeInterval(-3600), now: now))
+    #expect(!Morning.shows(end: end, seen: nil, now: end.addingTimeInterval(12 * 3600)))   // stale by evening
+  }
   @Test func snoozesCounted() {
     let m = Morning(bed: bed, end: end, heardMinutes: 447, early: 0, snoozes: 2, calendar: cal)
     #expect(m.snooze == Morning.Fact("Snoozed 2 times", "9 minutes each"))

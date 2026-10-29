@@ -38,9 +38,23 @@ struct SettingsTab: View {
           Button {
             engine.testing ? engine.stopTestSound() : engine.playTestSound()
           } label: {
-            Label(engine.testing ? "Stop" : "Play it for 10 seconds", systemImage: engine.testing ? "stop.fill" : "play.fill")
+            HStack {
+              Label {
+                Text(engine.testing ? "Stop" : "Play it for 10 seconds").contentTransition(.opacity)
+              } icon: {
+                Image(systemName: engine.testing ? "stop.fill" : "play.fill").contentTransition(.symbolEffect(.replace))
+              }
+              Spacer()
+              if engine.testing {
+                Image(systemName: "speaker.wave.3.fill").foregroundStyle(Theme.accent)
+                  .symbolEffect(.variableColor.iterative, options: .repeating)
+                  .transition(.opacity.combined(with: .scale(scale: 0.6)))
+              }
+            }
+            .animation(.snappy(duration: 0.3), value: engine.testing)
           }
           .disabled(engine.night != nil)
+          .sensoryFeedback(.selection, trigger: engine.testing)
           let advice = VolumeAdvice(volume: volume.level)
           HStack {
             VStack(alignment: .leading, spacing: 1) {
@@ -49,6 +63,7 @@ struct SettingsTab: View {
             }
             Spacer()
             Text(advice.text).foregroundStyle(advice.low ? Theme.warn : Theme.good)
+              .contentTransition(.numericText()).animation(.snappy(duration: 0.25), value: advice.text)
           }
         } header: { Text("Alarm sound") } footer: { Text("A soft piano that rises from near silence; set the volume with the side buttons.") }
 
@@ -100,12 +115,17 @@ private struct Allowed: View {
         if let detail { Text(detail).font(.footnote).foregroundStyle(Theme.text2) }
       }
       Spacer()
-      if on { Text("On").foregroundStyle(Theme.good) }
-      else {
-        Button("Turn on") { UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!) }
-          .foregroundStyle(Theme.warn)
+      // back from iOS Settings with it allowed: "Turn on" gives way to "On"
+      Group {
+        if on { HStack(spacing: 4) { Image(systemName: "checkmark").font(.footnote.weight(.bold)); Text("On") }.foregroundStyle(Theme.good) }
+        else {
+          Button("Turn on") { UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!) }
+            .foregroundStyle(Theme.warn)
+        }
       }
+      .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: .trailing)))
     }
+    .animation(.snappy(duration: 0.3), value: on)
   }
 }
 

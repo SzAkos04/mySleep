@@ -43,6 +43,13 @@ public struct Morning: Sendable {
     snooze = early == nil ? nil : Fact(snoozes == 0 ? "No snooze" : snoozes == 1 ? "Snoozed once" : "Snoozed \(snoozes) times", snoozes == 0 ? "up with the alarm" : "9 minutes each")
   }
 
+  /// The summary shows after a night until put away (`seen`: the end of the night it was put away
+  /// for), and 12 h at most. By the end, not the id: a night started again the same evening is
+  /// another night with the same date.
+  public static func shows(end: Date, seen: Date?, now: Date) -> Bool {
+    abs(end.timeIntervalSince(seen ?? .distantPast)) >= 1 && now.timeIntervalSince(end) < 12 * 3600
+  }
+
   public static func duration(_ m: Int) -> String { m < 60 ? "\(m) min" : "\(m / 60)h \(String(format: "%02d", m % 60))m" }
 }
 
