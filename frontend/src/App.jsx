@@ -22,11 +22,15 @@ export function App() {
   const user = useStore(s => s.user), settings = useStore(s => s.settings)
   const { sheet, toast } = useUI()
   const [signup, setSignup] = useState(false)
+  // the sign-in page only once the server was asked: a new web view (mySleep Night's tabs) has no
+  // cached profile, and would flash it before the session cookie is checked
+  const [signedOut, setSignedOut] = useState(false)
 
   useEffect(() => {
     api('/api/me')
       .then(r => { useStore.getState().setUser(r.user); useUI.setState({ devices: r.devices || [] }); syncNow(); takeInNights() })
       .catch(e => {
+        setSignedOut(true)
         if (e.status === 401) { useStore.getState().setUser(null); setSignup(!!e.data?.signup) }
         else syncNow()   // offline: keep the cached user, and let the server check in the corner say so
       })
@@ -45,7 +49,7 @@ export function App() {
 
   const embedded = isEmbedded()
   useEffect(() => { document.documentElement.classList.toggle('embedded', embedded) }, [embedded])
-  if (!user) return <div id="app"><Login signup={signup} /></div>
+  if (!user) return <div id="app">{signedOut && <Login signup={signup} />}</div>
 
   return <HashRouter>
     <div id="app">

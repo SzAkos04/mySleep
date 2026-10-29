@@ -61,6 +61,8 @@ struct SettingsTab: View {
         }
       }
       .scrollContentBackground(.hidden)
+      // the last line clear of the floating tab bar's edge, also when a scroll bounces back
+      .contentMargins(.bottom, 28, for: .scrollContent)
       .background(Theme.bg)
       .navigationTitle("Settings")
     }

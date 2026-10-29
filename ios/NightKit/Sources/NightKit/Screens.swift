@@ -66,6 +66,8 @@ public enum WebPage: Equatable, Sendable {
     case .night(let id): "/?embed=1#/night/\(id)"
     }
   }
+  /// Whether a tab asks for a new sign-in code (which loads the page again): not to show what it shows.
+  public func needsSignIn(showing: WebPage?, failed: Bool) -> Bool { failed || showing != self }
   /// Opened through a one-time code (api/server.js GET /api/session/code): signed in, no passkey.
   public func signIn(server: URL, code: String) -> URL {
     var c = URLComponents(url: server.appendingPathComponent("api/session/code"), resolvingAgainstBaseURL: false)!

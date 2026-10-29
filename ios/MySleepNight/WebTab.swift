@@ -8,6 +8,7 @@ struct WebTab: View {
   @EnvironmentObject var server: ServerLink
   @EnvironmentObject var nav: Navigation
   @State private var url: URL?
+  @State private var showing: WebPage?
   @State private var failed = false
   @State private var loading = true
 
@@ -27,13 +28,13 @@ struct WebTab: View {
         ProgressView().tint(Theme.text2)
       }
     }
-    .task(id: page) { await load() }
-    .task(id: server.pairing) { if url == nil { await load() } }
+    // one task, so the page and the pairing arriving together do not fetch two codes
+    .task(id: server.pairing == nil ? nil : page) { await load() }
   }
 
   private func load() async {
-    guard server.pairing != nil else { return }
-    failed = false; loading = true
+    guard server.pairing != nil, page.needsSignIn(showing: showing, failed: failed) else { return }
+    showing = page; failed = false; loading = true
     if let u = await server.signedIn(page) { url = u } else { failed = true }
   }
 }

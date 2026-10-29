@@ -252,6 +252,17 @@ describe('the app', () => {
     expect(button('Create profile')).not.toBeNull()
   })
 
+  it('first open with nothing on the phone (a new web view): no sign-in page before the server answers', async () => {
+    useStore.setState({ user: null })
+    let answer
+    api.reply['/api/me'] = () => new Promise(r => { answer = r })
+    await mount(<App />)
+    expect(button('Sign in with passkey')).toBeNull()
+    await act(async () => answer({ user: { id: 'u1', name: 'Test' }, devices: [] }))
+    await flush()
+    expect(document.querySelector('#tabbar')).not.toBeNull()
+  })
+
   it('offline: keeps the profile on the phone and opens as usual', async () => {
     api.reply['/api/me'] = new TypeError('Load failed')
     await mount(<App />)
