@@ -6,7 +6,7 @@
 // scripts/fetch-debug.sh and frontend/scripts/night-report.mjs.
 const KEY = 'mysleep_diag'
 const MAX_EVENTS = 6000
-let log = null, lastSave = 0
+let log = null, lastSave = 0, lastUpload = 0
 
 const env = () => ({
   ua: navigator.userAgent,
@@ -34,6 +34,7 @@ function save(force) {
 
 export function diagStart(night, extra = {}) {
   log = { v: 1, night, start: Date.now(), env: env(), ...extra, events: [] }
+  lastUpload = 0   // the first upload comes a minute in, whatever an earlier start sent
   diag('start', { visibility: document.visibilityState })
   save(true)
 }
@@ -58,7 +59,6 @@ export function diag(type, data) {
 export const diagActive = () => !!log
 export const diagNight = () => log?.night
 
-let lastUpload = 0
 // Every few minutes during the night (log only), and once at the end with the raw readings.
 export async function diagUpload(samples, final) {
   if (!log) return
@@ -78,12 +78,13 @@ export async function diagUpload(samples, final) {
     }
     const r = await fetch('/api/debug/' + log.night, { method: 'PUT', headers, body: payload, keepalive: !final && payload.size < 60000 })
     if (!r.ok) throw new Error('server answered ' + r.status)
-    if (final) { log = null; try { localStorage.removeItem(KEY) } catch {} }
   } catch (e) {
     diag('upload-failed', { final: !!final, error: String(e?.message || e) })
     // the end-of-night upload failed: keep it for the next app start
     if (final) try { localStorage.setItem(KEY + '_pending', JSON.stringify(body)) } catch {}
   }
+  // the night is over either way: stop recording the day
+  if (final) { log = null; try { localStorage.removeItem(KEY) } catch {} }
 }
 
 // A final upload that failed (offline in the morning): send it when the app next opens.
@@ -93,7 +94,8 @@ export async function diagRetryPending() {
   if (!body) return
   try {
     const r = await fetch('/api/debug/' + body.night, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    if (r.ok) localStorage.removeItem(KEY + '_pending')
+    // a refusal will not change on retry (a 401 might: signed out)
+    if (r.ok || (r.status >= 400 && r.status < 500 && r.status !== 401)) localStorage.removeItem(KEY + '_pending')
   } catch {}
 }
 

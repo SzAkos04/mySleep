@@ -86,4 +86,16 @@ test('a night log is stored (gzipped too), read back, and kept over a later part
   const got = await (await fetch(url, { headers: { cookie } })).json()
   assert.equal(got.final, true)
   assert.deepEqual(got.samples.db, [30])
+  // a new night under the same date (another start) replaces it
+  assert.equal((await put({ night: '2026-10-28', start: 2, events: [], final: false })).status, 200)
+  assert.equal((await (await fetch(url, { headers: { cookie } })).json()).start, 2)
+  // refused: signed out, cross-site, broken bodies, a bad date, a gzip bomb
+  assert.equal((await fetch(url, { method: 'PUT', headers: { 'sec-fetch-site': 'same-origin' }, body: '{}' })).status, 401)
+  assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'cross-site' }, body: '{}' })).status, 403)
+  assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-encoding': 'gzip' }, body: 'not gzip' })).status, 400)
+  assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin' }, body: '{' })).status, 400)
+  assert.equal((await fetch(base + '/api/debug/../../x', { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin' }, body: '{}' })).status, 404)
+  assert.equal((await fetch(base + '/api/debug/2026-10-29', { headers: { cookie } })).status, 404)
+  const bomb = zlib.gzipSync(Buffer.alloc(80 * 1024 * 1024, 32))
+  assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-encoding': 'gzip' }, body: bomb })).status, 400)
 })

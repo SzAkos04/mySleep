@@ -34,7 +34,7 @@ export function saveProgress() {
       start: samples.start, db: samples.db.map(v => Number.isFinite(v) ? r1(v) : null),
       low: samples.low.map(r2), mid: samples.mid.map(r2), vr: samples.vr.map(r1), at: samples.at.map(r1)
     }))
-  } catch {}
+  } catch (e) { diag('save-failed', { name: e?.name, message: e?.message, sec: samples.db.length }) }   // full storage: a reload would lose the night
 }
 export function loadProgress() {
   try {
@@ -65,6 +65,8 @@ async function lockScreen() {
   if (wakeLock && !wakeLock.released) return setAwake()
   try {
     wakeLock = await navigator.wakeLock.request('screen')
+    // the night ended (or failed to start) while iOS was granting it
+    if (!keeping) { wakeLock.release().catch(() => {}); wakeLock = null; return setAwake() }
     diag('wakelock', { visibility: document.visibilityState })
     wakeLock.addEventListener('release', () => {
       diag('wakelock-released', { visibility: document.visibilityState, keeping })
@@ -111,6 +113,7 @@ export function keepAwake() {
 }
 
 async function openMic() {
+  closeMic()   // a reopen replaces the old stream, it does not leave it running beside the new one
   if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
@@ -136,7 +139,8 @@ async function openMic() {
   wallAt0 = Date.now() - ctx.currentTime * 1000
   diag('ctx', { state: ctx.state, sampleRate: ctx.sampleRate, clips: !!ringNode })
 }
-export const micLive = () => !!stream && stream.getAudioTracks().some(t => t.readyState === 'live')
+// muted: iOS took the microphone (a call, Siri, the screen locked); it delivers silence, not the room
+export const micLive = () => !!stream && stream.getAudioTracks().some(t => t.readyState === 'live' && !t.muted)
 function closeMic() { stream?.getTracks().forEach(t => t.stop()); stream = null; analyser = null }
 
 function push(a) {
@@ -165,6 +169,7 @@ function read() {
   analyser.getFloatFrequencyData(f)
   let sum = 0
   for (const v of t) sum += v * v
+  if (!sum) return   // exact digital silence: nothing reaches the graph, a gap and not a quiet room
   // dB relative to full scale, +100 to keep it positive; only differences matter
   const db = 20 * Math.log10(Math.sqrt(sum / t.length) || 1e-10) + 100
   const hz = ctx.sampleRate / analyser.fftSize
@@ -195,7 +200,8 @@ export async function start({ resume = false } = {}) {
   ctx.onstatechange = () => diag('ctx', { state: ctx?.state })
   if (!resume) { for (const k of KEYS) samples[k] = []; samples.start = Date.now(); clips.length = 0 }
   acc = fresh(); lastDb = null; lastRead = 0; micWasLive = true
-  await openMic()
+  // no microphone, no night: let go of the screen too
+  try { await openMic() } catch (e) { stop(); throw e }
   await lockScreen()
   loadAlarm()
   clearInterval(poll)
