@@ -118,15 +118,14 @@ describe('sync', () => {
     expect(server.calls).toHaveLength(2)
   })
 
-  it('when the app comes back, and every minute while it is open, but not during a night', async () => {
+  it('when the app comes back, and every minute while it is open', async () => {
     document.dispatchEvent(new Event('visibilitychange'))
     await tick(0)
     expect(server.calls).toHaveLength(1)
     await tick(60000)
     expect(server.calls).toHaveLength(2)
-    useStore.getState().setTracking({ start: 1 })
-    await tick(120000)
-    expect(server.calls).toHaveLength(2)
+    await tick(60000)
+    expect(server.calls).toHaveLength(3)
   })
 
   it('signed out: never', async () => {

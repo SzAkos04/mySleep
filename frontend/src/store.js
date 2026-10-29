@@ -13,7 +13,7 @@ export const defaultSettings = () => ({
 })
 
 // Everything here is persisted and synced, except `user`, `rev` and `dirty`, which are this
-// device's bookkeeping, and `tracking`, the night in progress, which stays on this phone.
+// device's bookkeeping.
 export const useStore = create(persist((set, get) => ({
   user: null,
   nights: {},
@@ -21,7 +21,6 @@ export const useStore = create(persist((set, get) => ({
   rev: 0,
   dirty: {},
   lastSynced: null,
-  tracking: null,
 
   // `owner` is whose nights these are. Another profile signing in on this device starts clean;
   // the same one signing back in (an expired session) keeps its unsynced edits.
@@ -32,7 +31,6 @@ export const useStore = create(persist((set, get) => ({
   saveNight: n => { set(s => ({ nights: { ...s.nights, [n.id]: { ...n, ts: Date.now() } }, dirty: { ...s.dirty, ['night:' + n.id]: true } })); schedule() },
   deleteNight: id => { set(s => ({ nights: { ...s.nights, [id]: { id, deleted: true, ts: Date.now() } }, dirty: { ...s.dirty, ['night:' + id]: true } })); schedule() },
   saveSettings: patch => { set(s => ({ settings: { ...s.settings, ...patch, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, ts: Date.now() }, dirty: { ...s.dirty, 'settings:main': true } })); schedule() },
-  setTracking: tracking => set({ tracking }),
   signOut: () => set({ user: null, owner: null, nights: {}, settings: defaultSettings(), rev: 0, dirty: {} })
 }), { name: 'mysleep_v1' }))
 
@@ -70,4 +68,4 @@ export async function syncNow() {
   }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow() })
-setInterval(() => { if (document.visibilityState === 'visible' && !useStore.getState().tracking) syncNow() }, 60000)
+setInterval(() => { if (document.visibilityState === 'visible') syncNow() }, 60000)

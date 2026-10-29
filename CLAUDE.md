@@ -85,5 +85,8 @@ Where tests go:
 - Analysis, stats, sync and time logic stay pure in `src/lib` with a test beside them.
 - Tuning constants in `analysis.js` are knobs: change them from real nights, not from guesses.
 - The UI is English; the user writes Hungarian.
-- The microphone, wake lock and alarm paths only run for real on the iPhone (home-screen app).
-  Claude's browser pane blocks the mic; say what was not verified.
+- The night (microphone, alarm) is mySleep Night's (ios/), since 2026-10-29: the web app's Sleep
+  button opens it (mysleepnight://sleep), Settings pairs it (a device token), and the web app turns
+  the logs it uploads into nights (lib/native.js). The server reminds by push before the app's
+  free signature runs out (api/reminders.js). Only a real iPhone shows the night; say what was not
+  verified.

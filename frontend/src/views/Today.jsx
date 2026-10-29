@@ -7,6 +7,8 @@ import { NightReport, Insights } from '../components/Report.jsx'
 import { sleepScore, unrecorded } from '../lib/score.js'
 import { summary, noonToClock } from '../lib/stats.js'
 import { alarmPlan } from '../lib/night.js'
+import { expiryNote } from '../lib/native.js'
+import { useUI } from '../ui.js'
 import { clockOf, dur, nextAt, todayLabel } from '../lib/time.js'
 
 const pad = n => String(n).padStart(2, '0')
@@ -42,6 +44,21 @@ function TonightCard({ settings, compact }) {
   </div>
 }
 
+// mySleep Night records the night; it needs pairing once and reinstalling weekly (a free Apple ID
+// signs it for 7 days). Said here when it matters, with the way to it in Settings.
+function NightApp() {
+  const note = expiryNote(useUI(s => s.devices))
+  if (!note || note.level === 'unknown') return null
+  const day = note.until && new Date(note.until).toLocaleDateString('en-GB', { weekday: 'long' })
+  const [title, sub] = {
+    unpaired: ['Pair mySleep Night in Settings', 'It records the night with the phone locked; this app shows it.'],
+    soon: [`mySleep Night stops on ${day}`, 'Reinstall it from the Mac before then.'],
+    today: ['mySleep Night stops tonight', 'Reinstall it from the Mac today, or tonight will not be recorded.'],
+    expired: ['mySleep Night has stopped', 'It cannot record a night until it is reinstalled from the Mac.']
+  }[note.level]
+  return <Link to="/settings" className="card plain app-note"><b>{title}</b><span>{sub}</span></Link>
+}
+
 // One home that changes with the time of day (docs/dev/structure-options.html, option A):
 // in the morning it opens with last night's report, otherwise with tonight's plan.
 export function Today() {
@@ -56,6 +73,7 @@ export function Today() {
 
   return <>
     <header className="hdr"><div><h1>{morning ? 'Good morning' : 'Today'}</h1><div className="sub">{todayLabel()}</div></div><ServerStatus /></header>
+    <NightApp />
 
     {morning ? <>
       <Link to={'/night/' + last.id} className="plain"><NightReport n={last} label="Last night" /></Link>

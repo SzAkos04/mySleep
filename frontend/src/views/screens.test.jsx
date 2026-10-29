@@ -11,8 +11,7 @@ import { Trends } from './Trends.jsx'
 import { Settings } from './Settings.jsx'
 import { Night } from './Night.jsx'
 import { Login } from './Login.jsx'
-import { Tracking } from './Tracking.jsx'
-import * as tracker from '../lib/tracker.js'
+import { useUI } from '../ui.js'
 
 // Every screen as HTML, the way the phone would first draw it: a crash or a missing figure fails
 // here, before a build. Taps, animations and the microphone are checked on the iPhone.
@@ -36,7 +35,7 @@ function night(daysAgo = 1, bedHour = 23) {
 }
 // rendered to HTML, zustand reads the store's initial state object: seed that one too
 const seed = nights => {
-  const patch = { user: { id: 'u1', name: 'Test' }, owner: 'u1', settings: defaultSettings(), nights: Object.fromEntries(nights.map(n => [n.id, n])), tracking: null }
+  const patch = { user: { id: 'u1', name: 'Test' }, owner: 'u1', settings: defaultSettings(), nights: Object.fromEntries(nights.map(n => [n.id, n])) }
   Object.assign(useStore.getInitialState(), patch); useStore.setState(patch)
 }
 
@@ -73,30 +72,36 @@ describe('screens', () => {
   })
 })
 
-describe('the night screen', () => {
-  const at = (h, m) => new Date(2026, 9, 29, h, m).getTime()
-  const tracking = { start: at(0, 30), nightId: '2026-10-28', ringFrom: at(6, 15), ringAt: at(6, 45), smart: true }
-  const show = () => {
-    useStore.setState({ tracking }); Object.assign(useStore.getInitialState(), { tracking })
-    return text(render(<Tracking />))
-  }
+describe('mySleep Night, as Today and a night’s page show it', () => {
+  // rendered to HTML, zustand reads the initial state: seed that too
+  const devices = list => { Object.assign(useUI.getInitialState(), { devices: list }); useUI.setState({ devices: list }) }
+  const app = expires => [{ id: 'd1', name: 'mySleep Night', expires, lastSeen: Date.now(), build: 'x' }]
+  const day = 864e5
 
-  it('while listening: the alarm window, what was heard, and a held button to end it', () => {
-    Object.assign(tracker.samples, { start: tracking.start, db: [], low: [], mid: [], vr: [], at: [] })
-    const t = show()
-    expect(t).toMatch(/Alarm 06:15 – 06:45/)
-    expect(t).toMatch(/Quiet so far/)
-    expect(t).toMatch(/Hold to wake up/)
-    expect(t).toMatch(/Dims in 30 s/)
+  it('not paired yet: Today says where to pair it', () => {
+    devices([])
+    expect(text(render(<Today />))).toMatch(/Pair mySleep Night in Settings/)
   })
-
-  it('after the page was closed in the night: when it stopped, Resume, and finish without listening', () => {
-    Object.assign(tracker.samples, { start: 0 })
-    localStorage.setItem('mysleep_track', JSON.stringify({ start: tracking.start, db: Array(600).fill(40), low: [], mid: [], vr: [], at: [] }))
-    const t = show()
-    expect(t).toMatch(/Stopped listening at 00:40/)
-    expect(t).toMatch(/Resume listening/)
-    expect(t).toMatch(/Hold to finish the night/)
+  it('about to stop: Today says when, and to reinstall it', () => {
+    devices(app(Date.now() + 1.5 * day))
+    expect(text(render(<Today />))).toMatch(/mySleep Night stops on (Mon|Tue|Wed|Thu|Fri|Sat|Sun)/)
+    expect(text(render(<Today />))).toMatch(/Reinstall it from the Mac/)
+  })
+  it('stopped: Today says it cannot record', () => {
+    devices(app(Date.now() - 3600e3))
+    expect(text(render(<Today />))).toMatch(/mySleep Night has stopped/)
+  })
+  it('running with time to spare: Today says nothing about it', () => {
+    devices(app(Date.now() + 6 * day))
+    expect(text(render(<Today />))).not.toMatch(/mySleep Night/)
+  })
+  it('a night it recorded shows the app’s own diagnostics', () => {
+    const n = { ...night(), source: 'native', diag: { app: 'native', events: 9, interruptions: 1, restarts: 1, micSilent: 0, recoveries: 0, stalls: 0, locked: 2, memoryWarnings: 0 } }; seed([n])
+    const t = text(render(<Routes><Route path="/night/:id" element={<Night />} /></Routes>, '/night/' + n.id))
+    expect(t).toMatch(/Recorded by mySleep Night/)
+    expect(t).toMatch(/Interruptions 1/)
+    expect(t).toMatch(/Audio restarted 1/)
+    expect(t).not.toMatch(/Screen kept on/)
   })
 })
 

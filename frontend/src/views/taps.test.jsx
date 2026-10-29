@@ -22,8 +22,6 @@ vi.mock('../lib/api.js', () => ({
   enablePush: vi.fn(async () => { throw new Error('Add mySleep to the home screen first') }),
   passkeyLogin: vi.fn(async () => ({ id: 'u1', name: 'Test' })), passkeyRegister: vi.fn(async name => ({ id: 'u2', name }))
 }))
-const tracker = vi.hoisted(() => ({ start: null }))
-vi.mock('../lib/tracker.js', async orig => ({ ...(await orig()), start: (...a) => tracker.start(...a) }))
 
 const { useStore, defaultSettings, syncNow } = await import('../store.js')
 const { useUI } = await import('../ui.js')
@@ -49,8 +47,8 @@ const at = (path, el, route = path) => <MemoryRouter initialEntries={[path]}><Ro
 
 beforeEach(() => {
   api.calls = []; api.reply = {}
-  useStore.setState({ user: { id: 'u1', name: 'Test' }, owner: 'u1', settings: { ...defaultSettings(), ts: 1 }, nights: { [night.id]: night }, dirty: {}, rev: 0, tracking: null, lastSynced: null })
-  useUI.setState({ sheet: null, toast: null, syncBusy: false, syncError: null })
+  useStore.setState({ user: { id: 'u1', name: 'Test' }, owner: 'u1', settings: { ...defaultSettings(), ts: 1 }, nights: { [night.id]: night }, dirty: {}, rev: 0, lastSynced: null })
+  useUI.setState({ sheet: null, toast: null, syncBusy: false, syncError: null, devices: [] })
   globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ ok: true }) }))
 })
 afterEach(async () => { await unmount(); vi.useRealTimers() })
@@ -141,8 +139,7 @@ describe('Settings', () => {
     await type(input('Bedtime'), '22:30')
     await click(button('Smart alarm'))
     await click(button('Bedtime reminder'))
-    await click(button('Keep recordings'))
-    expect(useStore.getState().settings).toMatchObject({ wake: '07:10', bedtime: '22:30', smart: false, remind: false, clips: false })
+    expect(useStore.getState().settings).toMatchObject({ wake: '07:10', bedtime: '22:30', smart: false, remind: false })
   })
 
   it('a cleared time field is ignored, not saved as nothing', async () => {
@@ -155,6 +152,23 @@ describe('Settings', () => {
     await mount(<MemoryRouter><Settings /></MemoryRouter>)
     await click(button('Allow notifications on this phone'))
     expect(text()).toMatch(/Add mySleep to the home screen first/)
+  })
+
+  it('pairs mySleep Night: a link that hands the app this server and a new token', async () => {
+    api.reply['/api/devices'] = { id: 'd1', token: 'tok_abc' }
+    await mount(<MemoryRouter><Settings /></MemoryRouter>)
+    expect(text()).toMatch(/Not paired/)
+    await click(button('Pair mySleep Night'))
+    expect(api.calls.at(-1)).toEqual(['/api/devices', { name: 'mySleep Night' }])
+    const link = [...document.querySelectorAll('a')].find(a => /Open mySleep Night/.test(a.textContent))
+    expect(link.getAttribute('href')).toBe('mysleepnight://pair?server=' + encodeURIComponent(location.origin) + '&token=tok_abc')
+  })
+
+  it('says until when the paired app runs', async () => {
+    useUI.setState({ devices: [{ id: 'd1', name: 'mySleep Night', expires: new Date(2026, 10, 5, 13, 0).getTime(), lastSeen: Date.now(), build: 'x' }] })
+    await mount(<MemoryRouter><Settings /></MemoryRouter>)
+    expect(text()).toMatch(/Runs until Thu, Nov 5/)
+    expect(button('Pair mySleep Night again')).not.toBeNull()
   })
 
   it('Sign out tells the server and forgets this profile here', async () => {
@@ -243,17 +257,26 @@ describe('the app', () => {
     await mount(<App />)
     await flush()
     expect(button('Sign in with passkey')).toBeNull()
-    expect(button('Sleep')).not.toBeNull()
+    expect(document.querySelector('#tabbar a.start')).not.toBeNull()
   })
 
-  it('Sleep with the microphone refused: says how to allow it, starts no night', async () => {
-    api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' } }
-    tracker.start = vi.fn(async () => { throw Object.assign(new Error('denied'), { name: 'NotAllowedError' }) })
+  it('Sleep opens mySleep Night with tonight’s alarm: the web app itself does not listen', async () => {
+    api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' }, devices: [] }
+    useStore.setState({ settings: { ...defaultSettings(), wake: '07:10', smart: false, ts: 1 } })
     await mount(<App />)
-    await click(button('Sleep'))
-    await flush()
-    expect(text()).toMatch(/Allow it in Settings › Safari › Microphone/)
-    expect(useStore.getState().tracking).toBeNull()
+    expect(document.querySelector('#tabbar a.start').getAttribute('href')).toBe('mysleepnight://sleep?alarm=1&smart=0&wake=07%3A10')
+    expect(useStore.getState()).not.toHaveProperty('tracking')
+  })
+
+  it('opening the app takes in the nights mySleep Night recorded', async () => {
+    const s = quietNight()
+    api.reply['/api/me'] = { user: { id: 'u1', name: 'Test' }, devices: [] }
+    api.reply['/api/debug'] = [{ night: '2026-10-27', start: BED - 864e5, final: true, app: 'native' }]
+    api.reply['/api/debug/2026-10-27'] = { night: '2026-10-27', start: BED - 864e5, final: true, env: { app: 'native' }, events: [[0, 'start'], [8 * 3600e3, 'finish']], samples: { start: BED - 864e5, ...s } }
+    await mount(<App />)
+    await flush(); await flush()
+    expect(useStore.getState().nights['2026-10-27']).toMatchObject({ source: 'native', bed: BED - 864e5 })
+    expect(useUI.getState().devices).toEqual([])
   })
 
   it('the tabs lead to their screens', async () => {

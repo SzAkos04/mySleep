@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { alarmPlan, shouldRing, heardLabel, windowLabel, snoozePlan, stoppedAt, nightRecord, micErrorMessage, SMART_MIN, SNOOZE_MIN } from './night.js'
+import { describe, it, expect } from 'vitest'
+import { alarmPlan, nightRecord, SMART_MIN } from './night.js'
 
 const at = (h, m, day = 28) => new Date(2026, 9, day, h, m).getTime()
 const settings = { alarm: true, smart: true, wake: '06:45' }
@@ -21,60 +21,6 @@ describe('alarmPlan', () => {
   })
   it('plans nothing with the alarm off', () => {
     expect(alarmPlan({ ...settings, alarm: false }, at(23, 0))).toBeNull()
-  })
-})
-
-describe('shouldRing', () => {
-  const tr = { ringFrom: at(6, 15, 29), ringAt: at(6, 45, 29), smart: true }
-  it('never without an alarm', () => {
-    expect(shouldRing(at(7, 0, 29), { ringAt: null }, () => true)).toBe(false)
-  })
-  it('at the wake time, stirring or not', () => {
-    expect(shouldRing(at(6, 45, 29), tr, () => false)).toBe(true)
-    expect(shouldRing(at(7, 30, 29), { ...tr, smart: false }, () => false)).toBe(true)
-  })
-  it('in the smart window only when stirring, and only if smart', () => {
-    expect(shouldRing(at(6, 20, 29), tr, () => true)).toBe(true)
-    expect(shouldRing(at(6, 20, 29), tr, () => false)).toBe(false)
-    expect(shouldRing(at(6, 20, 29), { ...tr, smart: false, ringFrom: at(6, 45, 29) }, () => true)).toBe(false)
-  })
-  it('before the window it does not even look at the sound (it runs every 10 s)', () => {
-    const stir = vi.fn(() => true)
-    expect(shouldRing(at(5, 0, 29), tr, stir)).toBe(false)
-    expect(stir).not.toHaveBeenCalled()
-  })
-})
-
-describe('labels', () => {
-  it('says what was heard, most telling first', () => {
-    expect(heardLabel([])).toBe('Quiet so far')
-    expect(heardLabel([{ kind: 'move' }, { kind: 'noise' }])).toBe('Quiet so far')
-    expect(heardLabel([{ kind: 'snore' }, { kind: 'snore' }])).toBe('Snoring')
-    expect(heardLabel([{ kind: 'talk' }, { kind: 'cough' }, { kind: 'cough' }])).toBe('Talked once · coughed 2 times')
-    expect(heardLabel([{ kind: 'talk' }, { kind: 'snore' }, { kind: 'talk' }, { kind: 'talk' }])).toBe('Snoring · talked 3 times')
-  })
-  it('writes the alarm as a window or a time', () => {
-    expect(windowLabel({ ringAt: null })).toBeNull()
-    expect(windowLabel({ ringFrom: at(6, 15), ringAt: at(6, 45), smart: true })).toBe('06:15 – 06:45')
-    expect(windowLabel({ ringFrom: at(6, 15), ringAt: at(6, 45), smart: true }, '–')).toBe('06:15–06:45')
-    expect(windowLabel({ ringFrom: at(6, 45), ringAt: at(6, 45), smart: false })).toBe('06:45')
-  })
-  it('says when listening stopped: the last recorded second', () => {
-    expect(stoppedAt({ start: at(23, 0), db: new Array(90) })).toBe(at(23, 1) + 30000)
-  })
-  it('explains a microphone that would not start', () => {
-    expect(micErrorMessage({ name: 'NotAllowedError' })).toMatch(/Allow it in Settings › Safari › Microphone/)
-    expect(micErrorMessage({ name: 'NotFoundError', message: 'no device' })).toBe('The microphone did not start: no device')
-  })
-})
-
-describe('snoozePlan', () => {
-  it('rings again in 9 minutes, plainly (no smart window), with the backup a minute after', () => {
-    const tr = { nightId: 'x', start: 1, ringFrom: at(6, 15), ringAt: at(6, 45), smart: true }
-    const p = snoozePlan(tr, at(6, 45))
-    expect(SNOOZE_MIN).toBe(9)
-    expect(p.tracking).toEqual({ ...tr, ringAt: at(6, 54), smart: false })
-    expect(p.backupAt).toBe(at(6, 55))
   })
 })
 

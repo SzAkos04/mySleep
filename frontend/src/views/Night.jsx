@@ -81,7 +81,20 @@ export function Night() {
       })}</div>
     </div>}
 
-    {n.diag && <div className="sect">
+    {n.diag?.app === 'native' && <div className="sect">
+      <span className="sect-t">Diagnostics · full log on your server</span>
+      <div className="sect-b">
+        {[
+          ['Recorded by', 'mySleep Night', false],
+          ['Interruptions', n.diag.interruptions, n.diag.interruptions > 0],
+          ['Audio restarted', n.diag.restarts, n.diag.restarts > 0],
+          ['Microphone sent nothing', n.diag.micSilent, n.diag.micSilent > 0],
+          ['Phone locked', n.diag.locked, false]
+        ].map(([l, v, bad]) => <div key={l} className="row"><span>{l}</span><span className="r" style={bad ? { color: 'var(--awake)' } : null}>{String(v)}</span></div>)}
+      </div>
+    </div>}
+
+    {n.diag && n.diag.app !== 'native' && <div className="sect">
       <span className="sect-t">Diagnostics · full log on your server</span>
       <div className="sect-b">
         {[

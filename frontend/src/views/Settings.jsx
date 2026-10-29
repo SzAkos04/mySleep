@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useStore } from '../store.js'
 import { api, enablePush } from '../lib/api.js'
+import { pairLink } from '../lib/native.js'
+import { useUI } from '../ui.js'
 import { Icon } from '../components/Icon.jsx'
 
 // iOS Settings rows, as myGym has them: a tinted icon tile, the title, a value or a control.
@@ -23,6 +25,15 @@ const Time = ({ v, set, label }) => <input type="time" value={v} aria-label={lab
 export function Settings() {
   const { settings: s, saveSettings: save, user, signOut } = useStore()
   const [push, setPush] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted' ? 'on' : null)
+
+  // mySleep Night: pairing makes a token on the server and hands it to the app through a link
+  const device = useUI(st => st.devices).find(d => d.name === 'mySleep Night')
+  const [link, setLink] = useState(null)
+  async function pair() {
+    try { setLink(pairLink(location.origin, (await api('/api/devices', { name: 'mySleep Night' })).token)) }
+    catch (e) { setLink(null); useUI.getState().say(e.message) }
+  }
+  const until = device?.expires && new Date(device.expires).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
   async function notifications() {
     try { await enablePush(); await api('/api/push/test', {}); setPush('on') }
@@ -50,8 +61,10 @@ export function Settings() {
       {push !== 'on' && <Row icon="bell" tint="var(--grey)" title="Allow notifications on this phone" onClick={notifications}><Icon name="chev" className="srow-c" /></Row>}
     </Section>
 
-    <Section title="Night" footer="Analysed on the phone. Only the summary and, if kept, these short recordings go to your server.">
-      <Row icon="mic" tint="var(--snore)" title="Keep recordings" sub="Snoring, talking, coughing · 7 days"><Switch on={s.clips !== false} set={clips => save({ clips })} label="Keep recordings" /></Row>
+    <Section title="mySleep Night" footer="The app on this iPhone that records the night with the phone locked. A free Apple ID signs it for 7 days: reinstall it from the Mac each week.">
+      <Row icon="moon" tint="var(--acc)" title={device ? (until ? `Runs until ${until}` : 'Paired') : 'Not paired'} sub={device?.lastSeen ? 'Last heard from ' + new Date(device.lastSeen).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : null} />
+      <Row title={device ? 'Pair mySleep Night again' : 'Pair mySleep Night'} onClick={pair}><Icon name="chev" className="srow-c" /></Row>
+      {link && <a className="srow tap" href={link}><span className="srow-m"><span className="srow-t">Open mySleep Night to pair</span></span><Icon name="chev" className="srow-c" /></a>}
     </Section>
 
     <Section title="Account" footer={`mySleep v${__APP_VERSION__}`}>

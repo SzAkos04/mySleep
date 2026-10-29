@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { api, b64uToBuf, passkeyRegister, passkeyLogin, enablePush, armBackup, uploadClips } from './api.js'
+import { api, b64uToBuf, passkeyRegister, passkeyLogin, enablePush } from './api.js'
 
 // The only place that talks to the server, against a fetch that answers like it would.
 let sent, answer
@@ -94,19 +94,5 @@ describe('notifications', () => {
     await enablePush()
     expect([...subscribe.mock.calls[0][0].applicationServerKey]).toEqual([4, 4])
     expect(sent.at(-1)).toMatchObject({ path: '/api/push/subscribe', body: { subscription: { endpoint: 'https://push' } } })
-  })
-})
-
-describe('the backup alarm and the recordings', () => {
-  it('arming the backup never fails the night', async () => {
-    answer = () => new TypeError('Load failed')
-    await expect(armBackup(123)).resolves.toBeUndefined()
-  })
-  it('uploads each recording and returns the ones the server kept', async () => {
-    answer = path => path.endsWith('/bad') ? { status: 500, body: {} } : path.endsWith('/off') ? new TypeError('Load failed') : { status: 200, body: {} }
-    const clip = id => ({ id, t: 1, kind: 'talk', sec: 4, blob: new Blob(['x']) })
-    const done = await uploadClips('2026-10-28', [clip('ok1'), clip('bad'), clip('off'), clip('ok2')])
-    expect(done).toEqual([{ id: 'ok1', t: 1, kind: 'talk', sec: 4 }, { id: 'ok2', t: 1, kind: 'talk', sec: 4 }])
-    expect(sent[0]).toMatchObject({ path: '/api/clips/2026-10-28/ok1', method: 'PUT', headers: { 'Content-Type': 'audio/wav' } })
   })
 })
