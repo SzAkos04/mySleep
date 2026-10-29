@@ -3,6 +3,7 @@
 mySleep: a self-hosted sleep tracker and smart alarm PWA for one iPhone, built like myGym
 (`~/Projects/myGym`). The plan and the reasons are in `docs/dev/MVP.md`; read it first.
 The web app is being retired step by step for the native app: `docs/dev/NATIVE_PLAN.md`, in order.
+The file layout is in `PROJECT_STRUCTURE.md`.
 
 ## Layout
 
@@ -91,3 +92,21 @@ Where tests go:
   the logs it uploads into nights (lib/native.js). The server reminds by push before the app's
   free signature runs out (api/reminders.js). Only a real iPhone shows the night; say what was not
   verified.
+
+## Token and context efficiency
+
+### Codebase navigation
+- Locate files with `PROJECT_STRUCTURE.md` first. No broad recursive searches (`find .`, `grep -r`,
+  `ls -R`, `**/*` globs) without a targeted keyword or an exact path.
+- Files over ~150 lines: read the part needed (`offset`/`limit`) or look up the symbol, not the whole file.
+- Do not re-read a file already read or edited this session, unless a build or test changed it.
+
+### Commands and output
+- Filter build, lint and test output to failures and errors (`| grep -E "error:|✘|FAIL|✖"`, `| tail`),
+  or run the one targeted test file.
+- No full project build after a minor edit. The test-first rule above still holds: the failing test is
+  run on its own while working, and `scripts/test.sh` runs once before each commit (the hook does it).
+
+### Responses
+- Short: the diff or the result, then a few lines of explanation. Keep an internal list of the files
+  changed instead of re-scanning directories.

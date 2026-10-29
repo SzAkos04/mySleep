@@ -1,8 +1,8 @@
 import Foundation
 
 /// A night as the tracker keeps it: one value per second from the start (NaN where nothing was
-/// heard), and the flight-recorder log, saved in the same JSON as the web app's (lib/diag.js), so
-/// frontend/scripts/night-report.mjs and analysis.js read either.
+/// heard), and the flight-recorder log, saved as JSON that the web app turns into the night
+/// (lib/native.js nightFromLog) and frontend/scripts/night-report.mjs reads.
 public final class Night {
   public struct Event {
     public let ms: Int64          // since the start
@@ -93,7 +93,17 @@ public final class Night {
     minute = Minute()
   }
 
-  /// The web app's log format: gaps as null, readings rounded as diag.js rounds them.
+  /// A log left unfinished (iOS ended the app in the night), finished where its readings stop, so
+  /// it becomes a night like any other. nil: finished already, or not a night log.
+  public static func recovered(_ data: Data) -> Data? {
+    guard var o = try? JSONSerialization.jsonObject(with: data) as? [String: Any], o["final"] as? Bool == false,
+          var events = o["events"] as? [Any], let db = (o["samples"] as? [String: Any])?["db"] as? [Any] else { return nil }
+    events.append([db.count * 1000, "finish", ["recovered": true]] as [Any])
+    o["events"] = events; o["final"] = true
+    return try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys])
+  }
+
+  /// The web app's log format: gaps as null, readings rounded to 0.1 or 0.01.
   public func json(final: Bool) throws -> Data {
     let r1 = { (v: Double) -> Any in v.isFinite ? (v * 10).rounded() / 10 : NSNull() }
     let r2 = { (v: Double) -> Any in v.isFinite ? (v * 100).rounded() / 100 : NSNull() }

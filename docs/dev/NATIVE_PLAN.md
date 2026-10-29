@@ -91,6 +91,12 @@ transport; `ServerLink` only does the HTTP.
 
 ## Phase 1: the night lands in the app
 
+### 1.0 Done on the way: logs reach the server whole
+A log is saved every minute under one name; the uploader now remembers name *and version*, so the
+finished log goes up even if a partial one did earlier (it did not before), a night iOS cut short is
+finished at launch (`Night.recovered`), and logs the server has are deleted from the phone after
+30 days. The server's copy is the history this plan relies on.
+
 ### 1.1 The app makes its own night
 At the end of a night, `MySleepRules.nightFromLog` makes the record, the store saves it, sync sends
 it. The log upload stays (diagnostics), but turning it into a night stops being the web's job.
@@ -115,11 +121,10 @@ night and score" opens this instead of the Journal web view.
   three numbers, the parts, the insights, an unrecorded night ("Nothing recorded").
 
 ### 2.2 Correct the times, delete
-A sheet with bed, asleep and wake times; delete with a confirmation.
-- Tests first (JS): the correction rule leaves `ReviewSheet.jsx` for `lib/night.js` as
-  `corrected(night, { bed, on, wake })` (untouched times keep the analysed minutes; changed ones
-  count); both apps call it. NightKit: delete leaves a dirty tombstone; the Journal no longer
-  lists it.
+A sheet with bed, asleep and wake times; delete with a confirmation. *(The rule is done:
+`lib/night.js` `corrected()`, tested, used by the web sheet; the app calls it through the bundle.)*
+- Tests first: NightKit, delete leaves a dirty tombstone and the Journal no longer lists it; the
+  app's sheet gives `corrected()` the same cases as `night.test.js`.
 
 ### 2.3 Journal
 The month calendar coloured by score, previous and next month (never past this one), a day opens

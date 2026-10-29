@@ -22,6 +22,8 @@ import SwiftUI
           }
         }
         .onAppear { engine.onFinished = { Task { await server.refresh() } } }
+        // at launch: a night iOS cut short is finished first, then everything goes up
+        .task { await NightEngine.finishCutShort(); await server.refresh() }
     }
     .onChange(of: phase) { _, p in if p == .active { Task { await server.refresh() } } }
   }

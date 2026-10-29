@@ -64,16 +64,26 @@ public enum ServerAPI {
 }
 
 /// The night logs in Documents that the server has not taken yet go up when the app can: after a
-/// night, and whenever it opens. `done` keeps those taken, and those refused for good (4xx but
-/// 401, which pairing again cures); the rest are tried next time.
+/// night, and whenever it opens. A log is saved every minute under one name, so what is remembered
+/// is each name *with its version* (when it was written): a log written again goes up again.
+/// `done` keeps the versions taken, and those refused for good (4xx but 401, which pairing again
+/// cures); the rest are tried next time. Versions of files no longer there are forgotten.
 public enum Uploader {
-  public static func run(files: [String], done: inout Set<String>, send: (String) async -> Int) async -> Int {
+  public static func run(files: [(name: String, version: String)], done: inout Set<String>, send: (String) async -> Int) async -> Int {
     var ok = 0
-    for f in files.sorted() where f.hasSuffix(".json") && !done.contains(f) {
-      let code = await send(f)
-      if (200..<300).contains(code) { done.insert(f); ok += 1 }
-      else if (400..<500).contains(code) && code != 401 { done.insert(f) }
+    let keys = Dictionary(files.map { ($0.name, "\($0.name)@\($0.version)") }, uniquingKeysWith: { a, _ in a })
+    done.formIntersection(keys.values)
+    for (name, key) in keys.sorted(by: { $0.key < $1.key }) where name.hasSuffix(".json") && !done.contains(key) {
+      let code = await send(name)
+      if (200..<300).contains(code) { done.insert(key); ok += 1 }
+      else if (400..<500).contains(code) && code != 401 { done.insert(key) }
     }
     return ok
+  }
+
+  /// Logs to delete: the server has them (this very version), and they are older than `keepDays`.
+  /// About 1 MB a night; one the server never took stays, however old.
+  public static func old(files: [(name: String, version: String, modified: Date)], done: Set<String>, now: Date, keepDays: Double = 30) -> [String] {
+    files.filter { done.contains("\($0.name)@\($0.version)") && now.timeIntervalSince($0.modified) > keepDays * 86400 }.map(\.name)
   }
 }

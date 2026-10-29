@@ -127,3 +127,26 @@ func sine(_ hz: Double, rms: Double, n: Int = 2048) -> [Float] {
     #expect(events.last?[1] as? String == "wake")   // [ms since start, type, data]
   }
 }
+
+// iOS may end the app in the night: its log stays unfinished, and the web app turns only finished
+// logs into nights. The next launch finishes it where the readings stop.
+@Suite struct Recovery {
+  @Test func aNightCutShortIsFinishedAtItsLastSecond() throws {
+    let n = Night(start: 1_000_000, night: "2026-10-29")
+    n.log("start", at: 1_000_000)
+    for _ in 0..<90 { n.append(db: 40, low: 0.3, mid: 0.3, vr: 1, at: 1) }
+    let fixed = try #require(Night.recovered(try n.json(final: false)))
+    let o = try #require(try JSONSerialization.jsonObject(with: fixed) as? [String: Any])
+    #expect(o["final"] as? Bool == true)
+    let last = try #require((o["events"] as? [[Any]])?.last)
+    #expect(last[0] as? Int == 90_000)
+    #expect(last[1] as? String == "finish")
+    #expect((last[2] as? [String: Any])?["recovered"] as? Bool == true)
+    #expect(((o["samples"] as? [String: Any])?["db"] as? [Any])?.count == 90)
+  }
+  @Test func aFinishedNightOrSomethingElseIsLeftAlone() throws {
+    let n = Night(start: 1, night: "2026-10-29")
+    #expect(Night.recovered(try n.json(final: true)) == nil)
+    #expect(Night.recovered(Data("not a log".utf8)) == nil)
+  }
+}

@@ -52,7 +52,22 @@ import UIKit
   private let queue = DispatchQueue(label: "night")   // every Night call runs here
   private var timer: Timer?, observers: [NSObjectProtocol] = [], restarts = 0, lastRestart: Int64 = 0, lastBeat: Int64 = 0
 
-  static let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+  nonisolated static let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+  /// iOS may end the app in the night; its log stays unfinished, and only finished logs become
+  /// nights. At launch, before a night starts, the last few days' unfinished logs are finished
+  /// where their readings stop (Night.recovered), so they go up like any other.
+  nonisolated static func finishCutShort() async {
+    await Task.detached(priority: .utility) {
+      let fm = FileManager.default, dir = documents
+      for name in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] where name.hasSuffix(".json") {
+        let url = dir.appendingPathComponent(name)
+        guard let m = (try? fm.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date, Date().timeIntervalSince(m) < 3 * 86400,
+              let data = try? Data(contentsOf: url), let done = Night.recovered(data) else { continue }
+        try? done.write(to: url, options: .atomic)
+      }
+    }.value
+  }
   static var nowMs: Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
 
   // The evening's date, as the web app names nights (lib/time.js nightIdOf: before noon is the night before).

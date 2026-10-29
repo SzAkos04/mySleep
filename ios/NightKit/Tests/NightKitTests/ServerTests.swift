@@ -74,25 +74,49 @@ import Foundation
 }
 
 @Suite struct Uploads {
-  // the night logs in Documents; those the server took are remembered, the rest go next time
+  // the night logs in Documents, each with its version (when it was last written); the versions the
+  // server took are remembered, the rest go next time
   @Test func sendsWhatTheServerHasNotTakenAndKeepsTheRestForLater() async {
     var sent: [String] = []
-    var done: Set<String> = ["2026-10-27_1.json"]
-    let files = ["2026-10-27_1.json", "2026-10-28_2.json", "2026-10-29_3.json", "notes.txt"]
+    var done: Set<String> = ["2026-10-27_1.json@5"]
+    let files = [("2026-10-27_1.json", "5"), ("2026-10-28_2.json", "6"), ("2026-10-29_3.json", "7"), ("notes.txt", "8")]
     let ok = await Uploader.run(files: files, done: &done) { name in
       sent.append(name)
       return name.hasPrefix("2026-10-28") ? 200 : 503
     }
     #expect(sent == ["2026-10-28_2.json", "2026-10-29_3.json"])
     #expect(ok == 1)
-    #expect(done == ["2026-10-27_1.json", "2026-10-28_2.json"])
+    #expect(done == ["2026-10-27_1.json@5", "2026-10-28_2.json@6"])
   }
 
   @Test func aRefusalIsNotRetriedForeverButASignOutIs() async {
     var done: Set<String> = []
-    _ = await Uploader.run(files: ["2026-10-28_2.json", "2026-10-29_3.json"], done: &done) { name in
+    _ = await Uploader.run(files: [("2026-10-28_2.json", "1"), ("2026-10-29_3.json", "1")], done: &done) { name in
       name.hasPrefix("2026-10-28") ? 400 : 401
     }
-    #expect(done == ["2026-10-28_2.json"])   // 400: never going to work; 401: pair again, then it will
+    #expect(done == ["2026-10-28_2.json@1"])   // 400: never going to work; 401: pair again, then it will
+  }
+
+  @Test func aLogWrittenAgainGoesUpAgain() async {
+    // the night is saved every minute under one name: opening the app in the night sends a partial
+    // log; the finished one, under the same name, must still go up in the morning
+    var done: Set<String> = [], sent: [String] = []
+    for version in ["100", "100", "160"] {
+      _ = await Uploader.run(files: [("2026-10-29_1.json", version)], done: &done) { sent.append($0); return 200 }
+    }
+    #expect(sent == ["2026-10-29_1.json", "2026-10-29_1.json"])
+    #expect(done == ["2026-10-29_1.json@160"])   // old versions forgotten: the list does not grow
+  }
+
+  @Test func oldLogsTheServerHasAreDeletedTheRestKept() {
+    // about 1 MB a night: kept a month on the phone, and never one the server has not taken
+    let now = Date(timeIntervalSince1970: 100 * 86400), day = 86400.0
+    let files = [
+      (name: "a.json", version: "1", modified: now.addingTimeInterval(-40 * day)),   // up, old: goes
+      (name: "b.json", version: "1", modified: now.addingTimeInterval(-40 * day)),   // never went up: stays
+      (name: "c.json", version: "1", modified: now.addingTimeInterval(-3 * day)),    // up, recent: stays
+      (name: "d.json", version: "2", modified: now.addingTimeInterval(-40 * day))    // an older version went up: stays
+    ]
+    #expect(Uploader.old(files: files, done: ["a.json@1", "c.json@1", "d.json@1"], now: now) == ["a.json"])
   }
 }

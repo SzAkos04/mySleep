@@ -12,7 +12,7 @@ import Security
   let expires: Date? = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision")
     .flatMap { try? Data(contentsOf: $0) }.flatMap(Provisioning.expiry)
   private let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-  private var busy = false
+  private var busy = false, again = false
 
   func pair(_ p: Pairing) {
     Keychain.save(p)
@@ -23,18 +23,30 @@ import Security
 
   /// When the app opens and after a night: say when it stops, send what has not gone up.
   func refresh() async {
-    guard let p = pairing, !busy else { return }
+    // asked again while at it (the launch's and the foreground's together): once more after
+    if busy { again = true; return }
     busy = true; defer { busy = false }
+    repeat { again = false; await refreshOnce() } while again
+  }
+
+  private func refreshOnce() async {
+    guard let p = pairing else { return }
     let code = await send(ServerAPI.status(p, expires: expires, build: build))
     if code == 401 { problem = "The server does not know this app any more: pair it again from mySleep › Settings."; return }
     problem = code == 0 ? "The server could not be reached; the nights go up later." : nil
     var done = Set(UserDefaults.standard.stringArray(forKey: "uploaded") ?? [])
-    let files = (try? FileManager.default.contentsOfDirectory(atPath: NightEngine.documents.path)) ?? []
-    let ok = await Uploader.run(files: files, done: &done) { [weak self] name in
-      guard let self, let data = try? Data(contentsOf: NightEngine.documents.appendingPathComponent(name)) else { return 400 }
+    let dir = NightEngine.documents, fm = FileManager.default
+    // each log with when it was last written: a log saved again since it went up goes up again
+    let files = ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? []).compactMap { name -> (name: String, version: String, modified: Date)? in
+      guard let m = (try? fm.attributesOfItem(atPath: dir.appendingPathComponent(name).path))?[.modificationDate] as? Date else { return nil }
+      return (name, String(Int64(m.timeIntervalSince1970 * 1000)), m)
+    }
+    let ok = await Uploader.run(files: files.map { ($0.name, $0.version) }, done: &done) { [weak self] name in
+      guard let self, let data = try? Data(contentsOf: dir.appendingPathComponent(name)) else { return 400 }
       return await self.send(ServerAPI.upload(p, night: String(name.prefix(10)), body: data))
     }
     UserDefaults.standard.set(Array(done), forKey: "uploaded")
+    for name in Uploader.old(files: files, done: done, now: Date()) { try? fm.removeItem(at: dir.appendingPathComponent(name)) }
     if ok > 0 { lastUpload = Date() }
   }
 
