@@ -1,5 +1,6 @@
-/* mySleep API: passkey auth, per-user sync of nights and settings, Web Push for the bedtime
-   reminder and the backup alarm. node:http, JSON files in DATA_DIR, no framework. */
+/* mySleep API: passkey auth, per-user sync of nights and settings, mySleep Night's device tokens
+   and night logs, Web Push for the bedtime and reinstall reminders. node:http, JSON files in
+   DATA_DIR, no framework. */
 import http from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -26,7 +27,6 @@ const SECURE = ORIGIN.startsWith('https:');
 const COOKIE = SECURE ? '__Host-sleepsid' : 'sleepsid';
 const KINDS = new Set(['night', 'settings']);
 const CLIP_DAYS = +(process.env.CLIP_DAYS || 7);
-const MAX_CLIP = 2 * 1024 * 1024;
 
 fs.mkdirSync(DATA, { recursive: true });
 
@@ -61,7 +61,8 @@ function sweepClips() {
     catch (e) { if (e.code !== 'ENOENT') console.error('clips', e.message); }
   }
 }
-// A night's flight recorder (frontend/src/lib/diag.js): events and, at the end, the raw readings.
+// A night's flight recorder (mySleep Night's log, ios/NightKit Night.swift): events and, at the end,
+// the raw readings.
 // DATA_DIR/debug/<uid>/<night>.json, replaced on each upload, kept DEBUG_DAYS (30), and kept when
 // the night itself is discarded: that is when it is most needed.
 const DEBUG_DAYS = +(process.env.DEBUG_DAYS || 30);
@@ -89,7 +90,9 @@ async function debugRoute(req, res, night) {
   if (!body || body.night !== night || !Array.isArray(body.events)) throw new HttpError(400, 'not a night log');
   // a periodic upload must not replace a finished log that already has the readings
   if (!body.final && fs.existsSync(file)) {
-    try { if (JSON.parse(fs.readFileSync(file, 'utf8')).final && body.start === JSON.parse(fs.readFileSync(file, 'utf8')).start) return json(res, 200, { ok: true, kept: 'final' }); } catch {}
+    let kept = null;
+    try { kept = readJSON(file, null); } catch {}   // a broken file is simply replaced
+    if (kept?.final && kept.start === body.start) return json(res, 200, { ok: true, kept: 'final' });
   }
   fs.mkdirSync(debugDir(user.id), { recursive: true });
   writeJSON(file, { ...body, receivedAt: Date.now() });
@@ -103,22 +106,15 @@ function sweepDebug() {
   }
 }
 
-async function clipRoute(req, res, night, id) {
+// Old nights' clips play back until they age out (CLIP_DAYS); nothing records new ones since
+// mySleep Night took the night over.
+function clipRoute(req, res, night, id) {
   const user = needUser(req);
   const file = path.join(clipDir(user.id), `${night}_${id}.wav`);
-  if (req.method === 'GET') {
-    if (!fs.existsSync(file)) throw new HttpError(404, 'no such clip');
-    res.writeHead(200, { 'Content-Type': 'audio/wav', 'Cache-Control': 'private, max-age=604800' });
-    return fs.createReadStream(file).pipe(res);
-  }
-  if (req.method !== 'PUT') throw new HttpError(405, 'GET or PUT');
-  const chunks = []; let size = 0;
-  for await (const d of req) { size += d.length; if (size > MAX_CLIP) throw new HttpError(413, 'clip too large'); chunks.push(d); }
-  const body = Buffer.concat(chunks);
-  if (body.length < 44 || body.toString('latin1', 0, 4) !== 'RIFF' || body.toString('latin1', 8, 12) !== 'WAVE') throw new HttpError(400, 'not a WAV file');
-  fs.mkdirSync(clipDir(user.id), { recursive: true });
-  fs.writeFileSync(file, body, { mode: 0o600 });
-  json(res, 200, { ok: true });
+  if (req.method !== 'GET') throw new HttpError(405, 'GET only');
+  if (!fs.existsSync(file)) throw new HttpError(404, 'no such clip');
+  res.writeHead(200, { 'Content-Type': 'audio/wav', 'Cache-Control': 'private, max-age=604800' });
+  fs.createReadStream(file).pipe(res);
 }
 
 const secretFile = path.join(DATA, 'secret');
@@ -223,10 +219,6 @@ async function tick() {
   const now = Date.now();
   let changed = false;
   for (const user of db.users) {
-    if (user.alarmAt && now >= user.alarmAt) {
-      user.alarmAt = null; changed = true;
-      await sendPush(user.id, { title: 'Wake up', body: 'mySleep stopped listening, so this is your backup alarm.', tag: 'alarm' });
-    }
     const s = readState(user.id).entries['settings:main']?.data;
     // mySleep Night, signed with a free Apple ID, stops 7 days after it was installed
     for (const d of user.devices || []) {
@@ -327,7 +319,7 @@ const routes = {
     json(res, 200, { ok: true });
   },
 
-  // the nights' logs (frontend/src/lib/diag.js, and mySleep Night's): the web app imports the app's
+  // the nights' logs mySleep Night uploaded: the web app turns the finished ones into nights
   'GET /api/debug': (req, res) => {
     const user = needUser(req);
     let files = [];
@@ -424,16 +416,6 @@ const routes = {
   'POST /api/push/test': async (req, res) => {
     const user = needUser(req);
     json(res, 200, { sent: await sendPush(user.id, { title: 'mySleep', body: 'Notifications work.', tag: 'test' }) });
-  },
-
-  // The backup alarm: armed when tracking starts, cleared when the alarm is dismissed. If the
-  // page died in the night nothing clears it, and the server pushes at `at`.
-  'POST /api/alarm': async (req, res) => {
-    const user = needUser(req);
-    const at = (await readBody(req)).at;
-    if (at !== null && !Number.isFinite(at)) throw new HttpError(400, 'at must be a time or null');
-    user.alarmAt = at; saveDb();
-    json(res, 200, { ok: true });
   }
 };
 

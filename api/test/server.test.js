@@ -63,19 +63,26 @@ test('bad changes are refused whole', async () => {
   assert.equal((await sync({ changes: [{ kind: 'user', id: 'x', ts: 1, data: {} }] })).status, 400);
 });
 
-test('a clip is stored, served back, and goes with its night', async () => {
+// Sound clips came from the web app's own night tracking, gone since mySleep Night records the
+// night: old nights' clips play back until they age out, and nothing uploads new ones.
+test('an old clip is served back and goes with its night; none can be uploaded any more', async () => {
   const wav = Buffer.alloc(64); wav.write('RIFF', 0, 'latin1'); wav.write('WAVE', 8, 'latin1')
+  const uid = cookie.split('=')[1].split(':')[0]
+  fs.mkdirSync(path.join(DATA, 'clips', uid), { recursive: true })
+  fs.writeFileSync(path.join(DATA, 'clips', uid, '2026-10-20_abc123.wav'), wav)
   const url = base + '/api/clips/2026-10-20/abc123'
-  const put = (body, headers = {}) => fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin', ...headers }, body })
-  assert.equal((await put(Buffer.from('not audio'))).status, 400)
-  assert.equal((await put(wav, { cookie: '' })).status, 401)
-  assert.equal((await put(wav)).status, 200)
+  assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin' }, body: wav })).status, 405)
+  assert.equal((await fetch(url)).status, 401)
   const got = await fetch(url, { headers: { cookie } })
   assert.equal(got.headers.get('content-type'), 'audio/wav')
   assert.deepEqual(Buffer.from(await got.arrayBuffer()), wav)
   assert.equal((await fetch(base + '/api/clips/2026-10-20/../../db', { headers: { cookie } })).status, 404)
   await sync({ changes: [{ kind: 'night', id: '2026-10-20', ts: 999, deleted: true }] })
   assert.equal((await fetch(url, { headers: { cookie } })).status, 404)
+})
+
+test('the web app’s backup alarm is gone (mySleep Night rings through AlarmKit)', async () => {
+  assert.equal((await fetch(base + '/api/alarm', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: '{"at":1}' })).status, 404)
 })
 
 test('a night log is stored (gzipped too), read back, and kept over a later partial one', async () => {
@@ -183,4 +190,34 @@ test('the app signs its web pages in with a one-time code', async () => {
   }
   // nonsense
   assert.equal((await go('nope', '/')).status, 401);
+});
+
+test('the bedtime reminder goes out once, 30 min before bedtime in the profile’s own time zone', async () => {
+  // a minute well inside, so the minute does not turn while the ticks look
+  if (new Date().getUTCSeconds() > 50) await new Promise(r => setTimeout(r, 11000));
+  const t = new Date(Date.now() + 30 * 60000), bedtime = String(t.getUTCHours()).padStart(2, '0') + ':' + String(t.getUTCMinutes()).padStart(2, '0');
+  assert.equal((await sync({ changes: [{ kind: 'settings', id: 'main', ts: Date.now(), data: { tz: 'UTC', remind: true, bedtime } }] })).status, 200);
+  const sent = () => fs.existsSync(PUSH_LOG) ? fs.readFileSync(PUSH_LOG, 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(p => p.payload.tag === 'bedtime') : [];
+  for (let i = 0; i < 30 && !sent().length; i++) await new Promise(r => setTimeout(r, 100));
+  assert.equal(sent().length, 1);
+  assert.deepEqual(sent()[0].payload, { title: 'Bedtime in 30 min', body: 'Lights out at ' + bedtime + '.', tag: 'bedtime' });
+  await new Promise(r => setTimeout(r, 800));
+  assert.equal(sent().length, 1);
+});
+
+test('refused: a device saying nonsense about its expiry, a push subscription that is not https', async () => {
+  const { token } = await (await pair()).json();
+  const st = body => fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await st({ expires: 'soon' })).status, 400);
+  assert.equal((await st({ expires: null, build: 'x' })).status, 200);
+  const sub = subscription => fetch(base + '/api/push/subscribe', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: JSON.stringify({ subscription }) });
+  assert.equal((await sub({ endpoint: 'http://push.example/x', keys: { p256dh: 'a', auth: 'b' } })).status, 400);
+  assert.equal((await sub({ endpoint: 'https://push.example/x', keys: {} })).status, 400);
+  assert.equal((await sub({ endpoint: 'https://push.example/x', keys: { p256dh: 'a', auth: 'b' } })).status, 200);
+});
+
+test('signing out clears the cookie', async () => {
+  const r = await fetch(base + '/api/logout', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin' } });
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('set-cookie'), /sleepsid=; Path=\/; Max-Age=0/);
 });
