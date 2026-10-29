@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../store.js'
 import { useUI } from '../ui.js'
 import { Sheet, SheetHead } from './Sheet.jsx'
-import { atClock, clockOf, dayLabel } from '../lib/time.js'
+import { clockOf, dayLabel } from '../lib/time.js'
+import { corrected } from '../lib/night.js'
 
 // Correcting a night's times, when the microphone got them wrong. Nothing else to fill in.
 export function ReviewSheet({ night }) {
@@ -11,12 +12,12 @@ export function ReviewSheet({ night }) {
   const [t, setT] = useState({ bed: clockOf(night.bed), on: night.on ? clockOf(night.on) : '', wake: clockOf(night.wake) })
   const set = k => e => setT({ ...t, [k]: e.target.value })
 
+  const [error, setError] = useState(null)
+
   function save(close) {
-    const bed = atClock(night.id, t.bed), wake = atClock(night.id, t.wake), on = t.on ? atClock(night.id, t.on) : null
-    const moved = bed !== night.bed || wake !== night.wake || on !== night.on
-    // untouched, the analysed minutes stand; once the times change, they are what counts
-    const asleepMin = moved ? Math.max(0, Math.round((wake - (on ?? wake)) / 60000 - (night.awakeMin || 0))) : night.asleepMin
-    saveNight({ ...(useStore.getState().nights[night.id] || night), bed, on, wake, asleepMin })
+    const r = corrected(useStore.getState().nights[night.id] || night, t)
+    if (r.error) return setError(r.error)
+    saveNight(r.night)
     close()
     say('Night saved')
   }
@@ -28,6 +29,7 @@ export function ReviewSheet({ night }) {
       <div className="row"><span>Fell asleep</span><input type="time" value={t.on} onChange={set('on')} /></div>
       <div className="row"><span>Woke up</span><input type="time" value={t.wake} onChange={set('wake')} /></div>
     </div>
+    {error && <p className="err" role="alert">{error}</p>}
     <button className="btn" onClick={() => save(close)}>Save</button>
   </div>}</Sheet>
 }

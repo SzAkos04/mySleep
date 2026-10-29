@@ -110,6 +110,17 @@ describe('correcting the times', () => {
     expect(useStore.getState().nights[night.id].asleepMin).toBe(460)
   })
 
+  it('impossible times are said, and nothing is saved', async () => {
+    useStore.setState({ dirty: {} })
+    await mount(<MemoryRouter><ReviewSheet night={night} /></MemoryRouter>)
+    const [, on] = document.querySelectorAll('input[type=time]')
+    await type(on, '22:30')
+    await click(button('Save'))
+    expect(document.querySelector('.err').textContent).toMatch(/between going to bed and waking up/)
+    expect(useStore.getState().nights[night.id].on).toBe(night.on)
+    expect(useStore.getState().dirty).toEqual({})
+  })
+
   it('Escape closes it without saving', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
     useUI.setState({ sheet: { type: 'review', night } })
