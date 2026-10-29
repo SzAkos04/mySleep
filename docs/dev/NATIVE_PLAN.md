@@ -122,7 +122,7 @@ night and score" opens this instead of the Journal web view.
 - Tests first: `ReportModel(night, settings, week)` for the seeded nights: score, verdict, the
   three numbers, the parts, the insights, an unrecorded night ("Nothing recorded").
 
-### 2.2 Correct the times, delete
+### 2.2 Correct the times, delete *(done)*
 A sheet with bed, asleep and wake times; delete with a confirmation. *(The rule is done:
 `lib/night.js` `corrected()`, tested, used by the web sheet; the app calls it through the bundle.)*
 - Tests first: NightKit, delete leaves a dirty tombstone and the Journal no longer lists it; the

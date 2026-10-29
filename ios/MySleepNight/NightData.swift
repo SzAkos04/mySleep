@@ -57,6 +57,18 @@ import Foundation
     version += 1
   }
 
+  /// A night's times put right (HH:MM): nil when saved, else the words to show. Goes up on the next sync.
+  func correct(_ id: String, bed: String, on: String, wake: String) -> String? {
+    let error = (try? store?.correct(id, bed: bed, on: on, wake: wake, now: Date())) ?? nil
+    persist()
+    return error
+  }
+
+  func delete(_ id: String) {
+    try? store?.deleteNight(id, now: Date())
+    persist()
+  }
+
   private func persist() {
     try? store?.write(to: file)
     version += 1

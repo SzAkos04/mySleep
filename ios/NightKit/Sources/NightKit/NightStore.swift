@@ -41,6 +41,18 @@ public final class NightStore {
     return true
   }
 
+  /// A night's times put right by hand ("HH:MM"; `on` may be blank): the sleep is counted from them.
+  /// The words to show when they cannot be (nothing is saved), nil when saved. (lib/night.js corrected)
+  @discardableResult
+  public func correct(_ id: String, bed: String, on: String, wake: String, now: Date) throws -> String? {
+    let times = "{bed:\(Self.lit(bed)),on:\(Self.lit(on)),wake:\(Self.lit(wake))}"
+    let out = try rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json)));const N=S.nights[\(Self.lit(id))];if(!N||N.deleted)return JSON.stringify({error:'This night is gone.'});const R=MySleepRules.corrected(N,\(times));return JSON.stringify(R.error?{error:R.error}:{night:JSON.stringify(R.night)})})()") ?? "{}"
+    let o = (try? JSONSerialization.jsonObject(with: Data(out.utf8))) as? [String: Any] ?? [:]
+    if let e = o["error"] as? String { return e }
+    if let night = o["night"] as? String { try saveNight(night, now: now) }
+    return nil
+  }
+
   private func update(_ fn: String, _ arg: String, _ now: Date) throws {
     json = try rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json)));return JSON.stringify({...S,...MySleepRules.\(fn)(S,\(arg),\(Self.ms(now)))})})()") ?? json
   }

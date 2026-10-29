@@ -124,4 +124,30 @@ import Foundation
     #expect(s.dirtyCount == 1)
     #expect(try s.takeIn(log: log.replacingOccurrences(of: "\"final\":true", with: "\"final\":false"), now: t0) == false)
   }
+
+  @Test func timesCorrectedByHandAreCountedAndImpossibleOnesRefused() throws {
+    let rules = try Rules(source: Rules.bundleSource)
+    let fixture = try String(contentsOf: RulesTests.fixtures.appendingPathComponent("fixture.js"), encoding: .utf8)
+    let s = try NightStore(rules: rules)
+    try s.takeIn(log: try #require(try rules.evaluate(fixture + "\n;JSON.stringify(fixtureLog())")), now: t0)
+    // falling asleep before going to bed: said, nothing saved
+    #expect(try s.correct("2026-10-29", bed: "22:00", on: "21:00", wake: "00:45", now: t0) == "Falling asleep has to be between going to bed and waking up.")
+    #expect(try s.correct("2026-10-29", bed: "", on: "", wake: "00:45", now: t0) != nil)
+    // 22:20 to 00:45 is 145 min, none of it awake
+    #expect(try s.correct("2026-10-29", bed: "22:00", on: "22:20", wake: "00:45", now: t0.addingTimeInterval(5)) == nil)
+    let n = try #require((try object(s.json)["nights"] as? [String: [String: Any]])?["2026-10-29"])
+    #expect(n["asleepMin"] as? Int == 145 && n["ts"] as? Int == 1_005_000)
+    #expect(s.dirtyCount == 1)
+  }
+
+  @Test func aDeletedNightIsGoneFromTheScreens() throws {
+    let rules = try Rules(source: Rules.bundleSource)
+    let fixture = try String(contentsOf: RulesTests.fixtures.appendingPathComponent("fixture.js"), encoding: .utf8)
+    let s = try NightStore(rules: rules)
+    try s.takeIn(log: try #require(try rules.evaluate(fixture + "\n;JSON.stringify(fixtureLog())")), now: t0)
+    #expect(s.report("2026-10-29") != nil)
+    try s.deleteNight("2026-10-29", now: t0.addingTimeInterval(5))
+    #expect(s.report("2026-10-29") == nil)
+    #expect(s.journal(MonthID(year: 2026, month: 9), selected: nil, now: t0)?.selected == nil)
+  }
 }

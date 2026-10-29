@@ -5,8 +5,12 @@ import SwiftUI
 struct ReportScreen: View {
   let id: String
   @EnvironmentObject var data: NightData
+  @EnvironmentObject var server: ServerLink
+  @EnvironmentObject var nav: Navigation
   @State private var v: ReportView?
   @State private var parts = false
+  @State private var editing = false
+  @State private var confirming = false
 
   var body: some View {
     ScrollView {
@@ -56,8 +60,24 @@ struct ReportScreen: View {
     }
     .background(Theme.bg)
     .navigationTitle(v?.title ?? "Night").navigationBarTitleDisplayMode(.large)
+    .toolbar {
+      if v != nil {
+        ToolbarItem(placement: .topBarTrailing) {
+          Menu {
+            Button("Correct the times", systemImage: "pencil") { editing = true }
+            Button("Delete night", systemImage: "trash", role: .destructive) { confirming = true }
+          } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("More")
+        }
+      }
+    }
+    .sheet(isPresented: $editing) { if let v { CorrectSheet(report: v) { sync() }.presentationDetents([.height(380)]) } }
+    .confirmationDialog("Delete \(v?.title ?? "this night")?", isPresented: $confirming, titleVisibility: .visible) {
+      Button("Delete", role: .destructive) { data.delete(id); if !nav.journalPath.isEmpty { nav.journalPath.removeLast() }; sync() }
+    } message: { Text("The night and its summary go from every device.") }
     .task(id: data.version) { v = data.store?.report(id) }
   }
+
+  private func sync() { Task { await data.refresh(pairing: server.pairing) } }
 
   private func hero(_ v: ReportView) -> some View {
     Card {
@@ -83,5 +103,50 @@ struct ReportScreen: View {
 
   private func partRow(_ p: ReportView.Part) -> some View {
     HStack { VStack(alignment: .leading, spacing: 1) { Text(p.label); Text(p.note).font(.footnote).foregroundStyle(Theme.text2) }; Spacer(); Text("\(p.pts)/\(p.max)").monospacedDigit().foregroundStyle(Theme.text2) }.padding(14)
+  }
+}
+
+/// The times of a night, when the microphone got them wrong: when you went to bed, fell asleep, woke.
+private struct CorrectSheet: View {
+  let report: ReportView
+  let saved: () -> Void
+  @EnvironmentObject var data: NightData
+  @Environment(\.dismiss) private var dismiss
+  @State private var bed: Date
+  @State private var on: Date
+  @State private var wake: Date
+  @State private var error: String?
+
+  init(report: ReportView, saved: @escaping () -> Void) {
+    self.report = report; self.saved = saved
+    func date(_ hm: String) -> Date { Self.format.date(from: hm) ?? Date() }
+    _bed = State(initialValue: date(report.times.bed)); _wake = State(initialValue: date(report.times.wake))
+    _on = State(initialValue: date(report.times.on.isEmpty ? report.times.bed : report.times.on))
+  }
+  static let format: DateFormatter = { let f = DateFormatter(); f.dateFormat = "HH:mm"; f.locale = Locale(identifier: "en_US_POSIX"); return f }()
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack { Text("Correct the times").font(.headline); Spacer(); Button("Cancel") { dismiss() } }.padding(20)
+      VStack(spacing: 0) {
+        row("In bed", $bed); Divider().overlay(Theme.line)
+        row("Fell asleep", $on); Divider().overlay(Theme.line)
+        row("Woke up", $wake)
+      }
+      .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous)).padding(.horizontal, 20)
+      if let error { Text(error).font(.footnote).foregroundStyle(.red).padding(.top, 10).padding(.horizontal, 20) }
+      Spacer()
+      PrimaryButton(title: "Save", systemImage: "checkmark") {
+        let f = Self.format
+        if let e = data.correct(report.id, bed: f.string(from: bed), on: f.string(from: on), wake: f.string(from: wake)) { withAnimation(.snappy) { error = e } }
+        else { saved(); dismiss() }
+      }
+      .padding(20)
+    }
+    .background(Theme.bg)
+  }
+
+  private func row(_ title: String, _ date: Binding<Date>) -> some View {
+    HStack { Text(title); Spacer(); DatePicker(title, selection: date, displayedComponents: .hourAndMinute).labelsHidden() }.padding(.horizontal, 16).padding(.vertical, 8)
   }
 }

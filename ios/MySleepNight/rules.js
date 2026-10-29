@@ -749,6 +749,11 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			id,
 			title: dayLabel(id),
 			range: `In bed ${clockOf(n.bed)} – ${clockOf(n.wake)} · ${dur((n.wake - n.bed) / 6e4)}`,
+			times: {
+				bed: clockOf(n.bed),
+				on: n.on ? clockOf(n.on) : "",
+				wake: clockOf(n.wake)
+			},
 			score: s.score,
 			tone: tone(s.score),
 			blank,

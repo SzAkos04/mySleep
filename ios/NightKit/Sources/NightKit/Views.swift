@@ -20,7 +20,9 @@ public struct ReportView: Decodable, Equatable, Sendable {
   public struct Part: Decodable, Equatable, Sendable { public let label: String, note: String; public let pts: Int, max: Int }
   public struct Sound: Decodable, Equatable, Sendable { public let label: String, time: String, length: String }
   public struct Diag: Decodable, Equatable, Sendable { public let label: String, value: String; public let bad: Bool }
+  public struct Times: Decodable, Equatable, Sendable { public let bed: String, on: String, wake: String }   // HH:MM; `on` empty: no sleep found
   public let id: String, title: String, range: String
+  public let times: Times
   public let score: Int, tone: Tone, blank: Bool
   public let verdict: String
   public let vsWeek: String?

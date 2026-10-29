@@ -27,6 +27,8 @@ describe('reportView: a night at a glance', () => {
     expect(v.score).toBe(sleepScore(n, settings).score)
     expect(v.verdict).toBe(verdict(v.score))
     expect(v.blank).toBe(false)
+    expect(v.times).toEqual({ bed: '23:00', on: '23:15', wake: '07:00' })   // for correcting them
+    expect(reportView(state(night('2026-10-27', 0, { on: null })), '2026-10-27').times.on).toBe('')
     expect(v.facts).toEqual([{ value: '7h 30m', label: 'asleep' }, { value: '15 min', label: 'to fall asleep' }, { value: '3h 20m', label: 'restful' }])
   })
   it('compared with the week before, when there are three nights to compare with', () => {

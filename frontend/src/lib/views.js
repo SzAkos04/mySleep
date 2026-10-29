@@ -35,6 +35,7 @@ export function reportView(state, id) {
   ].map(([label, v, bad]) => ({ label, value: String(v), bad })) : []
   return {
     id, title: dayLabel(id), range: `In bed ${clockOf(n.bed)} – ${clockOf(n.wake)} · ${dur((n.wake - n.bed) / 60000)}`,
+    times: { bed: clockOf(n.bed), on: n.on ? clockOf(n.on) : '', wake: clockOf(n.wake) },   // as the correction form starts
     score: s.score, tone: tone(s.score), blank, verdict: blank ? 'Nothing recorded' : verdict(s.score),
     vsWeek: avg != null && !blank ? `${s.score > avg ? 'Better than' : s.score < avg ? 'Below' : 'Same as'} your week (${avg})` : null,
     facts: [{ value: dur(n.asleepMin || 0), label: 'asleep' }, { value: latency != null ? latency + ' min' : '–', label: 'to fall asleep' }, { value: n.restfulMin != null ? dur(n.restfulMin) : '–', label: 'restful' }],

@@ -22,6 +22,7 @@ import Foundation
     #expect(r.facts.map(\.label) == ["asleep", "to fall asleep", "restful"])
     #expect(r.facts[0].value == "2h 45m")
     #expect(!r.blank && r.score > 0 && ["good", "accent", "warn"].contains(r.tone.rawValue))
+    #expect(r.times.bed.count == 5 && r.times.on.count == 5 && r.times.wake.count == 5)
     #expect(r.parts.first?.label == "Duration")
     #expect(r.timeline?.states.isEmpty == false && r.timeline?.db.isEmpty == false)
     #expect(r.sounds.first?.label == "Snoring")
