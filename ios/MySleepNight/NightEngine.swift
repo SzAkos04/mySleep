@@ -11,7 +11,14 @@ import UIKit
   @Published private(set) var level: Double?       // the last second's loudness, nil = nothing heard
   @Published private(set) var saved: Date?
   @Published private(set) var plan: AlarmPlan?     // tonight's alarm, nil = none
-  @Published private(set) var lastNight: (file: URL, minutes: Int, heard: Int)?   // the night just finished
+  /// The night just finished: what the morning screen shows, and which night to open in the Journal.
+  struct Finished {
+    let id: String, file: URL, bed: Date, end: Date, heardMinutes: Int
+    let early: Int?, snoozes: Int   // early: minutes before the wake time it rang; nil: it did not ring
+  }
+  @Published private(set) var lastNight: Finished?
+  private var rangEarlyBy: Int?, snoozes = 0
+  @Published private(set) var ringingEarly = 0   // the alarm screen: how early it rang
 
   let alarm = AlarmController()
   var onFinished: (() -> Void)?   // the night saved: send it up
@@ -67,7 +74,7 @@ import UIKit
     n.log("start", ["battery": device.batteryLevel, "charging": device.batteryState == .charging || device.batteryState == .full])
     try startAudio(reason: "start")
     watch()
-    smart = settings.smart; rangEarly = false
+    smart = settings.smart; rangEarly = false; rangEarlyBy = nil; snoozes = 0; lastNight = nil
     plan = AlarmPlan.make(settings, from: Date())
     if let p = plan {
       n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart, "analysis": analysis != nil])
@@ -94,7 +101,8 @@ import UIKit
     queue.sync { n.tick(at: Self.nowMs); n.log("finish") }
     save(final: true)
     let heard = queue.sync { n.db.filter { !$0.isNaN }.count }
-    lastNight = (fileURL(n), n.db.count / 60, heard / 60)
+    lastNight = Finished(id: n.night, file: fileURL(n), bed: Date(timeIntervalSince1970: Double(n.start) / 1000), end: Date(),
+                         heardMinutes: heard / 60, early: rangEarlyBy, snoozes: snoozes)
     night = nil; nightForQueue = nil; level = nil; plan = nil
     onFinished?()
   }
@@ -150,6 +158,7 @@ import UIKit
       if alarm.phase != .ringing, p.shouldRing(at: date, smart: smart, isStirring: { [queue, analysis] in queue.sync { analysis?.stirring(n) ?? false } }) {
         // the app rings first, rising from near silence; the system alarm moves behind it
         rangEarly = true
+        if rangEarlyBy == nil { rangEarlyBy = early }   // the first ring, not a snooze's
         queue.async { n.log("wake", ["early": early], at: now) }
         ringItself(early: early)
         if alarm.phase != .none { Task { await alarm.set(at: AlarmPlan.backup(afterRingingAt: date)) } }
@@ -206,6 +215,7 @@ import UIKit
     ramp = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
       Task { @MainActor in guard let self, let p = self.player else { return }; p.volume = Float(RiseCurve.gain(at: Date().timeIntervalSince(self.ringStart))) }
     }
+    ringingEarly = early
     logNow("ring", ["self": true, "early": early])
     live.ringing(true)
   }
@@ -232,8 +242,24 @@ import UIKit
     plan = next; smart = false; lastCheck = 0; rangEarly = false
     live.snoozed(until: next.at)
     if alarm.phase != .none { Task { await alarm.set(at: next.backup) } }
+    snoozes += 1
     logNow("snooze", [:])
   }
+
+  /// Settings › Play it for 10 seconds: how loud the alarm gets at the phone's media volume (risen in
+  /// 3 s, not 25, so it is heard to the full in the test). Not during a night.
+  @Published private(set) var testing = false
+  private var testPlayer: AVAudioPlayer?
+  func playTestSound() {
+    guard night == nil, !testing, let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"),
+          let p = try? AVAudioPlayer(contentsOf: url) else { return }
+    try? AVAudioSession.sharedInstance().setCategory(.playback)
+    try? AVAudioSession.sharedInstance().setActive(true)
+    p.volume = 0.15; p.numberOfLoops = -1; p.play(); p.setVolume(1, fadeDuration: 3)
+    testPlayer = p; testing = true
+    Task { try? await Task.sleep(for: .seconds(10)); self.stopTestSound() }
+  }
+  func stopTestSound() { testPlayer?.stop(); testPlayer = nil; testing = false }
 
   private func fileURL(_ n: Night) -> URL { Self.documents.appendingPathComponent("\(n.night)_\(n.start).json") }
 

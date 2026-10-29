@@ -38,6 +38,17 @@ import Security
     if ok > 0 { lastUpload = Date() }
   }
 
+  /// A page of the server's web app, signed in through a one-time code (the Journal and Trends tabs).
+  func signedIn(_ page: WebPage) async -> URL? {
+    guard let p = pairing else { return nil }
+    var r = URLRequest(url: p.server.appendingPathComponent("api/devices/web-code"))
+    r.httpMethod = "POST"
+    r.setValue("Bearer " + p.token, forHTTPHeaderField: "Authorization")
+    guard let (data, res) = try? await URLSession.shared.data(for: r), (res as? HTTPURLResponse)?.statusCode == 200,
+          let code = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["code"] as? String else { return nil }
+    return page.signIn(server: p.server, code: code)
+  }
+
   private func send(_ r: URLRequest) async -> Int {
     do { let (_, res) = try await URLSession.shared.data(for: r); return (res as? HTTPURLResponse)?.statusCode ?? 0 }
     catch { return 0 }
