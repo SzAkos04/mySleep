@@ -1,8 +1,7 @@
 import SwiftUI
 
-// mySleep Night: the one app on the iPhone. Tonight and Settings are its own; Journal and Trends
-// are the server's web app, shown inside it and signed in (WebTab). The night itself (NightViews)
-// covers everything while it runs; the alarm covers the night.
+// mySleep Night: the one app on the iPhone: Tonight, the Journal, Trends and Settings. The night
+// itself (NightViews) covers everything while it runs; the alarm covers the night.
 @main struct MySleepNightApp: App {
   @StateObject private var engine = NightEngine()
   @StateObject private var server = ServerLink()
@@ -60,11 +59,11 @@ enum Theme {
 
 enum Tab: Hashable { case tonight, journal, trends, settings }
 
-/// Which tab is showing, and which night the Journal should open (the morning's button).
+/// Which tab is showing, and the Journal's stack (a night's report on top of it, from the morning's button).
 @MainActor final class Navigation: ObservableObject {
   @Published var tab: Tab = .tonight
-  @Published var journalPage: WebPage = .journal
-  func openNight(_ id: String) { journalPage = .night(id); tab = .journal }
+  @Published var journalPath: [String] = []
+  func openNight(_ id: String) { journalPath = [id]; tab = .journal }
 }
 
 struct RootView: View {
@@ -77,9 +76,9 @@ struct RootView: View {
       TabView(selection: $nav.tab) {
         TonightTab().tag(Tab.tonight)
           .tabItem { Label("Tonight", systemImage: "moon.fill") }
-        WebTab(page: nav.journalPage).tag(Tab.journal)
+        JournalScreen().tag(Tab.journal)
           .tabItem { Label("Journal", systemImage: "calendar") }
-        WebTab(page: .trends).tag(Tab.trends)
+        TrendsScreen().tag(Tab.trends)
           .tabItem { Label("Trends", systemImage: "chart.bar") }
         SettingsTab().tag(Tab.settings)
           .tabItem { Label("Settings", systemImage: "gearshape") }

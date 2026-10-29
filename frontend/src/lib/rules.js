@@ -8,6 +8,7 @@ export { alarmPlan, corrected } from './night.js'
 export { defaultSettings, pendingChanges, withNight, withoutNight, withSettings, afterSync } from './sync.js'
 export { sleepScore, insights, unrecorded } from './score.js'
 export { summary, noonToClock, fromNoon } from './stats.js'
+export { reportView, journalView, trendsView, startMonth, tone } from './views.js'
 export { atClock, clockOf, dayLabel, dur, nightIdOf } from './time.js'
 
 // Numbers rounded and keys sorted, so node and JavaScriptCore print a result the same way

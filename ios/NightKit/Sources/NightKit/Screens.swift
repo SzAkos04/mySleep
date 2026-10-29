@@ -62,25 +62,3 @@ public struct VolumeAdvice: Sendable {
     text = low ? "\(pct)% · turn it up" : "\(pct)%"
   }
 }
-
-/// The server's pages the app shows in its Journal and Trends tabs (the web app, embedded).
-public enum WebPage: Equatable, Sendable {
-  case journal, trends, night(String)
-  public var path: String {
-    switch self {
-    case .journal: "/?embed=1#/journal"
-    case .trends: "/?embed=1#/trends"
-    case .night(let id): "/?embed=1#/night/\(id)"
-    }
-  }
-  /// Whether a tab asks for a new sign-in code (which loads the page again): not to show what it shows.
-  public func needsSignIn(showing: WebPage?, failed: Bool) -> Bool { failed || showing != self }
-  /// Opened through a one-time code (api/server.js GET /api/session/code): signed in, no passkey.
-  public func signIn(server: URL, code: String) -> URL {
-    var c = URLComponents(url: server.appendingPathComponent("api/session/code"), resolvingAgainstBaseURL: false)!
-    c.percentEncodedQueryItems = [URLQueryItem(name: "c", value: code), URLQueryItem(name: "to", value: path.addingPercentEncoding(withAllowedCharacters: Self.queryValue))]
-    return c.url!
-  }
-  // a query value: '#', '&', '=' and '+' encoded, so the page path arrives whole
-  static let queryValue = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+#"))
-}

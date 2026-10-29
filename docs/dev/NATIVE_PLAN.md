@@ -113,7 +113,8 @@ Each screen gets a NightKit model (strings and numbers, tested against the web's
 in the app's style and motion. Charts use Swift Charts (built in); the night's picture is one
 `Canvas` draw.
 
-### 2.1 Night report
+### 2.1 Night report *(done)*
+*(The screens are native (`ReportScreen`, `JournalScreen`, `TrendsScreen`), drawing view models the rules bundle gives: `lib/views.js` decides the wording and numbers, `views.test.js` tests them, NightKit's `Views.swift` reads them. The WebView tabs and the sign-in code are gone from the app; the server's code route and `?embed` go with the web app.)*
 The morning's page and any night's: date and time in bed; the score ring with its verdict; three
 numbers (asleep, to fall asleep, restful); the night as a picture (awake / light / restful bands
 and the sounds); "How the score adds up" (the parts); the insights; events with times. "See your
@@ -127,13 +128,13 @@ A sheet with bed, asleep and wake times; delete with a confirmation. *(The rule 
 - Tests first: NightKit, delete leaves a dirty tombstone and the Journal no longer lists it; the
   app's sheet gives `corrected()` the same cases as `night.test.js`.
 
-### 2.3 Journal
+### 2.3 Journal *(done)*
 The month calendar coloured by score, previous and next month (never past this one), a day opens
 its night, last night chosen at first, the month's average and count.
 - Tests first: `MonthModel` (the grid from Monday, colours by score band, blank for unrecorded
   nights, "No nights this month", next disabled on this month).
 
-### 2.4 Trends
+### 2.4 Trends *(done)*
 Week, month, year: the average score and its change on the period before, asleep a night, short
 of 8 h in all, asleep ± and awake ±; score per night, hours asleep against 8 h, when you slept,
 snoring.

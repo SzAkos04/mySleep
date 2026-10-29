@@ -79,25 +79,3 @@ import Foundation
     #expect(!VolumeAdvice(volume: 0.8).low)
   }
 }
-
-@Suite struct WebPageTests {
-  @Test func signsInOncePerPage() {
-    // a new code loads the page again: only for another page, or after a failed try; never on
-    // coming back to the tab (that reloaded it, a flicker, and lost the scroll)
-    #expect(WebPage.journal.needsSignIn(showing: nil, failed: false))
-    #expect(!WebPage.journal.needsSignIn(showing: .journal, failed: false))
-    #expect(WebPage.night("2026-10-30").needsSignIn(showing: .journal, failed: false))
-    #expect(WebPage.journal.needsSignIn(showing: .journal, failed: true))
-  }
-  let server = URL(string: "https://host.ts.net:8443")!
-
-  @Test func theTabsOpenTheServersPagesEmbedded() {
-    #expect(WebPage.journal.path == "/?embed=1#/journal")
-    #expect(WebPage.trends.path == "/?embed=1#/trends")
-    #expect(WebPage.night("2026-10-30").path == "/?embed=1#/night/2026-10-30")
-  }
-  @Test func signedInThroughAOneTimeCode() {
-    let u = WebPage.journal.signIn(server: server, code: "abc_123")
-    #expect(u.absoluteString == "https://host.ts.net:8443/api/session/code?c=abc_123&to=/?embed%3D1%23/journal")
-  }
-}

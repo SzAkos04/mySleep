@@ -7,7 +7,7 @@ import Foundation
 public final class NightStore {
   public enum SyncResult: Equatable, Sendable { case synced, offline, unauthorized, failed(Int) }
 
-  private let rules: Rules
+  let rules: Rules
   public private(set) var json: String
 
   /// `json`: a saved state; anything else (nothing, not JSON, not a state) starts empty.

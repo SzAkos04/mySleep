@@ -122,7 +122,7 @@ struct EveningView: View {
           .rise(2)
 
           // what needs you before the night, and only that
-          FlowRow {
+          FlowLayout(spacing: 8) {
             Group {
               if server.pairing == nil { Button { nav.tab = .settings } label: { Chip(text: "Not paired with your server", warn: true) } }
               else { Chip(text: "Sends to \(server.pairing?.server.host ?? "your server")") }
@@ -190,30 +190,6 @@ private struct WakePicker: View {
   }
 }
 
-/// Chips that wrap onto a new line when they do not fit.
-private struct FlowRow: Layout {
-  var spacing: CGFloat = 8
-  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-    let w = proposal.width ?? .infinity
-    var x: CGFloat = 0, y: CGFloat = 0, row: CGFloat = 0
-    for s in subviews {
-      let d = s.sizeThatFits(.unspecified)
-      if x > 0 && x + d.width > w { x = 0; y += row + spacing; row = 0 }
-      x += d.width + spacing; row = max(row, d.height)
-    }
-    return CGSize(width: w == .infinity ? x : w, height: y + row)
-  }
-  func placeSubviews(in b: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-    var x = b.minX, y = b.minY, row: CGFloat = 0
-    for s in subviews {
-      let d = s.sizeThatFits(.unspecified)
-      if x > b.minX && x + d.width > b.maxX { x = b.minX; y += row + spacing; row = 0 }
-      s.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
-      x += d.width + spacing; row = max(row, d.height)
-    }
-  }
-}
-
 // MARK: morning
 
 /// Right after the night: the night at a glance, and one way on to the full report.
@@ -221,6 +197,7 @@ struct MorningView: View {
   let night: NightEngine.Finished
   let done: () -> Void
   @EnvironmentObject var server: ServerLink
+  @EnvironmentObject var data: NightData
   @EnvironmentObject var nav: Navigation
   @State private var opening = false
 
@@ -267,7 +244,7 @@ struct MorningView: View {
           guard !opening else { return }
           opening = true
           // the night must be on the server before its page is opened
-          Task { await server.refresh(); opening = false; nav.openNight(night.id); done() }
+          Task { await server.refresh(); await data.refresh(pairing: server.pairing); opening = false; nav.openNight(night.id); done() }
         }
         Button("Done", action: done).font(.subheadline).foregroundStyle(Theme.text2).padding(.bottom, 4).buttonStyle(Pressable())
       }

@@ -240,8 +240,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 //#endregion
 //#region src/lib/time.js
-	const pad$1 = (n) => String(n).padStart(2, "0");
-	const DAY = [
+	const pad$2 = (n) => String(n).padStart(2, "0");
+	const DAY$1 = [
 		"Sun",
 		"Mon",
 		"Tue",
@@ -266,7 +266,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	];
 	function nightIdOf(ms) {
 		const d = /* @__PURE__ */ new Date(ms - 12 * 36e5);
-		return `${d.getFullYear()}-${pad$1(d.getMonth() + 1)}-${pad$1(d.getDate())}`;
+		return `${d.getFullYear()}-${pad$2(d.getMonth() + 1)}-${pad$2(d.getDate())}`;
 	}
 	const noonOf = (id) => {
 		const [y, m, d] = id.split("-").map(Number);
@@ -286,12 +286,12 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	}
 	const clockOf = (ms) => {
 		const d = new Date(ms);
-		return pad$1(d.getHours()) + ":" + pad$1(d.getMinutes());
+		return pad$2(d.getHours()) + ":" + pad$2(d.getMinutes());
 	};
-	const dur = (min) => min < 59.5 ? Math.round(min) + " min" : Math.floor(min / 60) + "h " + pad$1(Math.round(min % 60)) + "m";
+	const dur = (min) => min < 59.5 ? Math.round(min) + " min" : Math.floor(min / 60) + "h " + pad$2(Math.round(min % 60)) + "m";
 	const dayLabel = (id) => {
 		const d = noonOf(id);
-		return `${DAY[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`;
+		return `${DAY$1[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`;
 	};
 
 //#endregion
@@ -519,9 +519,9 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	};
 	const noonToClock = (m) => {
 		m = ((Math.round(m) + 720) % 1440 + 1440) % 1440;
-		return pad(Math.floor(m / 60)) + ":" + pad(m % 60);
+		return pad$1(Math.floor(m / 60)) + ":" + pad$1(m % 60);
 	};
-	const pad = (n) => String(n).padStart(2, "0");
+	const pad$1 = (n) => String(n).padStart(2, "0");
 	const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
 	const sd = (a) => {
 		const m = mean(a);
@@ -552,7 +552,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	const NEED = 480;
 	const clamp = (v) => Math.max(0, Math.min(1, v));
 	const lerp = (v, zero, full) => clamp((v - zero) / (full - zero));
-	const toNoon = (hhmm) => {
+	const toNoon$1 = (hhmm) => {
 		const [h, m] = hhmm.split(":").map(Number);
 		return (h * 60 + m + 720) % 1440;
 	};
@@ -593,7 +593,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			slept && n.on && {
 				label: "Routine",
 				max: 10,
-				pts: 10 * lerp(Math.abs(fromNoon(n.on) - toNoon(settings.bedtime)), 90, 15),
+				pts: 10 * lerp(Math.abs(fromNoon(n.on) - toNoon$1(settings.bedtime)), 90, 15),
 				note: `asleep at ${clockOf(n.on)}, bedtime ${settings.bedtime}`
 			}
 		].filter(Boolean);
@@ -617,7 +617,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		}
 		return best && best.map((e) => t.start + e * 3e4);
 	}
-	const times = (list) => list.map((e) => clockOf(e.t)).join(", ");
+	const times$1 = (list) => list.map((e) => clockOf(e.t)).join(", ");
 	const UNRECORDED = .9;
 	const gapRuns = (t) => [...t.states.matchAll(/g+/g)].map((m) => [m.index, m[0].length]);
 	const unrecorded = (n) => !!n.timeline?.states?.length && (n.timeline.states.match(/g/g) || []).length >= UNRECORDED * n.timeline.states.length;
@@ -633,11 +633,11 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		const snore = ev.filter((e) => e.kind === "snore");
 		if (snore.length) out.push(`You snored for about ${Math.round(n.snoreMin)} min, ${snore.length === 1 ? "from " + clockOf(snore[0].t) : "mostly " + peakHour(snore)}.`);
 		const talk = ev.filter((e) => e.kind === "talk");
-		if (talk.length) out.push(`You talked in your sleep ${talk.length === 1 ? "once" : talk.length + " times"} (${times(talk.slice(0, 4))}${talk.length > 4 ? "…" : ""}).`);
+		if (talk.length) out.push(`You talked in your sleep ${talk.length === 1 ? "once" : talk.length + " times"} (${times$1(talk.slice(0, 4))}${talk.length > 4 ? "…" : ""}).`);
 		const cough = ev.filter((e) => e.kind === "cough");
-		if (cough.length) out.push(`You coughed ${cough.length === 1 ? "once" : cough.length + " times"} (${times(cough.slice(0, 4))}${cough.length > 4 ? "…" : ""}).`);
+		if (cough.length) out.push(`You coughed ${cough.length === 1 ? "once" : cough.length + " times"} (${times$1(cough.slice(0, 4))}${cough.length > 4 ? "…" : ""}).`);
 		const noise = ev.filter((e) => e.kind === "noise");
-		if (noise.length) out.push(`The room was noisy ${noise.length === 1 ? "once" : noise.length + " times"} (${times(noise.slice(0, 3))}): long sounds that were not you.`);
+		if (noise.length) out.push(`The room was noisy ${noise.length === 1 ? "once" : noise.length + " times"} (${times$1(noise.slice(0, 3))}): long sounds that were not you.`);
 		const gaps = n.timeline ? gapRuns(n.timeline) : [], gapMin = gaps.reduce((s, g) => s + g[1], 0) / 2;
 		if (gapMin >= 10) {
 			const longest = gaps.reduce((a, b) => b[1] > a[1] ? b : a), from = clockOf(n.timeline.start + longest[0] * 3e4);
@@ -663,6 +663,246 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	}
 
 //#endregion
+//#region src/lib/views.js
+	const pad = (n) => String(n).padStart(2, "0");
+	const MONTH = [
+		"January",
+		"February",
+		"March",
+		"April",
+		"May",
+		"June",
+		"July",
+		"August",
+		"September",
+		"October",
+		"November",
+		"December"
+	];
+	const DAY = [
+		"S",
+		"M",
+		"T",
+		"W",
+		"T",
+		"F",
+		"S"
+	];
+	const SOUND = {
+		snore: "Snoring",
+		talk: "Talking",
+		cough: "Coughing",
+		noise: "Room noise"
+	};
+	const verdict = (s) => s >= 85 ? "A great night" : s >= 70 ? "A good night" : s >= 55 ? "An okay night" : "A rough night";
+	const tone = (s) => s >= 80 ? "good" : s >= 60 ? "accent" : "warn";
+	const list = (nights) => Object.values(nights).filter((n) => !n.deleted).sort((a, b) => b.id.localeCompare(a.id));
+	const dayOf = (id) => /* @__PURE__ */ new Date(id + "T12:00");
+	const toNoon = (hhmm) => {
+		const [h, m] = hhmm.split(":").map(Number);
+		return (h * 60 + m + 720) % 1440;
+	};
+	const meanScore = (nights, settings) => {
+		const r = nights.filter((n) => !unrecorded(n));
+		return r.length ? Math.round(r.reduce((t, n) => t + sleepScore(n, settings).score, 0) / r.length) : null;
+	};
+	const fmtSec = (s) => s < 60 ? `${s} s` : `${Math.round(s / 60)} min`;
+	const times = (n, w) => n === 1 ? "once" : `${n} times`;
+	function reportView(state, id) {
+		const n = state.nights[id];
+		if (!n || n.deleted) return null;
+		const { settings } = state, s = sleepScore(n, settings), blank = unrecorded(n);
+		const avg = ((w) => w.length >= 3 ? meanScore(w, settings) : null)(list(state.nights).filter((x) => x.id !== n.id && !unrecorded(x)).slice(0, 7));
+		const latency = n.on ? Math.round((n.on - n.bed) / 6e4) : null;
+		const diag = n.diag?.app === "native" ? [
+			[
+				"Recorded by",
+				"mySleep Night",
+				false
+			],
+			[
+				"Interruptions",
+				n.diag.interruptions,
+				n.diag.interruptions > 0
+			],
+			[
+				"Audio restarted",
+				n.diag.restarts,
+				n.diag.restarts > 0
+			],
+			[
+				"Microphone sent nothing",
+				n.diag.micSilent,
+				n.diag.micSilent > 0
+			],
+			[
+				"Phone locked",
+				n.diag.locked,
+				false
+			]
+		].map(([label, v, bad]) => ({
+			label,
+			value: String(v),
+			bad
+		})) : [];
+		return {
+			id,
+			title: dayLabel(id),
+			range: `In bed ${clockOf(n.bed)} – ${clockOf(n.wake)} · ${dur((n.wake - n.bed) / 6e4)}`,
+			score: s.score,
+			tone: tone(s.score),
+			blank,
+			verdict: blank ? "Nothing recorded" : verdict(s.score),
+			vsWeek: avg != null && !blank ? `${s.score > avg ? "Better than" : s.score < avg ? "Below" : "Same as"} your week (${avg})` : null,
+			facts: [
+				{
+					value: dur(n.asleepMin || 0),
+					label: "asleep"
+				},
+				{
+					value: latency != null ? latency + " min" : "–",
+					label: "to fall asleep"
+				},
+				{
+					value: n.restfulMin != null ? dur(n.restfulMin) : "–",
+					label: "restful"
+				}
+			],
+			timeline: n.timeline ?? null,
+			parts: s.parts.map(({ label, note, pts, max }) => ({
+				label,
+				note,
+				pts,
+				max
+			})),
+			insights: insights(n),
+			sounds: (n.events || []).filter((e) => SOUND[e.kind]).map((e) => ({
+				label: SOUND[e.kind],
+				time: clockOf(e.t),
+				length: fmtSec(e.sec)
+			})),
+			alarm: n.alarm ? `The alarm rang at ${clockOf(n.alarm.at)}${n.alarm.early ? `, ${n.alarm.early} min early` : ""}.` : null,
+			diag
+		};
+	}
+	function startMonth(state, now) {
+		const last = list(state.nights)[0], d = last ? dayOf(last.id) : new Date(now);
+		return {
+			year: d.getFullYear(),
+			month: d.getMonth()
+		};
+	}
+	function journalView(state, { year: y, month: m }, sel, now) {
+		const { settings } = state, all = list(state.nights), byId = Object.fromEntries(all.map((n) => [n.id, n]));
+		const today = new Date(now), count = new Date(y, m + 1, 0).getDate(), lead = (new Date(y, m, 1).getDay() + 6) % 7;
+		const inMonth = all.filter((n) => n.id.startsWith(`${y}-${pad(m + 1)}`)), avg = meanScore(inMonth, settings);
+		const days = Array.from({ length: count }, (_, i) => {
+			const id = `${y}-${pad(m + 1)}-${pad(i + 1)}`, n = byId[id];
+			if (!n) return {
+				n: i + 1,
+				id,
+				kind: new Date(y, m, i + 1) > today ? "future" : "none"
+			};
+			if (unrecorded(n)) return {
+				n: i + 1,
+				id,
+				kind: "blank"
+			};
+			const score = sleepScore(n, settings).score;
+			return {
+				n: i + 1,
+				id,
+				kind: "scored",
+				score,
+				tone: tone(score)
+			};
+		});
+		const n = byId[sel ?? all[0]?.id];
+		const selected = n && {
+			id: n.id,
+			title: dayLabel(n.id),
+			blank: unrecorded(n),
+			score: sleepScore(n, settings).score,
+			tone: tone(sleepScore(n, settings).score),
+			headline: unrecorded(n) ? "Nothing recorded" : dur(n.asleepMin || 0) + " asleep",
+			line: [
+				n.wakes ? `Woke ${times(n.wakes)}` : n.on && "Slept through",
+				n.snoreMin ? `snored ${n.snoreMin} min` : null,
+				n.talks ? `talked ${times(n.talks)}` : null
+			].filter(Boolean).join(" · "),
+			timeline: n.timeline ?? null
+		};
+		return {
+			title: MONTH[m] + (y !== today.getFullYear() ? " " + y : ""),
+			sub: inMonth.length ? `${avg != null ? `Average ${avg} · ` : ""}${inMonth.length} ${inMonth.length === 1 ? "night" : "nights"}` : "No nights this month",
+			canNext: !(y === today.getFullYear() && m === today.getMonth()),
+			lead,
+			days,
+			selected: selected || null,
+			empty: selected ? null : all.length ? "Pick a night in the calendar." : "Your nights will fill this calendar."
+		};
+	}
+	function trendsView(state, days) {
+		const { settings } = state, all = list(state.nights), L = all.slice(0, days), s = summary(L, 480);
+		if (!s) return { empty: "Trends start after a couple of nights." };
+		const chrono = L.slice().reverse(), score = (n) => sleepScore(n, settings).score;
+		const avg = meanScore(L, settings) ?? 0, prev = meanScore(all.slice(days, 2 * days), settings);
+		const period = days === 7 ? "week" : days === 30 ? "month" : "year";
+		const label = (n) => chrono.length <= 7 ? DAY[dayOf(n.id).getDay()] : dayOf(n.id).getDay() === 1 ? String(dayOf(n.id).getDate()) : "";
+		return {
+			label: `This ${period}`,
+			avg,
+			change: prev != null ? `${avg >= prev ? "up" : "down"} ${Math.abs(avg - prev)} on the ${period} before` : null,
+			kpis: [
+				{
+					value: dur(s.avgAsleep),
+					label: "asleep a night"
+				},
+				{
+					value: dur(s.debt),
+					label: "short of 8 h, in all"
+				},
+				{
+					value: s.on ? noonToClock(s.on.mean) : "–",
+					label: s.on ? `asleep ± ${Math.round(s.on.sd)} min` : "asleep"
+				},
+				{
+					value: s.wake ? noonToClock(s.wake.mean) : "–",
+					label: s.wake ? `awake ± ${Math.round(s.wake.sd)} min` : "awake"
+				}
+			],
+			scores: chrono.map((n) => ({
+				id: n.id,
+				label: label(n),
+				value: score(n),
+				tone: tone(score(n))
+			})),
+			hours: chrono.map((n) => ({
+				id: n.id,
+				label: label(n),
+				value: n.asleepMin || 0,
+				full: (n.asleepMin || 0) >= 480
+			})),
+			windows: chrono.map((n) => ({
+				id: n.id,
+				label: label(n),
+				on: n.on && n.wake ? fromNoon(n.on) : null,
+				wake: n.on && n.wake ? fromNoon(n.wake) : null
+			})),
+			target: {
+				bed: toNoon(settings.bedtime),
+				wake: toNoon(settings.wake),
+				label: `${settings.bedtime}–${settings.wake}`
+			},
+			snoring: chrono.some((n) => n.snoreMin) ? chrono.map((n) => ({
+				id: n.id,
+				label: label(n),
+				value: n.snoreMin || 0
+			})) : null
+		};
+	}
+
+//#endregion
 //#region src/lib/rules.js
 	const canonical = (v) => JSON.stringify(v, (k, x) => typeof x === "number" ? Math.round(x * 1e6) / 1e6 : x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a < b ? -1 : 1)) : x);
 
@@ -678,15 +918,20 @@ exports.defaultSettings = defaultSettings;
 exports.dur = dur;
 exports.fromNoon = fromNoon;
 exports.insights = insights;
+exports.journalView = journalView;
 exports.nightFromLog = nightFromLog;
 exports.nightIdOf = nightIdOf;
 exports.noonToClock = noonToClock;
 exports.pendingChanges = pendingChanges;
+exports.reportView = reportView;
 exports.sleepScore = sleepScore;
+exports.startMonth = startMonth;
 exports.stirring = stirring;
 exports.summary = summary;
 exports.takeIn = takeIn;
 exports.toImport = toImport;
+exports.tone = tone;
+exports.trendsView = trendsView;
 exports.unrecorded = unrecorded;
 exports.withNight = withNight;
 exports.withSettings = withSettings;
