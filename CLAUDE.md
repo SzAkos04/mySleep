@@ -2,6 +2,7 @@
 
 mySleep: a self-hosted sleep tracker and smart alarm PWA for one iPhone, built like myGym
 (`~/Projects/myGym`). The plan and the reasons are in `docs/dev/MVP.md`; read it first.
+The web app is being retired step by step for the native app: `docs/dev/NATIVE_PLAN.md`, in order.
 
 ## Layout
 
