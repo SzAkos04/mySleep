@@ -43,3 +43,10 @@ it('says what happened in the night', () => {
   expect(text).toContain('You coughed once (04:00).')
   expect(text).toContain('Your most restful stretch was 23:48–00:28 (estimate).')
 })
+
+it('snoring through the night: says the hour with the most of it', () => {
+  const start = at(20, 23, 0)
+  const n = { bed: start, on: start + 600000, snoreMin: 30, timeline: { start, states: 'l'.repeat(600) },
+    events: [{ t: at(21, 1, 10), kind: 'snore', sec: 300 }, { t: at(21, 3, 5), kind: 'snore', sec: 900 }, { t: at(21, 3, 40), kind: 'snore', sec: 600 }, { t: at(21, 23, 30), kind: 'snore', sec: 100 }] }
+  expect(insights(n).join(' ')).toContain('You snored for about 30 min, mostly between 03:00 and 04:00.')
+})
