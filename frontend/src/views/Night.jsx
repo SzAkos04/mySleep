@@ -88,11 +88,14 @@ export function Night() {
           ['Screen kept on', n.diag.lockOk || n.diag.videoOk ? `${n.diag.lockOk ? 'wake lock' : ''}${n.diag.lockOk && n.diag.videoOk ? ' + ' : ''}${n.diag.videoOk ? 'video' : ''}` : 'no', !(n.diag.lockOk || n.diag.videoOk)],
           ['Wake lock released', n.diag.lockReleased, n.diag.lockReleased > 0],
           ['Microphone lost', n.diag.micLost, n.diag.micLost > 0],
+          // counted since 30 October; older nights have no such numbers
+          n.diag.micSilent != null && ['Microphone sent nothing', n.diag.micSilent, n.diag.micSilent > 0],
+          n.diag.recoveries > 0 && ['Ways back tried', `${n.diag.recoveries} · worked ${n.diag.recovered}`, !n.diag.recovered],
           ['App hidden / locked', n.diag.hidden, n.diag.hidden > 0],
           ['App stalled', n.diag.stalls, n.diag.stalls > 0],
           ['Reloaded in the night', n.diag.reloads, n.diag.reloads > 0],
           ['Errors', n.diag.errors, n.diag.errors > 0]
-        ].map(([l, v, bad]) => <div key={l} className="row"><span>{l}</span><span className="r" style={bad ? { color: 'var(--awake)' } : null}>{String(v)}</span></div>)}
+        ].filter(Boolean).map(([l, v, bad]) => <div key={l} className="row"><span>{l}</span><span className="r" style={bad ? { color: 'var(--awake)' } : null}>{String(v)}</span></div>)}
       </div>
     </div>}
 

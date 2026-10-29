@@ -292,7 +292,10 @@ describe('heartbeat and clips', () => {
     await load(); await t.start()
     await tick(60000)
     t.heartbeat()
-    expect(last('beat')).toMatchObject({ sec: 60, missing60: 0, db: 60, live: true, ctx: 'running', awake: 'lock', lock: true, video: 'playing', visibility: 'visible', clips: 0, session: 'play-and-record' })
+    expect(last('beat')).toMatchObject({ sec: 60, missing60: 0, db: 60, live: true, hearing: true, ctx: 'running', awake: 'lock', lock: true, video: 'playing', visibility: 'visible', clips: 0, session: 'play-and-record' })
+    // what the microphone delivered this minute: reads, how many were exact zeros, the raw level
+    // range (dBFS), and how far the capture engine's clock ran (0 = the engine stood still)
+    expect(last('beat')).toMatchObject({ reads: 600, zeros: 0, peak: -40, floor: -40, ran: 60, track: { muted: false, enabled: true, state: 'live' } })
   })
 
   it('cuts a clip of talking from the 30 s buffer, once', async () => {
@@ -314,3 +317,100 @@ describe('heartbeat and clips', () => {
 // the last nodes the audio context made (the alarm's, after ring())
 function lastSource() { return ctx().lastSource }
 function lastGain() { return ctx().lastGain }
+
+describe('a microphone that sends nothing (the night of 29 October)', () => {
+  it('the audio session is set to recording before the audio engine exists', async () => {
+    await load(); await t.start()
+    expect(FakeAudioContext.made[0].sessionAtBirth).toBe('play-and-record')
+  })
+
+  it('level() is the last second’s loudness, or null when nothing is heard', async () => {
+    await load(); await t.start()
+    expect(t.level()).toBeNull()
+    await tick(2000)
+    expect(t.level()).toBeCloseTo(60, 0)
+    room.rms = 0
+    await tick(2000)
+    expect(t.level()).toBeNull()
+  })
+
+  it('10 s of exact zeros from a "live" microphone is not hearing: logged and shown', async () => {
+    await load(); await t.start()
+    await tick(3000)
+    room.rms = 0
+    await tick(9000)
+    expect(t.hearing()).toBe(true)   // not yet: a quiet moment is not a fault
+    await tick(1500)
+    expect(t.micLive()).toBe(true)   // what iOS says
+    expect(t.hearing()).toBe(false)  // what arrives
+    expect(last('mic-silent')).toMatchObject({ sec: 10, muted: false, state: 'live' })
+  })
+
+  it('recovers with a new audio engine first; the alarm keeps the one from the tap', async () => {
+    await load({ deafEngines: 1 }); await t.start()
+    await tick(10500)
+    expect(last('recover')).toMatchObject({ step: 'engine', attempt: 1 })
+    await tick(2000)
+    expect(t.hearing()).toBe(true)
+    expect(last('recovered')).toMatchObject({ step: 'engine' })
+    expect(t.samples.db.at(-1)).toBeCloseTo(60, 0)
+    expect(FakeAudioContext.made).toHaveLength(2)
+    expect(FakeAudioContext.made[0].state).toBe('running')   // the tap's engine, kept for the alarm
+    await t.ring()
+    // the whole alarm chain on the tap's engine: source → rising gain → its speaker
+    const tap = FakeAudioContext.made[0]
+    expect(tap.lastSource.started).toBe(true)
+    expect(tap.lastSource.out).toBe(tap.lastGain)
+    expect(tap.lastGain.gain.curveDur).toBe(25)
+    expect(tap.lastGain.out).toBe(tap.destination)
+  })
+
+  it('then a new microphone, then both, then again every 5 minutes, each logged', async () => {
+    await load({ deafMics: 1 }); await t.start()
+    await tick(10500)
+    expect(last('recover').step).toBe('engine')
+    await tick(10500)
+    expect(last('recover').step).toBe('mic')
+    expect(browser.tracks[0].readyState).toBe('ended')
+    await tick(2000)
+    expect(t.hearing()).toBe(true)
+    expect(last('recovered')).toMatchObject({ step: 'mic' })
+
+    await load(); await t.start()
+    room.rms = 0
+    await tick(10500); await tick(10500); await tick(10500)
+    expect(d.diagEvents().filter(e => e[1] === 'recover').map(e => e[2].step)).toEqual(['engine', 'mic', 'both'])
+    await tick(4 * 60000)
+    expect(d.diagEvents().filter(e => e[1] === 'recover')).toHaveLength(3)
+    await tick(60000)
+    expect(last('recover')).toMatchObject({ step: 'engine', attempt: 4 })
+  })
+
+  it('a microphone prompt nobody answers (asleep) does not stop the night', async () => {
+    await load({ deafMics: 1 }); await t.start()
+    browser.mic = 'hang'
+    await tick(21000)   // engine, then mic: the prompt waits
+    expect(last('recover').step).toBe('mic')
+    await tick(16000)
+    expect(last('recover-stuck')).toMatchObject({ step: 'mic' })
+    const n = t.samples.db.length
+    await tick(5000)
+    expect(t.samples.db.length).toBe(n + 5)   // still counting the night, as gaps
+  })
+
+  it('while the phone is locked (page hidden) silence is expected: no alarm about it, no recovery', async () => {
+    await load(); await t.start()
+    setVisibility('hidden')
+    room.rms = 0
+    await tick(60000)
+    expect(types()).not.toContain('mic-silent')
+    expect(types()).not.toContain('recover')
+  })
+
+  it('stop lets go of a rebuilt engine too', async () => {
+    await load({ deafEngines: 1 }); await t.start()
+    await tick(12000)
+    t.stop()
+    expect(FakeAudioContext.made.every(c => c.state === 'closed')).toBe(true)
+  })
+})

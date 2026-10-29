@@ -1,5 +1,5 @@
-import { it, expect } from 'vitest'
-import { sleepScore, insights } from './score.js'
+import { describe, it, expect } from 'vitest'
+import { sleepScore, insights, unrecorded } from './score.js'
 
 const settings = { bedtime: '23:00' }
 const at = (d, h, m) => new Date(2026, 9, d, h, m).getTime()
@@ -49,4 +49,33 @@ it('snoring through the night: says the hour with the most of it', () => {
   const n = { bed: start, on: start + 600000, snoreMin: 30, timeline: { start, states: 'l'.repeat(600) },
     events: [{ t: at(21, 1, 10), kind: 'snore', sec: 300 }, { t: at(21, 3, 5), kind: 'snore', sec: 900 }, { t: at(21, 3, 40), kind: 'snore', sec: 600 }, { t: at(21, 23, 30), kind: 'snore', sec: 100 }] }
   expect(insights(n).join(' ')).toContain('You snored for about 30 min, mostly between 03:00 and 04:00.')
+})
+
+describe('a night the microphone did not record', () => {
+  const start = at(28, 1, 31)
+  const blank = { bed: start, wake: start + 37276000, on: null, asleepMin: 0, timeline: { start, states: 'g'.repeat(1242) + 'w' } }
+
+  it('is told apart from a night without sleep', () => {
+    expect(unrecorded(blank)).toBe(true)
+    expect(unrecorded({ ...blank, timeline: { start, states: 'w'.repeat(1243) } })).toBe(false)
+    expect(unrecorded({ bed: 0, wake: 1 })).toBe(false)   // nights from before timelines
+  })
+
+  it('says the microphone recorded nothing, not that you were moving', () => {
+    const text = insights(blank)
+    expect(text).toEqual(['The microphone recorded nothing (10h 21m), so this night has no score.'])
+    expect(text.join(' ')).not.toMatch(/moving/)
+    // the last half-minute block is padded: never more than the time in bed (10h 21m 16s here)
+    expect(insights({ ...blank, timeline: { start, states: 'g'.repeat(1243) } })[0]).toMatch(/\(10h 21m\)/)
+  })
+
+  it('names the stretches it missed in a recorded night', () => {
+    const states = 'w'.repeat(30) + 'l'.repeat(60) + 'g'.repeat(60) + 'l'.repeat(200) + 'g'.repeat(10) + 'l'.repeat(100)
+    const n = { bed: start, wake: start + states.length * 30000, on: start + 15 * 60000, asleepMin: 180, timeline: { start, states } }
+    expect(insights(n)).toContain('The microphone recorded nothing for 35 min in 2 stretches, the longest from 02:16.')
+    const one = { ...n, timeline: { start, states: 'l'.repeat(100) + 'g'.repeat(30) + 'l'.repeat(100) } }
+    expect(insights(one)).toContain('The microphone recorded nothing for 15 min, from 02:21.')
+    const brief = { ...n, timeline: { start, states: 'l'.repeat(100) + 'g'.repeat(10) + 'l'.repeat(100) } }
+    expect(insights(brief).join(' ')).not.toMatch(/recorded nothing/)   // 5 min: not worth a line
+  })
 })

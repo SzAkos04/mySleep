@@ -17,7 +17,7 @@ export class FakeTrack extends Emitter {
 }
 
 class FakeNode {
-  connect(n) { this.out = n; return n }
+  connect(n) { this.out = n; n.from = this; return n }
   disconnect() { this.out = null }
 }
 
@@ -25,10 +25,14 @@ class FakeNode {
 // is under 500 Hz. Change it between ticks to make sounds.
 export const room = { rms: 0.01, low: 0.3 }
 
+// What reaches an analyser: nothing from a deaf engine or a deaf microphone (last night's iPhone:
+// a live, unmuted track that delivered exact zeros), else the room.
 class FakeAnalyser extends FakeNode {
   fftSize = 2048; smoothingTimeConstant = 0.8
+  constructor(ctx) { super(); this.ctx = ctx }
+  get heard() { return this.ctx.deaf || this.from?.stream?.getAudioTracks()[0]?.deaf ? 0 : room.rms }
   get frequencyBinCount() { return this.fftSize / 2 }
-  getFloatTimeDomainData(a) { for (let i = 0; i < a.length; i++) a[i] = i % 2 ? room.rms : -room.rms }
+  getFloatTimeDomainData(a) { const r = this.heard; for (let i = 0; i < a.length; i++) a[i] = i % 2 ? r : -r }
   getFloatFrequencyData(f) {
     // two levels, so that the share of power below 500 Hz is room.low (bins 50–4000 Hz counted)
     const hz = 48000 / this.fftSize, lowBins = Math.floor(500 / hz) - Math.ceil(50 / hz), restBins = Math.ceil(4000 / hz) - Math.floor(500 / hz)
@@ -44,9 +48,13 @@ export class FakeAudioContext {
   state = 'suspended'; sampleRate = 48000; destination = new FakeNode(); born = Date.now()
   get currentTime() { return (Date.now() - this.born) / 1000 }   // the audio clock runs with the (fake) wall clock
   audioWorklet = { addModule: async () => { if (browser.worklet === 'fail') throw new Error('worklet refused') } }
-  constructor() { FakeAudioContext.made.push(this) }
+  constructor() {
+    FakeAudioContext.made.push(this)
+    this.sessionAtBirth = navigator.audioSession?.type   // iOS sets up the engine for the session it is born in
+    this.deaf = browser.deafEngines > 0 && browser.deafEngines-- > 0
+  }
   createMediaStreamSource(s) { const n = new FakeNode(); n.stream = s; return n }
-  createAnalyser() { return new FakeAnalyser() }
+  createAnalyser() { return new FakeAnalyser(this) }
   createGain() { const g = new FakeNode(); g.gain = new FakeParam(); return this.lastGain = g }
   createBufferSource() { const s = new FakeNode(); Object.assign(s, { start() { s.started = true }, stop() { s.stopped = true } }); return this.lastSource = s }
   createOscillator() { const s = this.createBufferSource(); s.frequency = new FakeParam(); s.oscillator = true; return s }
@@ -85,8 +93,10 @@ class FakeVideo extends Emitter {
 // What the fakes were asked, and switches for how they answer.
 export const browser = {}
 
-export function installBrowser({ mic = 'ok', wakeLock = 'ok', video = 'ok', alarm = 'ok', worklet = 'ok' } = {}) {
-  Object.assign(browser, { mic, wakeLock, video, alarm, worklet, tracks: [], locks: [], videos: [], micRequests: 0, fetches: 0 })
+// deafEngines / deafMics: how many of the next audio engines / microphones deliver only zeros.
+// mic: 'ok', an error name to refuse with, or 'hang' (a prompt nobody answers).
+export function installBrowser({ mic = 'ok', wakeLock = 'ok', video = 'ok', alarm = 'ok', worklet = 'ok', deafEngines = 0, deafMics = 0 } = {}) {
+  Object.assign(browser, { mic, wakeLock, video, alarm, worklet, deafEngines, deafMics, tracks: [], locks: [], videos: [], micRequests: 0, fetches: 0 })
   Object.assign(room, { rms: 0.01, low: 0.3 })
   FakeAudioContext.made = []
   const nav = {
@@ -94,8 +104,10 @@ export function installBrowser({ mic = 'ok', wakeLock = 'ok', video = 'ok', alar
     mediaDevices: {
       getUserMedia: async () => {
         browser.micRequests++
+        if (browser.mic === 'hang') return new Promise(() => {})
         if (browser.mic !== 'ok') throw new DOMException('The request is not allowed', browser.mic)
         const t = new FakeTrack(); browser.tracks.push(t)
+        t.deaf = browser.deafMics > 0 && browser.deafMics-- > 0
         return { getAudioTracks: () => [t], getTracks: () => [t] }
       }
     },

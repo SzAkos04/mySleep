@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useStore, defaultSettings } from '../store.js'
 import { summarize } from '../lib/analysis.js'
 import { nightIdOf } from '../lib/time.js'
+import { sleepScore } from '../lib/score.js'
 import { Today } from './Today.jsx'
 import { Journal } from './Journal.jsx'
 import { Trends } from './Trends.jsx'
@@ -96,5 +97,41 @@ describe('the night screen', () => {
     expect(t).toMatch(/Stopped listening at 00:40/)
     expect(t).toMatch(/Resume listening/)
     expect(t).toMatch(/Hold to finish the night/)
+  })
+})
+
+describe('a night the microphone did not record (29 October)', () => {
+  const blank = d => { const n = night(d); return { ...n, on: null, asleepMin: 0, restfulMin: 0, wakes: 0, events: [], timeline: { ...n.timeline, states: 'g'.repeat(n.timeline.states.length) } } }
+  const scoreOf = n => sleepScore(n, defaultSettings()).score
+
+  it('its page says nothing was recorded, not that it was a rough night, and compares it with nothing', () => {
+    const n = blank(1); seed([n, night(2), night(3), night(4)])
+    const t = text(render(<Routes><Route path="/night/:id" element={<Night />} /></Routes>, '/night/' + n.id))
+    expect(t).toMatch(/Nothing recorded/)
+    expect(t).not.toMatch(/rough night/)
+    expect(t).not.toMatch(/your week/)
+    expect(t).toMatch(/The microphone recorded nothing \(8h 00m\), so this night has no score/)
+    expect(t).not.toMatch(/Microphone sent nothing/)   // a night from before silence was counted
+    const logged = { ...n, diag: { ...n.diag, micSilent: 2, recoveries: 6, recovered: 0 } }; seed([logged])
+    const t2 = text(render(<Routes><Route path="/night/:id" element={<Night />} /></Routes>, '/night/' + n.id))
+    expect(t2).toMatch(/Microphone sent nothing 2/)
+    expect(t2).toMatch(/Ways back tried 6 · worked 0/)
+  })
+
+  it('Today: the last night says nothing was recorded, and the week average leaves it out', () => {
+    const good = [night(2), night(3)]
+    seed([blank(1), ...good])
+    const t = text(render(<Today />))
+    expect(t).toMatch(/Nothing recorded/)
+    expect(t).toMatch(new RegExp(`Average ${Math.round((scoreOf(good[0]) + scoreOf(good[1])) / 2)}\\b`))
+  })
+
+  it('does not pull down the averages: a recorded night, Journal and Trends', () => {
+    const good = [night(2), night(3), night(4)], last = night(5)
+    seed([blank(1), ...good, last])
+    const t = text(render(<Routes><Route path="/night/:id" element={<Night />} /></Routes>, '/night/' + good[0].id))
+    expect(t).toMatch(new RegExp(`your week \\(${scoreOf(good[1])}\\)`))   // the other recorded nights only
+    expect(text(render(<Journal />))).toMatch(new RegExp(`Average ${scoreOf(good[0])} ·`))
+    expect(text(render(<Trends />))).toMatch(new RegExp(`\\b${scoreOf(good[0])}\\b`))
   })
 })

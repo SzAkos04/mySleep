@@ -8,9 +8,9 @@ import { mount, unmount, button, byText, text, click, hold, flush } from '../tes
 // sound) is a stand-in here; it has its own tests in lib/tracker.test.js.
 const tracker = vi.hoisted(() => ({
   samples: { start: 0, db: [], low: [], mid: [], vr: [], at: [] }, clips: [], awake: 'lock', alarmProblem: null,
-  live: true, tone: false,
+  live: true, silent: false, lvl: null, tone: false,
   start: null, stop: null, ring: null, snooze: null,
-  micLive() { return this.live }, ringingTone() { return this.tone },
+  micLive() { return this.live }, hearing() { return this.live && !this.silent }, level() { return this.lvl }, ringingTone() { return this.tone },
   nowPlaying() {}, saveProgress() {}, heartbeat() {}, collectClips: async () => {}, clearProgress() {}, loadProgress: () => false
 }))
 vi.mock('../lib/tracker.js', () => tracker)
@@ -33,7 +33,7 @@ function Screen() {
 
 beforeEach(async () => {
   vi.useFakeTimers({ now: T0, toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
-  Object.assign(tracker, { live: true, tone: false, awake: 'lock', alarmProblem: null, clips: [] })
+  Object.assign(tracker, { live: true, silent: false, lvl: null, tone: false, awake: 'lock', alarmProblem: null, clips: [] })
   Object.assign(tracker.samples, { start: T0, db: [], low: [], mid: [], vr: [], at: [] })
   for (const f of ['start', 'stop', 'ring', 'snooze']) tracker[f] = vi.fn(async () => {})
   tracker.stop = vi.fn()
@@ -136,5 +136,37 @@ describe('when something stopped', () => {
     tracker.awake = 'none'
     await wait(1000)
     expect(text()).toMatch(/Auto-Lock to Never/)
+  })
+})
+
+describe('the sound meter', () => {
+  const meter = () => document.querySelector('[role=meter][aria-label="Sound level"]')
+
+  it('while the screen is lit, shows what the microphone hears, second by second', async () => {
+    tracker.lvl = 55
+    await wait(1000)
+    expect(meter().getAttribute('aria-valuenow')).toBe('50')   // 20–90 on the dB scale is 0–100
+    tracker.lvl = 76
+    await wait(1000)
+    expect(meter().getAttribute('aria-valuenow')).toBe('80')
+    tracker.lvl = null
+    await wait(1000)
+    expect(meter().getAttribute('aria-valuenow')).toBe('0')
+  })
+
+  it('is gone once the screen dims: no lit pixels all night', async () => {
+    tracker.lvl = 55
+    await wait(30000)
+    expect(meter()).toBeNull()
+  })
+
+  it('a microphone that sends nothing: says so, and a tap restarts it', async () => {
+    tracker.silent = true
+    await wait(1000)
+    expect(text()).toMatch(/Not hearing anything · tap to restart/)
+    expect(text()).not.toMatch(/Listening/)
+    tracker.silent = false
+    await click(byText(/Not hearing anything/).closest('button'))
+    expect(tracker.start).toHaveBeenCalledWith({ resume: true })
   })
 })

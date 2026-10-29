@@ -109,7 +109,8 @@ export function diagSummary() {
     lockOk: c('wakelock'), lockFailed: c('wakelock-failed'), lockReleased: c('wakelock-released'),
     videoOk: c('video-playing'), videoFailed: c('video-failed'),
     micLost: c('mic-ended') + c('mic-dead'), hidden: c('visibility') ? log.events.filter(e => e[1] === 'visibility' && e[2]?.state === 'hidden').length : 0,
-    reloads: c('page-reloaded'), stalls: c('stall'), errors: c('error')
+    reloads: c('page-reloaded'), stalls: c('stall'), errors: c('error'),
+    micSilent: c('mic-silent'), recoveries: c('recover'), recovered: c('recovered')
   }
 }
 

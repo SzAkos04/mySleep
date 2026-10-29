@@ -22,6 +22,8 @@ describe('night log', () => {
     diagStart('2026-10-28', { settings: { wake: '06:45' } })
     diag('wakelock'); diag('wakelock-released'); diag('visibility', { state: 'hidden' }); diag('stall', { ms: 9000 }); diag('mic-dead')
     expect(diagSummary()).toMatchObject({ lockOk: 1, lockReleased: 1, hidden: 1, stalls: 1, micLost: 1, reloads: 0 })
+    diag('mic-silent', { sec: 10 }); diag('recover', { step: 'engine' }); diag('recover', { step: 'mic' }); diag('recovered', { step: 'mic' })
+    expect(diagSummary()).toMatchObject({ micSilent: 1, recoveries: 2, recovered: 1 })
     // the page dies; a new one picks the log up from localStorage
     expect(diagResume('2026-10-29')).toBe(false)
     expect(diagResume('2026-10-28')).toBe(true)

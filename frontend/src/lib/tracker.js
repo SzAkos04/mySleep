@@ -22,7 +22,9 @@ const KEYS = ['db', 'low', 'mid', 'vr', 'at']
 export const samples = { start: 0, db: [], low: [], mid: [], vr: [], at: [] }
 export const clips = []        // { id, t, kind, sec, blob } cut tonight, uploaded when the night ends
 
-let ctx = null, stream = null, analyser = null, ringNode = null, poll = null, wakeLock = null, wallAt0 = 0
+// `ctx` is the audio engine made in the Sleep tap: it plays the alarm, so it stays all night.
+// `cap` is the engine the microphone is heard through: `ctx` too, until a recovery builds a new one.
+let ctx = null, cap = null, stream = null, analyser = null, ringNode = null, poll = null, wakeLock = null, wallAt0 = 0
 const fresh = () => ({ n: 0, db: -Infinity, low: 0, mid: 0, dbs: [], at: 0 })
 // a page reloaded in the night can be finished without listening again, so never null
 let acc = fresh(), lastDb = null
@@ -113,7 +115,21 @@ export function keepAwake() {
   startVideo()
 }
 
+// The session first: iOS sets an engine up for the session it is born in. On 29 October an engine
+// made before the switch to recording heard nothing all night.
+function newEngine() {
+  if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'
+  const c = new AudioContext()
+  c.onstatechange = () => diag('ctx', { state: c.state, alarm: c === ctx })
+  return c
+}
+
 async function openMic() {
+  await getMic()
+  await connect()
+}
+
+async function getMic() {
   closeMic()   // a reopen replaces the old stream, it does not leave it running beside the new one
   if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'
   try {
@@ -122,27 +138,91 @@ async function openMic() {
   const track = stream.getAudioTracks()[0]
   diag('mic-open', { label: track?.label, settings: track?.getSettings?.(), session: navigator.audioSession?.type })
   for (const ev of ['ended', 'mute', 'unmute']) track?.addEventListener(ev, () => diag('mic-' + ev, { readyState: track.readyState, muted: track.muted, visibility: document.visibilityState }))
-  const src = ctx.createMediaStreamSource(stream)
-  analyser = ctx.createAnalyser()
+}
+
+// The microphone into `cap`: an analyser for the readings, and the clip buffer.
+async function connect() {
+  const src = cap.createMediaStreamSource(stream)
+  analyser = cap.createAnalyser()
   analyser.fftSize = 2048
   analyser.smoothingTimeConstant = 0
   src.connect(analyser)
   try {
     if (!ringNode) {
-      await ctx.audioWorklet.addModule(ringWorklet)
-      ringNode = new AudioWorkletNode(ctx, 'ring', { processorOptions: { rate: 16000, seconds: RING_SEC } })
-      const mute = ctx.createGain(); mute.gain.value = 0
-      ringNode.connect(mute).connect(ctx.destination)   // pulled by the graph, heard by nobody
+      await cap.audioWorklet.addModule(ringWorklet)
+      ringNode = new AudioWorkletNode(cap, 'ring', { processorOptions: { rate: 16000, seconds: RING_SEC } })
+      const mute = cap.createGain(); mute.gain.value = 0
+      ringNode.connect(mute).connect(cap.destination)   // pulled by the graph, heard by nobody
     }
     src.connect(ringNode)
   } catch (e) { ringNode = null; diag('clips-unavailable', { message: e?.message }) }   // no clips then; the night is still tracked
-  await ctx.resume()
-  wallAt0 = Date.now() - ctx.currentTime * 1000
-  diag('ctx', { state: ctx.state, sampleRate: ctx.sampleRate, clips: !!ringNode })
+  await cap.resume()
+  wallAt0 = Date.now() - cap.currentTime * 1000
+  diag('ctx', { state: cap.state, sampleRate: cap.sampleRate, clips: !!ringNode, session: navigator.audioSession?.type })
 }
 // muted: iOS took the microphone (a call, Siri, the screen locked); it delivers silence, not the room
 export const micLive = () => !!stream && stream.getAudioTracks().some(t => t.readyState === 'live' && !t.muted)
 function closeMic() { stream?.getTracks().forEach(t => t.stop()); stream = null; analyser = null }
+const micTrack = () => stream?.getAudioTracks()[0]
+
+/* ---------- a microphone that sends nothing ----------
+   On 29 October iOS said the microphone was live and unmuted all night, and it sent exact zeros.
+   A real room is never digital silence, so SILENT_SEC of it (or of a dead microphone, while the
+   page is on screen) means nothing is arriving: the night screen says so, and the tracker tries
+   its ways back in turn, each logged with what it did: a new audio engine for the same microphone,
+   a new microphone, both. After all three, again every RETRY_MIN. A microphone prompt nobody
+   answers (asleep) is left after STUCK_SEC; the night carries on as gaps. */
+export const SILENT_SEC = 10
+const RETRY_MIN = 5, STUCK_SEC = 15, STEPS = ['engine', 'mic', 'both']
+let silent = false, quietSince = 0, recovering = null, nextTry = 0, attempt = 0, lastStep = null
+export const hearing = () => micLive() && !silent
+
+function nothingArrives(now, live) {
+  if (document.visibilityState !== 'visible') return   // locked or hidden: iOS stops the microphone anyway
+  quietSince ||= now
+  if (!silent && now - quietSince >= SILENT_SEC * 1000) {
+    silent = true
+    const tr = micTrack()
+    diag('mic-silent', { sec: SILENT_SEC, live, muted: tr?.muted, state: tr?.readyState, ctx: cap?.state })
+  }
+  if (silent && !recovering && now >= nextTry) recover(now)
+}
+
+function soundArrives(now) {
+  if (silent) diag('recovered', { step: lastStep, afterSec: Math.round((now - quietSince) / 1000) })
+  silent = false; quietSince = 0; attempt = 0; nextTry = 0; lastStep = null
+}
+
+function recover(now) {
+  const step = STEPS[attempt % STEPS.length]
+  attempt++; lastStep = step
+  diag('recover', { step, attempt })
+  // the next way back if this one brings no sound in SILENT_SEC; after the last, a pause
+  nextTry = now + (attempt % STEPS.length ? SILENT_SEC * 1000 : RETRY_MIN * 60000)
+  const run = async () => {
+    if (step !== 'mic') {
+      const old = cap
+      cap = newEngine(); ringNode = null
+      if (old !== ctx) old?.close().catch(() => {})
+    }
+    if (step === 'engine' && stream) await connect()
+    else await openMic()
+  }
+  const stuck = new Promise(r => setTimeout(r, STUCK_SEC * 1000, 'stuck'))
+  recovering = Promise.race([run(), stuck])
+    .then(r => { if (r === 'stuck') diag('recover-stuck', { step }) }, e => diag('recover-failed', { step, name: e?.name, message: e?.message }))
+    .finally(() => { recovering = null })
+}
+
+// The loudness of the last second, for the night screen's meter; null when nothing is heard.
+export function level() {
+  const v = samples.db.at(-1)
+  return hearing() && Number.isFinite(v) ? v : null
+}
+
+// What the microphone delivered since the last heartbeat (raw dBFS, before the +100).
+const freshMinute = () => ({ reads: 0, zeros: 0, peak: -Infinity, floor: Infinity })
+let minute = freshMinute(), ran = { cap: null, t: 0 }
 
 function push(a) {
   samples.db.push(a.n ? a.db : NaN)
@@ -164,17 +244,22 @@ function read() {
   // seconds the page was not running are gaps
   while (samples.db.length < sec) { push(acc); acc = fresh() }
   const live = !!analyser && micLive()
-  if (live !== micWasLive) { diag(live ? 'mic-live' : 'mic-dead', { visibility: document.visibilityState, ctx: ctx?.state }); micWasLive = live }
-  if (!live) return
+  if (live !== micWasLive) { diag(live ? 'mic-live' : 'mic-dead', { visibility: document.visibilityState, ctx: cap?.state }); micWasLive = live }
+  if (!live) return nothingArrives(now, false)
   const t = new Float32Array(analyser.fftSize), f = new Float32Array(analyser.frequencyBinCount)
   analyser.getFloatTimeDomainData(t)
   analyser.getFloatFrequencyData(f)
   let sum = 0
   for (const v of t) sum += v * v
-  if (!sum) return   // exact digital silence: nothing reaches the graph, a gap and not a quiet room
+  minute.reads++
+  // exact digital silence: nothing reaches the graph, a gap and not a quiet room
+  if (!sum) { minute.zeros++; return nothingArrives(now, true) }
+  soundArrives(now)
   // dB relative to full scale, +100 to keep it positive; only differences matter
-  const db = 20 * Math.log10(Math.sqrt(sum / t.length) || 1e-10) + 100
-  const hz = ctx.sampleRate / analyser.fftSize
+  const raw = 20 * Math.log10(Math.sqrt(sum / t.length))
+  minute.peak = Math.max(minute.peak, raw); minute.floor = Math.min(minute.floor, raw)
+  const db = raw + 100
+  const hz = cap.sampleRate / analyser.fftSize
   let lo = 0, mid = 0, all = 0
   for (let i = Math.ceil(50 / hz); i < Math.min(f.length, 4000 / hz); i++) {
     const p = 10 ** (f[i] / 10), at = i * hz
@@ -198,10 +283,11 @@ async function onVisible() {
 // Call from the Start tap. `resume` continues a night whose page was closed (gap in between).
 export async function start({ resume = false } = {}) {
   keepAwake()
-  ctx = ctx || new AudioContext()
-  ctx.onstatechange = () => diag('ctx', { state: ctx?.state })
+  ctx = ctx || newEngine()
+  cap = ctx
   if (!resume) { for (const k of KEYS) samples[k] = []; samples.start = Date.now(); clips.length = 0 }
   acc = fresh(); lastDb = null; lastRead = 0; micWasLive = true
+  silent = false; quietSince = 0; recovering = null; nextTry = 0; attempt = 0; lastStep = null; minute = freshMinute()
   // no microphone, no night: let go of the screen too
   try { await openMic() } catch (e) { stop(); throw e }
   await lockScreen()
@@ -223,7 +309,8 @@ export function stop() {
   // An open AudioContext keeps the "Now Playing" card on the lock screen; the night is over, so
   // close it. The next Sleep tap makes a new one (the decoded alarm works in any context).
   nowPlaying(null)
-  ctx?.close().catch(() => {}); ctx = null; ringNode = null
+  if (cap !== ctx) cap?.close().catch(() => {})
+  ctx?.close().catch(() => {}); ctx = null; cap = null; ringNode = null
 }
 
 // The lock screen's Now Playing card, which iOS shows while the AudioContext runs: say what it
@@ -362,11 +449,18 @@ export const ringingTone = () => !!ringing?.tone
 
 // Once a minute from the night screen: the state of everything that keeps the night going.
 export function heartbeat() {
-  const last60 = samples.db.slice(-60)
+  const last60 = samples.db.slice(-60), tr = micTrack(), round = v => Number.isFinite(v) ? Math.round(v) : null
+  // how far the capture engine's clock ran since the last beat: 0 means it stood still
+  const now = cap?.currentTime ?? 0, ranSec = Math.round(ran.cap === cap ? now - ran.t : now)
+  ran = { cap, t: now }
   diag('beat', {
     sec: samples.db.length, missing60: last60.filter(v => !Number.isFinite(v)).length,
-    db: Math.round(Math.max(...last60.filter(Number.isFinite), -1)), live: micLive(), ctx: ctx?.state,
+    db: Math.round(Math.max(...last60.filter(Number.isFinite), -1)), live: micLive(), hearing: hearing(), ctx: cap?.state,
+    ...(cap !== ctx && { alarmCtx: ctx?.state }),
+    reads: minute.reads, zeros: minute.zeros, peak: round(minute.peak), floor: round(minute.floor), ran: ranSec,
+    track: tr ? { muted: tr.muted, enabled: tr.enabled ?? true, state: tr.readyState } : null,
     awake, lock: !!wakeLock && !wakeLock.released, video: video ? (video.paused ? 'paused' : 'playing') : 'none',
     visibility: document.visibilityState, clips: clips.length, session: navigator.audioSession?.type
   })
+  minute = freshMinute()
 }

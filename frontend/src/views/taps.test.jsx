@@ -283,6 +283,20 @@ describe('the Journal and Trends', () => {
     expect(day.classList.contains('sel')).toBe(true)
   })
 
+  it('a night the microphone did not record: marked in the calendar, and its card says so', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 29, 9, 0), toFake: ['Date'] })
+    const blank = { ...night, id: '2026-10-27', asleepMin: 0, on: null, timeline: { ...night.timeline, states: 'g'.repeat(night.timeline.states.length) } }
+    useStore.setState({ nights: { [night.id]: night, [blank.id]: blank } })
+    await mount(<MemoryRouter><Journal /></MemoryRouter>)
+    const day = document.querySelector('button[aria-label="Tue, Oct 27, nothing recorded"]')
+    expect(day.disabled).toBe(false)
+    expect(day.classList.contains('blank')).toBe(true)
+    await click(day)
+    expect(day.classList.contains('sel')).toBe(true)
+    expect(text()).toMatch(/Nothing recorded/)
+    expect(text()).not.toMatch(/0 min asleep/)
+  })
+
   it('Trends: week, month and year, and snoring only when there was some', async () => {
     const more = Object.fromEntries([1, 2, 3].map(d => { const id = `2026-10-2${d}`; return [id, { ...night, id, snoreMin: d === 2 ? 14 : 0 }] }))
     useStore.setState({ nights: { [night.id]: night, ...more } })

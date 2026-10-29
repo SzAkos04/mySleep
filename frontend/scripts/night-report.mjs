@@ -32,17 +32,22 @@ for (const [t, type, data] of log.events) {
 
 const beats = log.events.filter(e => e[1] === 'beat')
 if (beats.length) {
-  console.log('\nheartbeats (every minute): time  sec  missing/60  loudest  mic  ctx  awake  lock  video  vis')
-  const shown = all ? beats : beats.filter((b, i) => i < 5 || i >= beats.length - 5 || b[2].missing60 || !b[2].live || b[2].awake === 'none' || b[2].visibility !== 'visible')
+  // reads/zeros: analyser reads this minute and how many were exact digital silence; raw: the
+  // level range in dBFS; ran: seconds the capture engine's clock moved (from 30 October)
+  console.log('\nheartbeats (every minute): time  sec  missing/60  loudest  mic  hearing  reads/zeros  raw dBFS  ran  ctx  awake  lock  video  vis')
+  const shown = all ? beats : beats.filter((b, i) => i < 5 || i >= beats.length - 5 || b[2].missing60 || !b[2].live || b[2].hearing === false || b[2].zeros || b[2].awake === 'none' || b[2].visibility !== 'visible')
   let prev = -1
   for (const b of shown) {
     const i = beats.indexOf(b)
     if (prev >= 0 && i > prev + 1) console.log(`   … ${i - prev - 1} normal minutes`)
     prev = i
     const d = b[2]
-    console.log(` ${at(b[0])}  ${String(d.sec).padStart(5)}  ${String(d.missing60).padStart(3)}  ${String(d.db).padStart(4)}  ${d.live ? 'live' : 'DEAD'}  ${d.ctx}  ${d.awake}  ${d.lock}  ${d.video}  ${d.visibility}`)
+    const raw = d.peak == null ? '   –   ' : `${d.floor}…${d.peak}`
+    console.log(` ${at(b[0])}  ${String(d.sec).padStart(5)}  ${String(d.missing60).padStart(3)}  ${String(d.db).padStart(4)}  ${d.live ? 'live' : 'DEAD'}  ${d.hearing === false ? 'NO ' : d.hearing ? 'yes' : ' ? '}  ${d.reads ?? '?'}/${d.zeros ?? '?'}  ${raw}  ${d.ran ?? '?'}  ${d.ctx}${d.alarmCtx ? '/alarm ' + d.alarmCtx : ''}  ${d.awake}  ${d.lock}  ${d.video}  ${d.visibility}`)
   }
   // the page stops beating when it stops running: say where the last one was
+  const tries = log.events.filter(e => /^(mic-silent|recover|recovered|recover-stuck|recover-failed)$/.test(e[1]))
+  if (tries.length) console.log(`\nsilence and ways back: ${tries.map(e => `${at(e[0])} ${e[1]}${e[2]?.step ? ' ' + e[2].step : ''}`).join(', ').slice(0, 2000)}`)
   const last = beats.at(-1)
   console.log(` last beat ${at(last[0])}; log ends ${at(log.events.at(-1)[0])}`)
 }

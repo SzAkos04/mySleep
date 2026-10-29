@@ -1,6 +1,6 @@
 import { useStore, nightList } from '../store.js'
 import { Timeline, ScoreRing } from './Charts.jsx'
-import { sleepScore, insights } from '../lib/score.js'
+import { sleepScore, insights, unrecorded } from '../lib/score.js'
 import { dur } from '../lib/time.js'
 
 export const verdict = s => s >= 85 ? 'A great night' : s >= 70 ? 'A good night' : s >= 55 ? 'An okay night' : 'A rough night'
@@ -9,8 +9,9 @@ export const verdict = s => s >= 85 ? 'A great night' : s >= 70 ? 'A good night'
 // The morning screen, the top of Today in the morning, and the night's own page.
 export function NightReport({ n, label = 'Sleep score' }) {
   const settings = useStore(s => s.settings), nights = nightList(useStore(s => s.nights))
-  const score = sleepScore(n, settings).score
-  const week = nights.filter(x => x.id !== n.id).slice(0, 7)
+  const score = sleepScore(n, settings).score, blank = unrecorded(n)
+  // the week it is compared with: nights the microphone recorded
+  const week = nights.filter(x => x.id !== n.id && !unrecorded(x)).slice(0, 7)
   const avg = week.length >= 3 ? Math.round(week.reduce((s, x) => s + sleepScore(x, settings).score, 0) / week.length) : null
   const latency = n.on ? Math.round((n.on - n.bed) / 60000) : null
   return <div className="hero">
@@ -18,8 +19,8 @@ export function NightReport({ n, label = 'Sleep score' }) {
       <ScoreRing score={score} size={88} />
       <div>
         <div className="eyebrow">{label}</div>
-        <div className="report-title">{verdict(score)}</div>
-        {avg != null && <div className="small muted">{score > avg ? 'Better than' : score < avg ? 'Below' : 'Same as'} your week ({avg})</div>}
+        <div className="report-title">{blank ? 'Nothing recorded' : verdict(score)}</div>
+        {avg != null && !blank && <div className="small muted">{score > avg ? 'Better than' : score < avg ? 'Below' : 'Same as'} your week ({avg})</div>}
       </div>
     </div>
     <div className="facts">

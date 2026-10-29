@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useStore, nightList } from '../store.js'
 import { Icon } from '../components/Icon.jsx'
 import { Timeline, ScoreRing, scoreColor } from '../components/Charts.jsx'
-import { sleepScore } from '../lib/score.js'
+import { sleepScore, unrecorded } from '../lib/score.js'
 import { dayLabel, dur } from '../lib/time.js'
 
 const pad = n => String(n).padStart(2, '0')
@@ -19,13 +19,14 @@ export function Journal() {
   const y = month.getFullYear(), m = month.getMonth()
   const days = new Date(y, m + 1, 0).getDate(), lead = (new Date(y, m, 1).getDay() + 6) % 7
   const inMonth = nights.filter(n => n.id.startsWith(`${y}-${pad(m + 1)}`))
-  const avg = inMonth.length ? Math.round(inMonth.reduce((t, n) => t + sleepScore(n, settings).score, 0) / inMonth.length) : null
+  const scored = inMonth.filter(n => !unrecorded(n))
+  const avg = scored.length ? Math.round(scored.reduce((t, n) => t + sleepScore(n, settings).score, 0) / scored.length) : null
   const n = byId[sel]
   const go = d => setMonth(new Date(y, m + d, 1))
 
   return <>
     <header className="hdr">
-      <div><h1>{MONTH[m]}{y !== now.getFullYear() ? ' ' + y : ''}</h1><div className="sub">{inMonth.length ? `Average ${avg} · ${inMonth.length} ${inMonth.length === 1 ? 'night' : 'nights'}` : 'No nights this month'}</div></div>
+      <div><h1>{MONTH[m]}{y !== now.getFullYear() ? ' ' + y : ''}</h1><div className="sub">{inMonth.length ? `${avg != null ? `Average ${avg} · ` : ''}${inMonth.length} ${inMonth.length === 1 ? 'night' : 'nights'}` : 'No nights this month'}</div></div>
       <div className="hdr-btns">
         <button className="iconbtn" onClick={() => go(-1)} aria-label="Previous month"><Icon name="back" /></button>
         <button className="iconbtn" onClick={() => go(1)} aria-label="Next month" disabled={y === now.getFullYear() && m === now.getMonth()}><Icon name="chev" /></button>
@@ -38,10 +39,10 @@ export function Journal() {
         {Array.from({ length: lead }, (_, i) => <span key={'l' + i} />)}
         {Array.from({ length: days }, (_, i) => {
           const id = `${y}-${pad(m + 1)}-${pad(i + 1)}`, night = byId[id], future = new Date(y, m, i + 1) > now
-          const c = night && scoreColor(sleepScore(night, settings).score)
-          return <button key={id} className={'c' + (future ? ' fut' : '') + (id === sel ? ' sel' : '')} disabled={!night}
+          const blank = night && unrecorded(night), c = night && !blank && scoreColor(sleepScore(night, settings).score)
+          return <button key={id} className={'c' + (future ? ' fut' : '') + (blank ? ' blank' : '') + (id === sel ? ' sel' : '')} disabled={!night}
             style={c ? { background: `color-mix(in srgb,${c} 30%,transparent)`, color: 'var(--label)' } : null}
-            onClick={() => setSel(id)} aria-label={night ? `${dayLabel(id)}, score ${sleepScore(night, settings).score}` : undefined}>{i + 1}</button>
+            onClick={() => setSel(id)} aria-label={night ? `${dayLabel(id)}, ${blank ? 'nothing recorded' : 'score ' + sleepScore(night, settings).score}` : undefined}>{i + 1}</button>
         })}
       </div>
     </div>
@@ -51,7 +52,7 @@ export function Journal() {
         <ScoreRing score={sleepScore(n, settings).score} size={58} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="eyebrow">{dayLabel(n.id)}</div>
-          <div className="last-title">{dur(n.asleepMin || 0)} asleep</div>
+          <div className="last-title">{unrecorded(n) ? 'Nothing recorded' : dur(n.asleepMin || 0) + ' asleep'}</div>
           <div className="small muted">{[n.wakes ? `Woke ${n.wakes === 1 ? 'once' : n.wakes + ' times'}` : n.on && 'Slept through', n.snoreMin ? `snored ${n.snoreMin} min` : null, n.talks ? `talked ${n.talks === 1 ? 'once' : n.talks + ' times'}` : null].filter(Boolean).join(' · ')}</div>
         </div>
         <Icon name="chev" className="chev" />

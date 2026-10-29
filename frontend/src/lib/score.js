@@ -42,7 +42,17 @@ function longestRun(t, ch) {
 
 const times = list => list.map(e => clockOf(e.t)).join(', ')
 
+// Most of the night without a recording ('g' epochs): the microphone sent nothing (29 October),
+// which says nothing about sleep. Told apart from a night the microphone heard and found no sleep in.
+const UNRECORDED = 0.9
+const gapRuns = t => [...t.states.matchAll(/g+/g)].map(m => [m.index, m[0].length])
+export const unrecorded = n => !!n.timeline?.states?.length && (n.timeline.states.match(/g/g) || []).length >= UNRECORDED * n.timeline.states.length
+
 export function insights(n) {
+  if (unrecorded(n)) {
+    const gapMin = Math.min((n.timeline.states.match(/g/g) || []).length / 2, (n.wake - n.bed) / 60000)   // the last block is padded
+    return [`The microphone recorded nothing (${dur(gapMin)}), so this night has no score.`]
+  }
   const out = []
   if (n.timeline && !n.on) out.push('No sleep was heard: you were moving, or the recording was too short.')
   if (n.on) out.push(`You fell asleep at ${clockOf(n.on)}, ${Math.round((n.on - n.bed) / 60000)} min after going to bed.`)
@@ -58,6 +68,11 @@ export function insights(n) {
   if (cough.length) out.push(`You coughed ${cough.length === 1 ? 'once' : cough.length + ' times'} (${times(cough.slice(0, 4))}${cough.length > 4 ? '…' : ''}).`)
   const noise = ev.filter(e => e.kind === 'noise')
   if (noise.length) out.push(`The room was noisy ${noise.length === 1 ? 'once' : noise.length + ' times'} (${times(noise.slice(0, 3))}): long sounds that were not you.`)
+  const gaps = n.timeline ? gapRuns(n.timeline) : [], gapMin = gaps.reduce((s, g) => s + g[1], 0) / 2
+  if (gapMin >= 10) {
+    const longest = gaps.reduce((a, b) => b[1] > a[1] ? b : a), from = clockOf(n.timeline.start + longest[0] * 30000)
+    out.push(`The microphone recorded nothing for ${dur(gapMin)}${gaps.length > 1 ? ` in ${gaps.length} stretches, the longest from ${from}` : `, from ${from}`}.`)
+  }
   const calm = n.timeline && longestRun(n.timeline, 'd')
   if (calm && calm[1] - calm[0] >= 20 * 60000) out.push(`Your most restful stretch was ${clockOf(calm[0])}–${clockOf(calm[1])} (estimate).`)
   return out

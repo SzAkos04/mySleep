@@ -3,7 +3,7 @@ import { useStore, nightList } from '../store.js'
 import { Bars, Windows, scoreColor } from '../components/Charts.jsx'
 import { summary, fromNoon, noonToClock } from '../lib/stats.js'
 import { dur } from '../lib/time.js'
-import { sleepScore, NEED } from '../lib/score.js'
+import { sleepScore, unrecorded, NEED } from '../lib/score.js'
 
 const toNoon = hhmm => { const [h, m] = hhmm.split(':').map(Number); return (h * 60 + m + 720) % 1440 }
 
@@ -12,8 +12,9 @@ export function Trends() {
   const [N, setN] = useState(7)
   const L = all.slice(0, N), s = summary(L, NEED), chrono = L.slice().reverse()
   const score = n => sleepScore(n, settings).score
-  const avg = L.length ? Math.round(L.reduce((t, n) => t + score(n), 0) / L.length) : 0
-  const prev = all.slice(N, 2 * N), prevAvg = prev.length ? Math.round(prev.reduce((t, n) => t + score(n), 0) / prev.length) : null
+  // averages over the nights the microphone recorded: an empty night says nothing about sleep
+  const mean = list => { const r = list.filter(n => !unrecorded(n)); return r.length ? Math.round(r.reduce((t, n) => t + score(n), 0) / r.length) : null }
+  const avg = mean(L) ?? 0, prevAvg = mean(all.slice(N, 2 * N))
   return <>
     <header className="hdr"><div><h1>Trends</h1></div></header>
     <div className="seg" style={{ marginBottom: 14 }}>

@@ -29,6 +29,12 @@ export async function startNight() {
 
 const rnd = (lo, hi) => Math.round(lo + Math.random() * (hi - lo))
 
+// The last second's loudness, 20–90 on the tracker's dB scale (a quiet bedroom is around 40–50).
+function Meter({ db }) {
+  const pct = db == null ? 0 : Math.max(0, Math.min(100, Math.round((db - 20) / 70 * 100)))
+  return <div className="meter" role="meter" aria-label="Sound level" aria-valuemin="0" aria-valuemax="100" aria-valuenow={pct}><i style={{ width: pct + '%' }} /></div>
+}
+
 // Ends something only after a press held for HOLD_MS; letting go early does nothing.
 // Touch is handled natively with preventDefault: otherwise iOS treats a long press as its own
 // gesture and cancels the pointer half-way through the hold.
@@ -76,7 +82,9 @@ export function Tracking() {
   const tr = useStore(s => s.tracking), setTracking = useStore(s => s.setTracking), saveNight = useStore(s => s.saveNight)
   const nav = useNavigate()
   const [now, setNow] = useState(Date.now())
-  const [live, setLive] = useState(tracker.micLive())
+  const [live, setLive] = useState(tracker.hearing())   // sound is arriving
+  const [micOn, setMicOn] = useState(tracker.micLive())  // iOS says the microphone is on
+  const [level, setLevel] = useState(null)
   const [ringing, setRinging] = useState(null)
   const [lit, setLit] = useState(true)
   const [first, setFirst] = useState(true)
@@ -115,7 +123,9 @@ export function Tracking() {
     const t = setInterval(() => {
       const n = Date.now()
       setNow(n)
-      setLive(tracker.micLive())
+      setLive(tracker.hearing())
+      setMicOn(tracker.micLive())
+      setLevel(tracker.level())
       setAwake(tracker.awake)
       if (n - lastCheck.current < CHECK_MS) return
       lastCheck.current = n
@@ -211,12 +221,14 @@ export function Tracking() {
         ? <div className="pill warn"><i />Stopped listening at {clockOf(stoppedAt(tracker.samples))}</div>
         : live
           ? <div className="pill"><i />Listening · {elapsed < 1 ? 'just started' : dur(elapsed)}</div>
-          : <button className="pill warn" onClick={() => lit && resume()}><i />Microphone stopped · tap to resume</button>}
+          : <button className="pill warn" onClick={() => lit && resume()}><i />{micOn ? 'Not hearing anything · tap to restart' : 'Microphone stopped · tap to resume'}</button>}
       <div>
         <div className="night-clock num">{clockOf(now)}</div>
         <div className="night-line">{win ? `Alarm ${win}` : 'No alarm'}</div>
         {left > 0 && <div className="night-sub">Up to {dur(left)} of sleep</div>}
         {!stale && <div className="night-tags"><span>{heard}</span></div>}
+        {/* lit only: what the microphone hears, so a deaf night shows in seconds, not in the morning */}
+        {!stale && lit && <Meter db={level} />}
         {!stale && awake === 'none' && <div className="night-warn">The screen may lock, and the microphone stops when it does. Set Settings › Display &amp; Brightness › Auto-Lock to Never for the night, and turn off Low Power Mode.</div>}
       </div>
       <div className="night-foot">
