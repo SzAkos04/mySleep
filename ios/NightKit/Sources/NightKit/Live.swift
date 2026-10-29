@@ -65,3 +65,20 @@ public enum LivePlan {
 
   public static func staleDate(updated: Date) -> Date { updated.addingTimeInterval(staleAfter) }
 }
+
+/// The alarm's own lock screen card (AlarmKit's Live Activity): what it says while it rings, while
+/// snoozed (with the time it rings again) and paused.
+public enum AlarmCard {
+  public enum Phase: Sendable { case ringing, snoozing, paused }
+  public struct Text: Equatable, Sendable {
+    public let title: String, subtitle: String, showsTime: Bool
+    public init(title: String, subtitle: String, showsTime: Bool) { self.title = title; self.subtitle = subtitle; self.showsTime = showsTime }
+  }
+  public static func text(_ p: Phase) -> Text {
+    switch p {
+    case .ringing: Text(title: "Good morning", subtitle: "mySleep Night is ringing", showsTime: false)
+    case .snoozing: Text(title: "Snoozing", subtitle: "mySleep Night rings again at", showsTime: true)
+    case .paused: Text(title: "Alarm paused", subtitle: "Open mySleep Night", showsTime: false)
+    }
+  }
+}

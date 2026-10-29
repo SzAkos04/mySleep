@@ -59,3 +59,12 @@ import Foundation
     #expect(back == card)
   }
 }
+
+@Suite struct AlarmCardTests {
+  // the alarm's own card (AlarmKit): what it says in each state, never "Snoozing" while it rings
+  @Test func saysWhatTheAlarmIsDoing() {
+    #expect(AlarmCard.text(.ringing) == AlarmCard.Text(title: "Good morning", subtitle: "mySleep Night is ringing", showsTime: false))
+    #expect(AlarmCard.text(.snoozing) == AlarmCard.Text(title: "Snoozing", subtitle: "mySleep Night rings again at", showsTime: true))
+    #expect(AlarmCard.text(.paused) == AlarmCard.Text(title: "Alarm paused", subtitle: "Open mySleep Night", showsTime: false))
+  }
+}

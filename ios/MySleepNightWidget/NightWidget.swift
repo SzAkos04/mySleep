@@ -82,7 +82,7 @@ private struct NightCard: View {
   }
 }
 
-/// Snoozing (AlarmKit): the countdown to the next ring, on the lock screen.
+/// The alarm's own card (AlarmKit): ringing, snoozed (when it rings again) or paused.
 struct SnoozeLiveActivity: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: AlarmAttributes<NightAlarm>.self) { context in
@@ -92,7 +92,7 @@ struct SnoozeLiveActivity: Widget {
       DynamicIsland {
         DynamicIslandExpandedRegion(.bottom) { SnoozeCard(state: context.state) }
       } compactLeading: {
-        Image(systemName: "zzz").foregroundStyle(accent)
+        if case .countdown = context.state.mode { Image(systemName: "zzz").foregroundStyle(accent) } else { Image(systemName: "sun.max.fill").foregroundStyle(.orange) }
       } compactTrailing: {
         if case .countdown(let c) = context.state.mode { clock(c.fireDate).monospacedDigit() }
       } minimal: {
@@ -105,15 +105,22 @@ struct SnoozeLiveActivity: Widget {
 private struct SnoozeCard: View {
   let state: AlarmPresentationState
   var body: some View {
+    // AlarmKit's state: ringing, snoozed (counting down to the next ring) or paused
+    let (phase, at): (AlarmCard.Phase, Date?) = switch state.mode {
+    case .countdown(let c): (.snoozing, c.fireDate)
+    case .paused: (.paused, nil)
+    default: (.ringing, nil)
+    }
+    let t = AlarmCard.text(phase)
     HStack {
-      Image(systemName: "zzz").font(.title2).foregroundStyle(accent)
+      Image(systemName: phase == .ringing ? "sun.max.fill" : "zzz").font(.title2).foregroundStyle(phase == .ringing ? .orange : accent)
       VStack(alignment: .leading, spacing: 2) {
-        Text("Snoozing").font(.headline).foregroundStyle(.white)
-        Text("mySleep Night rings again at").font(.caption).foregroundStyle(.white.opacity(0.6))
+        Text(t.title).font(.headline).foregroundStyle(.white)
+        Text(t.subtitle).font(.caption).foregroundStyle(.white.opacity(0.6))
       }
       Spacer()
-      if case .countdown(let c) = state.mode {
-        clock(c.fireDate).font(.system(size: 34, weight: .light)).monospacedDigit().foregroundStyle(.white)
+      if t.showsTime, let at {
+        clock(at).font(.system(size: 34, weight: .light)).monospacedDigit().foregroundStyle(.white)
       }
     }
     .padding(16)
