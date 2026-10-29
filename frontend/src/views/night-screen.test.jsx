@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { act } from 'react'
 import { mount, unmount, button, byText, text, click, hold, flush } from '../test/dom.js'
 
 // The night screen and the alarm, tapped through as a sleepy person would. The tracker (microphone,
@@ -21,7 +22,8 @@ const { Tracking } = await import('./Tracking.jsx')
 
 const T0 = new Date(2026, 9, 28, 23, 0).getTime()
 const advance = ms => vi.advanceTimersByTime(ms)
-const wait = async ms => { await flush(); advance(ms); await flush() }
+// time passes inside act(), so React has drawn what the timers changed before the test looks
+const wait = ms => act(async () => { advance(ms) })
 let where
 function Where() { where = useLocation().pathname; return null }
 function Screen() {
@@ -63,9 +65,8 @@ describe('ending the night', () => {
     expect(document.querySelector('.night').classList.contains('dark')).toBe(true)
     await hold(button('Hold to wake up'), 2000, advance)
     expect(tracker.stop).not.toHaveBeenCalled()
-    await click(document.querySelector('.night'))   // (pointerdown lights it; a click stands in)
-    document.querySelector('.night').dispatchEvent(new Event('pointerdown', { bubbles: true }))
-    await flush()
+    // a finger on the screen lights it
+    await act(async () => { document.querySelector('.night').dispatchEvent(new Event('pointerdown', { bubbles: true })) })
     expect(document.querySelector('.night').classList.contains('dark')).toBe(false)
     await hold(button('Hold to wake up'), 1500, advance)
     expect(tracker.stop).toHaveBeenCalledOnce()
