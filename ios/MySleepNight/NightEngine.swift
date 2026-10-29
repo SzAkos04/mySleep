@@ -10,6 +10,27 @@ import UIKit
   @Published private(set) var night: Night?
   @Published private(set) var level: Double?       // the last second's loudness, nil = nothing heard
   @Published private(set) var saved: Date?
+  @Published private(set) var plan: AlarmPlan?     // tonight's alarm, nil = none
+  @Published private(set) var lastNight: (file: URL, minutes: Int, heard: Int)?   // the night just finished
+
+  let alarm = AlarmController()
+  @Published private(set) var selfRinging = false   // no system alarm: the app rings itself
+  private var smart = false, rangEarly = false, lastCheck: Int64 = 0
+  private var player: AVAudioPlayer?, ramp: Timer?, ringStart = Date()
+  // the web app's analysis.js, copied into the app when it is built: the smart alarm's judge
+  private let analysis: Analysis? = Bundle.main.url(forResource: "analysis", withExtension: "js")
+    .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.flatMap { try? Analysis(source: $0) }
+
+  init() {
+    alarm.log = { [weak self] type, data in self?.logNow(type, data) }
+    // Stop on the lock screen ends the night: nothing to do on waking but get up
+    alarm.onStopped = { [weak self] in self?.stop() }
+  }
+
+  private func logNow(_ type: String, _ data: [String: Any]) {
+    guard let n = night else { return }
+    queue.async { n.log(type, data, at: NightEngine.nowMs) }
+  }
 
   private let engine = AVAudioEngine()
   private let queue = DispatchQueue(label: "night")   // every Night call runs here
@@ -25,7 +46,7 @@ import UIKit
     return f.string(from: d)
   }
 
-  func start() async throws {
+  func start(_ settings: AlarmSettings) async throws {
     guard await AVAudioApplication.requestRecordPermission() else { throw NSError(domain: "mySleep", code: 1, userInfo: [NSLocalizedDescriptionKey: "mySleep Night needs the microphone: allow it in Settings."]) }
     let start = Self.nowMs, device = UIDevice.current
     device.isBatteryMonitoringEnabled = true
@@ -37,6 +58,12 @@ import UIKit
     n.log("start", ["battery": device.batteryLevel, "charging": device.batteryState == .charging || device.batteryState == .full])
     try startAudio(reason: "start")
     watch()
+    smart = settings.smart; rangEarly = false
+    plan = AlarmPlan.make(settings, from: Date())
+    if let p = plan {
+      n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart, "analysis": analysis != nil])
+      await alarm.set(at: p.at)
+    }
     timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in Task { @MainActor in self?.everySecond() } }
   }
 
@@ -47,9 +74,13 @@ import UIKit
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    alarm.cancel()
+    silence()
     queue.sync { n.tick(at: Self.nowMs); n.log("finish") }
     save(final: true)
-    night = nil; nightForQueue = nil; level = nil
+    let heard = queue.sync { n.db.filter { !$0.isNaN }.count }
+    lastNight = (fileURL(n), n.db.count / 60, heard / 60)
+    night = nil; nightForQueue = nil; level = nil; plan = nil
   }
 
   // MARK: audio
@@ -90,6 +121,19 @@ import UIKit
       do { try startAudio(reason: "silent") } catch { queue.async { n.log("restart-failed", ["error": "\(error)"]) } }
     }
     if now - lastBeat >= 60_000 { lastBeat = now; minute(now) }
+    // every 10 s: the wake time, or the smart window once the sleeper stirs
+    if let p = plan, !rangEarly, !selfRinging, now - lastCheck >= 10_000 {
+      lastCheck = now
+      let date = Date(), early = max(0, Int(p.at.timeIntervalSince(date) / 60))
+      if p.shouldRing(at: date, smart: smart, isStirring: { [queue, analysis] in queue.sync { analysis?.stirring(n) ?? false } }) {
+        if alarm.phase == .set {
+          // the system alarm rings by itself at the wake time; earlier, it is brought forward
+          if date < p.at { rangEarly = true; queue.async { n.log("wake", ["early": early], at: now) }; Task { await alarm.ringNow() } }
+        } else if alarm.phase == .none {
+          ringItself(early: early)
+        }
+      }
+    }
   }
 
   private func minute(_ now: Int64) {
@@ -114,9 +158,47 @@ import UIKit
     let data = queue.sync { try? n.json(final: final) }
     guard let data else { return }
     // one file per start, so a second start the same night does not overwrite the first
-    try? data.write(to: Self.documents.appendingPathComponent("\(n.night)_\(n.start).json"), options: .atomic)
+    try? data.write(to: fileURL(n), options: .atomic)
     saved = Date()
   }
+
+  // MARK: ringing without the system alarm (Alarms off for the app): the piano through the audio
+  // session kept all night, rising as in the web app. It can only be stopped here, in the app.
+
+  private func ringItself(early: Int) {
+    guard let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"), let p = try? AVAudioPlayer(contentsOf: url) else {
+      logNow("ring-failed", ["reason": "no piano"]); return
+    }
+    p.numberOfLoops = -1
+    p.volume = Float(RiseCurve.gain(at: 0))
+    p.play()
+    player = p; selfRinging = true; ringStart = Date()
+    ramp = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+      Task { @MainActor in guard let self, let p = self.player else { return }; p.volume = Float(RiseCurve.gain(at: Date().timeIntervalSince(self.ringStart))) }
+    }
+    logNow("ring", ["self": true, "early": early])
+  }
+
+  private func silence() {
+    ramp?.invalidate(); ramp = nil
+    player?.stop(); player = nil
+    selfRinging = false
+  }
+
+  /// Stop, from the alarm screen: the night is over.
+  func stopAlarm() {
+    if selfRinging { silence(); logNow("silence", [:]); stop() } else { alarm.stop() }
+  }
+
+  func snoozeAlarm() {
+    guard selfRinging else { return alarm.snooze() }
+    silence()
+    let at = Date().addingTimeInterval(Double(AlarmPlan.snoozeMinutes) * 60)
+    plan = AlarmPlan(from: at, at: at); smart = false; lastCheck = 0
+    logNow("snooze", [:])
+  }
+
+  private func fileURL(_ n: Night) -> URL { Self.documents.appendingPathComponent("\(n.night)_\(n.start).json") }
 
   // MARK: what iOS does to the night
 

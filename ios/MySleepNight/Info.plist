@@ -12,5 +12,10 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<!-- the alarm is the system's (AlarmKit): it rings on the lock screen, through silent mode -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>mySleep Night rings your alarm, at your wake time or earlier when you stir.</string>
 </dict>
 </plist>

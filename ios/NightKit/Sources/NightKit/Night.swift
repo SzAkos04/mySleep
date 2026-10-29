@@ -59,6 +59,11 @@ public final class Night {
     while db.count < sec { push(); acc = Second() }
   }
 
+  /// A whole second as it was recorded (tests, and a night carried over from a saved log).
+  func append(db d: Double, low l: Double, mid m: Double, vr v: Double, at a: Double) {
+    db.append(d); low.append(l); mid.append(m); vr.append(v); at.append(a)
+  }
+
   private func push() {
     let n = Double(acc.n)
     db.append(acc.n > 0 ? acc.db : .nan)
