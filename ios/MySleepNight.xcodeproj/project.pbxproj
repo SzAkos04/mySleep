@@ -6,8 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000000000000000000091 /* MySleepNightWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000071 /* MySleepNightWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A10000000000000000000093 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000050 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000080;
+			remoteInfo = MySleepNightWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A10000000000000000000090 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000000091 /* MySleepNightWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		A10000000000000000000001 /* MySleepNight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MySleepNight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000071 /* MySleepNightWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MySleepNightWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -17,6 +46,13 @@
 				Info.plist,
 			);
 			target = A10000000000000000000030 /* MySleepNight */;
+		};
+		A10000000000000000000073 /* Exceptions for "MySleepNightWidget" folder in "MySleepNightWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A10000000000000000000080 /* MySleepNightWidget */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -34,10 +70,30 @@
 			path = NightKit/Sources/NightKit;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000072 /* MySleepNightWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A10000000000000000000073 /* Exceptions for "MySleepNightWidget" folder in "MySleepNightWidget" target */,
+			);
+			path = MySleepNightWidget;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000074 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A10000000000000000000041 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000082 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -52,6 +108,8 @@
 			children = (
 				A10000000000000000000010 /* MySleepNight */,
 				A10000000000000000000011 /* NightKit */,
+				A10000000000000000000074 /* Shared */,
+				A10000000000000000000072 /* MySleepNightWidget */,
 				A10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -60,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000001 /* MySleepNight.app */,
+				A10000000000000000000071 /* MySleepNightWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -75,19 +134,44 @@
 				A10000000000000000000041 /* Frameworks */,
 				A10000000000000000000042 /* Resources */,
 				A10000000000000000000043 /* Copy the web app's alarm sound and analysis */,
+				A10000000000000000000090 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000092 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000010 /* MySleepNight */,
+				A10000000000000000000011 /* NightKit */,
+				A10000000000000000000074 /* Shared */,
+			);
+			name = MySleepNight;
+			productName = MySleepNight;
+			productReference = A10000000000000000000001 /* MySleepNight.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000080 /* MySleepNightWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000084 /* Build configuration list for PBXNativeTarget "MySleepNightWidget" */;
+			buildPhases = (
+				A10000000000000000000081 /* Sources */,
+				A10000000000000000000082 /* Frameworks */,
+				A10000000000000000000083 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A10000000000000000000010 /* MySleepNight */,
+				A10000000000000000000072 /* MySleepNightWidget */,
 				A10000000000000000000011 /* NightKit */,
+				A10000000000000000000074 /* Shared */,
 			);
-			name = MySleepNight;
-			productName = MySleepNight;
-			productReference = A10000000000000000000001 /* MySleepNight.app */;
-			productType = "com.apple.product-type.application";
+			name = MySleepNightWidget;
+			productName = MySleepNightWidget;
+			productReference = A10000000000000000000071 /* MySleepNightWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -114,12 +198,20 @@
 			projectRoot = "";
 			targets = (
 				A10000000000000000000030 /* MySleepNight */,
+				A10000000000000000000080 /* MySleepNightWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A10000000000000000000042 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000083 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -161,7 +253,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000081 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000000000000000000092 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000080 /* MySleepNightWidget */;
+			targetProxy = A10000000000000000000093 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A10000000000000000000060 /* Debug */ = {
@@ -242,6 +349,44 @@
 			};
 			name = Release;
 		};
+		A10000000000000000000085 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MySleepNightWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "mySleep Night";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = hu.szakos.mysleep.night.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A10000000000000000000086 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MySleepNightWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "mySleep Night";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = hu.szakos.mysleep.night.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -259,6 +404,15 @@
 			buildConfigurations = (
 				A10000000000000000000062 /* Debug */,
 				A10000000000000000000063 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000084 /* Build configuration list for PBXNativeTarget "MySleepNightWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000085 /* Debug */,
+				A10000000000000000000086 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

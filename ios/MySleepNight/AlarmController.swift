@@ -1,8 +1,6 @@
 import AlarmKit
 import SwiftUI
 
-struct NightAlarm: AlarmMetadata {}
-
 /// The alarm is the system's (AlarmKit): it rings on the lock screen, through silent mode and Focus,
 /// with Stop and Snooze there, and it rings even if iOS has closed this app in the night. The app
 /// sets it for the wake time when the night starts; in the smart window it brings it forward to now.

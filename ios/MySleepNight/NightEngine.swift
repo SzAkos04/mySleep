@@ -22,8 +22,12 @@ import UIKit
   private let analysis: Analysis? = Bundle.main.url(forResource: "analysis", withExtension: "js")
     .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.flatMap { try? Analysis(source: $0) }
 
+  private let live = LiveCardController()
+  private var wasHearing = true
+
   init() {
     alarm.log = { [weak self] type, data in self?.logNow(type, data) }
+    live.log = { [weak self] type, data in self?.logNow(type, data) }
     // Stop on the lock screen ends the night: nothing to do on waking but get up
     alarm.onStopped = { [weak self] in self?.stop() }
   }
@@ -65,6 +69,9 @@ import UIKit
       n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart, "analysis": analysis != nil])
       await alarm.set(at: p.at)
     }
+    // the lock screen card: only now, while the app is in front, may it be started
+    await live.start(night: n.night, started: Date(timeIntervalSince1970: Double(start) / 1000), plan: plan)
+    wasHearing = true
     timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in Task { @MainActor in self?.everySecond() } }
   }
 
@@ -77,6 +84,7 @@ import UIKit
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     alarm.cancel()
     silence()
+    live.end()
     queue.sync { n.tick(at: Self.nowMs); n.log("finish") }
     save(final: true)
     let heard = queue.sync { n.db.filter { !$0.isNaN }.count }
@@ -116,13 +124,16 @@ import UIKit
     let now = Self.nowMs
     let (lvl, silent): (Double?, Bool) = queue.sync { n.tick(at: now); let v = n.db.last ?? .nan; return (n.hearing && v.isFinite ? v : nil, n.silent) }
     level = lvl
+    // the card follows the microphone at once; the alarm's own screen replaces it when it rings
+    if !silent != wasHearing { wasHearing = !silent; live.update(hearing: wasHearing) }
+    if alarm.phase == .ringing || selfRinging { live.end() }
     // nothing arriving for 10 s: restart the audio, at most once a minute, logged
     if silent && now - lastRestart > 60_000 {
       lastRestart = now; restarts += 1
       engine.stop()
       do { try startAudio(reason: "silent") } catch { queue.async { n.log("restart-failed", ["error": "\(error)"]) } }
     }
-    if now - lastBeat >= 60_000 { lastBeat = now; minute(now) }
+    if now - lastBeat >= 60_000 { lastBeat = now; minute(now); live.update(hearing: wasHearing) }
     // every 10 s: the wake time, or the smart window once the sleeper stirs
     if let p = plan, !rangEarly, !selfRinging, now - lastCheck >= 10_000 {
       lastCheck = now
