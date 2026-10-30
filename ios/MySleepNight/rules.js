@@ -21,7 +21,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	const COUGH_MAX_LEN = 1;
 	const NOISE_MIN_LEN = 20;
 	const MERGE_GAP = 3;
-	const WAKE_MOVE = 1.5;
+	const WAKE_MOVE = 2.5;
 	const GAP_SEC = 15;
 	const ONSET_EPOCHS = 20;
 	const WAKE_EPOCHS = 4;

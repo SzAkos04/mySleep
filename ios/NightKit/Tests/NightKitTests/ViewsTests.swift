@@ -4,7 +4,7 @@ import Foundation
 
 // What the screens show, as the app reads it from the rules (shared/lib/views.js: its own
 // tests decide the wording and numbers). Here: that the app can read it, from a store with a real
-// night in it (the fixture's: 165 min asleep on 29 October 2026).
+// night in it (the fixture's: 165.5 min asleep on 29 October 2026).
 @Suite struct ViewsTests {
   func store() throws -> NightStore {
     let rules = try Rules(source: Rules.bundleSource)
@@ -20,7 +20,7 @@ import Foundation
     let r = try #require(try store().report("2026-10-29"))
     #expect(r.title == "Thu, Oct 29")
     #expect(r.facts.map(\.label) == ["asleep", "to fall asleep", "restful"])
-    #expect(r.facts[0].value == "2h 45m")
+    #expect(r.facts[0].value == "2h 46m")
     #expect(!r.blank && r.score > 0 && ["good", "accent", "warn"].contains(r.tone.rawValue))
     #expect(r.times.bed.count == 5 && r.times.on.count == 5 && r.times.wake.count == 5)
     #expect(r.parts.first?.label == "Duration")
@@ -38,7 +38,7 @@ import Foundation
     #expect(j.title == "October" && j.lead == 3 && j.days.count == 31 && j.canNext == false)
     #expect(j.days[28].id == "2026-10-29" && j.days[28].kind == .scored && j.days[28].score != nil)
     #expect(j.days[0].kind == .none)
-    #expect(j.selected?.id == "2026-10-29" && j.selected?.headline == "2h 45m asleep")
+    #expect(j.selected?.id == "2026-10-29" && j.selected?.headline == "2h 46m asleep")
     #expect(try s.journal(MonthID(year: 2025, month: 11), selected: nil, now: now)?.sub == "No nights this month")
   }
 
@@ -46,7 +46,7 @@ import Foundation
     let s = try store()
     let t = try #require(s.trends(days: 7))
     #expect(t.empty == nil && t.label == "This week" && t.kpis?.count == 4)
-    #expect(t.scores?.count == 1 && t.hours?.first?.value == 165 && t.target?.label == "23:00–06:45")
+    #expect(t.scores?.count == 1 && t.hours?.first?.value == 165.5 && t.target?.label == "23:00–06:45")
     let none = try NightStore(rules: Rules(source: Rules.bundleSource))
     #expect(none.trends(days: 7)?.empty == "Trends start after a couple of nights.")
   }

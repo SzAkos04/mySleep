@@ -21,7 +21,7 @@ describe('summarize', () => {
     for (let s = 7200; s < 7200 + 5 * 60; s += 15) f.burst(s, 3)          // a 5-minute wake-up at 2h
     for (let s = 3 * 3600; s < 3 * 3600 + 600; s += 4) f.burst(s, 2, snore) // 10 min of snoring at 3h
     for (let s = 4 * 3600; s < 8 * 3600; s += 600) f.burst(s, 1)          // a turn every 10 min: still asleep
-    for (let s = 8 * 3600 - 900; s < 8 * 3600 - 40; s += 25) f.burst(s, 2) // up for 15 min before Stop
+    for (let s = 8 * 3600 - 900; s < 8 * 3600 - 40; s += 20) f.burst(s, 3) // up and about for 15 min before Stop
 
     const r = summarize(f, 0)
     expect(r.on / 60000).toBeGreaterThanOrEqual(14)
@@ -79,6 +79,16 @@ describe('a quiet room that wobbles by itself', () => {
     const r = summarize(f, 0)
     expect(r.wakes).toBe(1)
     expect(r.awakeMin).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('light sleep towards the morning', () => {
+  it('turning over every quarter hour (a few movement seconds a minute) is not waking up', () => {
+    const f = night(6)
+    for (let s = 3 * 3600; s < 6 * 3600; s += 900) for (let t = s; t < s + 180; t += 15) f.burst(t, 1)   // 3 min of rustling (2 s of movement in each 30), every quarter hour
+    const r = summarize(f, 0)
+    expect(r.wakes).toBe(0)
+    expect(r.asleepMin).toBeGreaterThan(5 * 60 + 30)
   })
 })
 

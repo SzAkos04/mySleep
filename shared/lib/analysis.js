@@ -34,7 +34,7 @@ export const COUGH_MID = 0.5       // ...with its energy above 500 Hz (0.66 meas
 export const COUGH_MAX_LEN = 1
 export const NOISE_MIN_LEN = 20    // one sound this long is the room (fan, traffic), not you
 export const MERGE_GAP = 3         // sounds of one kind this close are one event
-export const WAKE_MOVE = 1.5       // weighted movement seconds per epoch that score awake
+export const WAKE_MOVE = 2.5       // weighted movement seconds per epoch that score awake (a turn or a restless spell is below it)
 export const GAP_SEC = 15          // seconds without data that make an epoch a gap
 export const ONSET_EPOCHS = 20     // 10 min asleep in a row = fell asleep
 export const WAKE_EPOCHS = 4       // 2 min awake in a row = a wake-up; shorter runs are ignored

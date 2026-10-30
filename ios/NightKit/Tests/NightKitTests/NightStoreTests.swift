@@ -119,7 +119,7 @@ import Foundation
     #expect(try s.takeIn(log: log, now: t0) == true)
     #expect(s.dirtyCount == 1)
     let n = try #require((try object(s.json)["nights"] as? [String: [String: Any]])?["2026-10-29"])
-    #expect(n["source"] as? String == "native" && n["asleepMin"] as? Int == 165)
+    #expect(n["source"] as? String == "native" && n["asleepMin"] as? Double == 165.5)
     #expect(try s.takeIn(log: log, now: t0) == false)   // the same log again: nothing new
     #expect(s.dirtyCount == 1)
     #expect(try s.takeIn(log: log.replacingOccurrences(of: "\"final\":true", with: "\"final\":false"), now: t0) == false)
