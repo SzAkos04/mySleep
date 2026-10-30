@@ -13,7 +13,6 @@ import { appStatus } from './status.js';
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
 const ORIGIN = process.env.ORIGIN || 'http://localhost:5173';
-const SESSION_DAYS = 180;
 const MAX_BODY = 4 * 1024 * 1024;
 const COOKIE = cookieName(ORIGIN);
 const KINDS = new Set(['night', 'settings']);
@@ -36,6 +35,10 @@ function writeJSON(file, obj) {
 const dbFile = path.join(DATA, 'db.json');
 const db = readJSON(dbFile, { users: [] });
 const saveDb = () => writeJSON(dbFile, db);
+// signs the operator's session cookie
+const secretFile = path.join(DATA, 'secret');
+if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
+const SECRET = fs.readFileSync(secretFile, 'utf8').trim();
 const stateFile = uid => path.join(DATA, 'state-' + uid.replace(/[^\w-]/g, '') + '.json');
 const readState = uid => readJSON(stateFile(uid), { rev: 0, entries: {} });
 
@@ -83,10 +86,6 @@ function sweepDebug() {
     catch (e) { if (e.code !== 'ENOENT') console.error('debug', e.message); }
   }
 }
-
-const secretFile = path.join(DATA, 'secret');
-if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
-const SECRET = fs.readFileSync(secretFile, 'utf8').trim();
 
 /* ---------- sync ---------- */
 // Every entry carries the client's edit time (ts) and the server's revision (rev). The newer ts

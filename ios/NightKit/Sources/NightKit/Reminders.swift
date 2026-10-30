@@ -7,11 +7,12 @@ public struct Reminder: Equatable, Sendable {
   public let when: When
 }
 
-/// The reminders, as the server sent them as web pushes (api/server.js, api/reminders.js) until the
-/// phone took it over: a free Apple ID has no push, but a notification the app scheduled itself
-/// arrives without it. Pure: what to schedule, not the scheduling.
+/// The reminders the phone schedules for itself (a free Apple ID has no push, but a notification the
+/// app scheduled itself arrives without it). Pure: what to schedule, not the scheduling.
 public enum Reminders {
   public static let bedtimeMinutes = 30
+  /// Every id a reminder can have: what the app clears before it schedules again.
+  public static let ids = ["bedtime", "reinstall-soon", "reinstall-today", "reinstall-expired"]
 
   /// Every day, `bedtimeMinutes` before bedtime.
   public static func bedtime(_ s: AppSettings) -> Reminder? {
@@ -30,11 +31,12 @@ public enum Reminders {
     func days(_ n: Int) -> Date { calendar.date(byAdding: .day, value: n, to: expires) ?? expires }
     let weekday = { () -> String in let f = DateFormatter(); f.calendar = calendar; f.timeZone = calendar.timeZone; f.locale = Locale(identifier: "en_US"); f.dateFormat = "EEEE"; return f.string(from: expires) }()
     let todayAt = nine(expires)
+    // an install that runs out before 9:00 has no "tonight": it has stopped by then
+    let stoppedAt = todayAt < expires ? nine(days(1)) : todayAt
     let all: [(Reminder, Date)] = [
       (Reminder(id: "reinstall-soon", title: "mySleep Night stops on \(weekday)", body: "Reinstall it from the Mac before then: connect the iPhone and run the install.", when: .once(nine(days(-2)))), nine(days(-2))),
-      // an install that runs out before 9:00 has no "tonight": it has stopped by then
       (Reminder(id: "reinstall-today", title: "mySleep Night stops tonight", body: "Reinstall it from the Mac today, or tonight will not be recorded.", when: .once(todayAt)), todayAt < expires ? todayAt : .distantPast),
-      (Reminder(id: "reinstall-expired", title: "mySleep Night has stopped", body: "It cannot record a night until it is reinstalled from the Mac.", when: .once(todayAt < expires ? nine(days(1)) : todayAt)), todayAt < expires ? nine(days(1)) : todayAt)
+      (Reminder(id: "reinstall-expired", title: "mySleep Night has stopped", body: "It cannot record a night until it is reinstalled from the Mac.", when: .once(stoppedAt)), stoppedAt)
     ]
     return all.filter { $0.1 > now }.map(\.0)
   }

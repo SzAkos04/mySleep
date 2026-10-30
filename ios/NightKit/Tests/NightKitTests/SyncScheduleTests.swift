@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// While the app is open it syncs once a minute, as the web app did, and again in 30 s when the
+// While the app is open it syncs once a minute, and again in 30 s when the
 // server did not answer; a refusal (the pairing is gone) is not retried until it is paired again.
 @Suite struct SyncScheduleTests {
   @Test func aMinuteAfterASyncHalfAMinuteAfterAMiss() {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Pairs mySleep Night with this server without a web page: asks the running server for a device
-// token as the profile (POST /api/devices, the same as the web app's pairing did) and prints the
+// token as the profile (POST /api/devices) and prints the
 // link the phone opens (Notes, Messages, a QR): it hands the app the server and its token. Pairing
 // again replaces the device. Run it where the server runs:
 //   docker compose exec -T api node scripts/pair.mjs [profile]

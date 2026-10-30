@@ -2,12 +2,16 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The reminders the phone schedules itself (local notifications: a free Apple ID has no push). The
-// rules and the words are the server's (api/reminders.js, the bedtime tick in api/server.js); the
-// server's web push stops when the web app does.
+// The reminders the phone schedules itself (local notifications: a free Apple ID has no push).
 @Suite struct ReminderTests {
   var cal: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Europe/Budapest")!; return c }
   func at(_ d: Int, _ h: Int, _ m: Int = 0) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: d, hour: h, minute: m))! }   // November: UTC+1
+
+  @Test func everyReminderIsOneOfTheKnownIds() {
+    // the ids are what the app clears before it schedules again: one missing here would be left behind
+    let all = Reminders.all(AppSettings(), expires: at(8, 20), now: at(1, 12), calendar: cal)   // a week ahead: bedtime and all three of the reinstall ones
+    #expect(Set(all.map(\.id)) == Set(Reminders.ids))
+  }
 
   @Test func bedtimeIsRemindedEveryDayHalfAnHourBefore() {
     var s = AppSettings()

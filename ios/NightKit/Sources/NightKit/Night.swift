@@ -1,16 +1,17 @@
 import Foundation
 
 /// A night as the tracker keeps it: one value per second from the start (NaN where nothing was
-/// heard), and the flight-recorder log, saved as JSON that the web app turns into the night
+/// heard), and the flight-recorder log, saved as JSON that the rules turn into the night
 /// (lib/native.js nightFromLog) and shared/scripts/night-report.mjs reads.
-public final class Night {
+/// Not Sendable by itself: the app calls it from one serial queue only (NightEngine's `night` queue).
+public final class Night: @unchecked Sendable {
   public struct Event {
     public let ms: Int64          // since the start
     public let type: String
     public let data: [String: Any]
   }
 
-  /// Exact zeros this long mean nothing reaches the microphone (the PWA's night of 29 October).
+  /// Exact zeros this long mean nothing reaches the microphone (the night of 29 October).
   public static let silentSec: Int64 = 10
 
   public let start: Int64         // ms since 1970
@@ -112,7 +113,7 @@ public final class Night {
     return try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys])
   }
 
-  /// The web app's log format: gaps as null, readings rounded to 0.1 or 0.01.
+  /// The log's JSON format: gaps as null, readings rounded to 0.1 or 0.01.
   public func json(final: Bool) throws -> Data {
     let r1 = { (v: Double) -> Any in v.isFinite ? (v * 10).rounded() / 10 : NSNull() }
     let r2 = { (v: Double) -> Any in v.isFinite ? (v * 100).rounded() / 100 : NSNull() }

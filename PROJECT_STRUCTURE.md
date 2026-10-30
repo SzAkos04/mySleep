@@ -39,7 +39,7 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `Package.swift`
 
 ## ios/NightKit/Sources/NightKit
-`Alarm.swift`, `Features.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Reminders.swift`, `Rules.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Views.swift`
+`Alarm.swift`, `Features.swift`, `Jerk.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Reminders.swift`, `Rules.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Views.swift`
 
 ## ios/NightKit/Tests/NightKitTests
 `AlarmTests.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `ReminderTests.swift`, `RulesTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `ViewsTests.swift`
@@ -60,7 +60,7 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `package.json`
 
 ## shared/lib
-`analysis.js`, `analysis.test.js`, `native.js`, `native.test.js`, `night.js`, `night.test.js`, `rules.js`, `rules.test.js`, `score.js`, `score.test.js`, `stats.js`, `stats.test.js`, `sync.js`, `sync.test.js`, `time.js`, `time.test.js`, `views.js`, `views.test.js`
+`analysis.js`, `analysis.test.js`, `native.js`, `native.test.js`, `night.js`, `night.test.js`, `real-night.test.js`, `fixtures/real-night.json`, `rules.js`, `rules.test.js`, `score.js`, `score.test.js`, `stats.js`, `stats.test.js`, `sync.js`, `sync.test.js`, `time.js`, `time.test.js`, `views.js`, `views.test.js`
 
 ## shared/scripts
 `build-rules.mjs`, `golden.mjs`, `loud-alarm.mjs`, `night-report.mjs`, `replay.mjs`

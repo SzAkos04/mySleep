@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: the night
 
-/// Black, as the web app's night screen: on the OLED panel black pixels are off. Lit for 30 s after
+/// Black: on the OLED panel black pixels are off. Lit for 30 s after
 /// a tap, then only a dim clock. Ending the night needs a held press, so a sleepy hand cannot.
 struct NightScreen: View {
   @EnvironmentObject var engine: NightEngine
@@ -77,7 +77,7 @@ private struct Status: View {
   }
 }
 
-/// What the microphone hears: 20–90 on the tracker's dB scale, like the web app's meter.
+/// What the microphone hears: 20–90 on the app's dB scale (dBFS + 100).
 struct Meter: View {
   let db: Double?
   var body: some View {

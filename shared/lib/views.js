@@ -3,10 +3,9 @@
 // the wording and the numbers are decided here, once, and tested here. `state` is the store's:
 // { nights, settings }.
 import { sleepScore, insights, unrecorded, NEED } from './score.js'
-import { summary, fromNoon, noonToClock } from './stats.js'
-import { clockOf, dayLabel, dur } from './time.js'
+import { summary, fromNoon, noonToClock, toNoon } from './stats.js'
+import { clockOf, dayLabel, dur, nTimes, pad } from './time.js'
 
-const pad = n => String(n).padStart(2, '0')
 const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DAY = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const SOUND = { snore: 'Snoring', talk: 'Talking', cough: 'Coughing', noise: 'Room noise' }
@@ -17,11 +16,9 @@ export const tone = s => s >= 80 ? 'good' : s >= 60 ? 'accent' : 'warn'
 
 const list = nights => Object.values(nights).filter(n => !n.deleted).sort((a, b) => b.id.localeCompare(a.id))
 const dayOf = id => new Date(id + 'T12:00')
-const toNoon = hhmm => { const [h, m] = hhmm.split(':').map(Number); return (h * 60 + m + 720) % 1440 }
 // The average score of the nights the microphone recorded: an empty night says nothing about sleep.
 const meanScore = (nights, settings) => { const r = nights.filter(n => !unrecorded(n)); return r.length ? Math.round(r.reduce((t, n) => t + sleepScore(n, settings).score, 0) / r.length) : null }
 const fmtSec = s => s < 60 ? `${s} s` : `${Math.round(s / 60)} min`
-const times = (n, w) => n === 1 ? 'once' : `${n} times`
 
 export function reportView(state, id) {
   const n = state.nights[id]
@@ -67,10 +64,11 @@ export function journalView(state, { year: y, month: m }, sel, now) {
     return { n: i + 1, id, kind: 'scored', score, tone: tone(score) }
   })
   const n = byId[sel ?? all[0]?.id]
+  const blank = n && unrecorded(n), score = n && sleepScore(n, settings).score
   const selected = n && {
-    id: n.id, title: dayLabel(n.id), blank: unrecorded(n), score: sleepScore(n, settings).score, tone: tone(sleepScore(n, settings).score),
-    headline: unrecorded(n) ? 'Nothing recorded' : dur(n.asleepMin || 0) + ' asleep',
-    line: [n.wakes ? `Woke ${times(n.wakes)}` : n.on && 'Slept through', n.snoreMin ? `snored ${n.snoreMin} min` : null, n.talks ? `talked ${times(n.talks)}` : null].filter(Boolean).join(' · '),
+    id: n.id, title: dayLabel(n.id), blank, score, tone: tone(score),
+    headline: blank ? 'Nothing recorded' : dur(n.asleepMin || 0) + ' asleep',
+    line: [n.wakes ? `Woke ${nTimes(n.wakes)}` : n.on && 'Slept through', n.snoreMin ? `snored ${n.snoreMin} min` : null, n.talks ? `talked ${nTimes(n.talks)}` : null].filter(Boolean).join(' · '),
     timeline: n.timeline ?? null
   }
   return {
@@ -85,10 +83,10 @@ export function journalView(state, { year: y, month: m }, sel, now) {
 export function trendsView(state, days) {
   const { settings } = state, all = list(state.nights), L = all.slice(0, days), s = summary(L, NEED)
   if (!s) return { empty: 'Trends start after a couple of nights.' }
-  const chrono = L.slice().reverse(), score = n => sleepScore(n, settings).score
+  const chrono = L.slice().reverse(), scored = chrono.map(n => sleepScore(n, settings).score)
   const avg = meanScore(L, settings) ?? 0, prev = meanScore(all.slice(days, 2 * days), settings)
   const period = days === 7 ? 'week' : days === 30 ? 'month' : 'year'
-  const label = n => chrono.length <= 7 ? DAY[dayOf(n.id).getDay()] : dayOf(n.id).getDay() === 1 ? String(dayOf(n.id).getDate()) : ''
+  const label = n => { const d = dayOf(n.id); return chrono.length <= 7 ? DAY[d.getDay()] : d.getDay() === 1 ? String(d.getDate()) : '' }
   return {
     label: `This ${period}`, avg, change: prev != null ? `${avg >= prev ? 'up' : 'down'} ${Math.abs(avg - prev)} on the ${period} before` : null,
     kpis: [
@@ -96,7 +94,7 @@ export function trendsView(state, days) {
       { value: s.on ? noonToClock(s.on.mean) : '–', label: s.on ? `asleep ± ${Math.round(s.on.sd)} min` : 'asleep' },
       { value: s.wake ? noonToClock(s.wake.mean) : '–', label: s.wake ? `awake ± ${Math.round(s.wake.sd)} min` : 'awake' }
     ],
-    scores: chrono.map(n => ({ id: n.id, label: label(n), value: score(n), tone: tone(score(n)) })),
+    scores: chrono.map((n, i) => ({ id: n.id, label: label(n), value: scored[i], tone: tone(scored[i]) })),
     hours: chrono.map(n => ({ id: n.id, label: label(n), value: n.asleepMin || 0, full: (n.asleepMin || 0) >= NEED })),
     windows: chrono.map(n => ({ id: n.id, label: label(n), on: n.on && n.wake ? fromNoon(n.on) : null, wake: n.on && n.wake ? fromNoon(n.wake) : null })),
     target: { bed: toNoon(settings.bedtime), wake: toNoon(settings.wake), label: `${settings.bedtime}–${settings.wake}` },

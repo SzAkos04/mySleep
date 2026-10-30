@@ -32,7 +32,7 @@ function goldenOutputs() {
   const night = R.nightFromLog(fixtureLog())
   return {
     night: R.canonical(night), score: R.canonical(R.sleepScore(night, settings)), insights: R.canonical(R.insights(night)),
-    summary: R.canonical(R.summary([night], 480)), plan: R.canonical(R.alarmPlan(settings, Date.UTC(2026, 9, 29, 22, 0))),
+    summary: R.canonical(R.summary([night], 480)),
     corrected: R.canonical(R.corrected(night, { bed: '22:00', on: '22:20', wake: '00:45' })),
     labels: R.canonical([R.dur(125), R.clockOf(Date.UTC(2026, 9, 29, 22, 5)), R.dayLabel('2026-10-29'), R.nightIdOf(Date.UTC(2026, 9, 30, 5, 0))])
   }

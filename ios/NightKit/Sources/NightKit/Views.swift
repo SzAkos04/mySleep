@@ -72,7 +72,7 @@ public struct TrendsView: Decodable, Equatable, Sendable {
 extension NightStore {
   /// A view of the stored nights: `call` is JavaScript using `S` (the state), giving a view or nothing.
   func view<T: Decodable>(_ call: String, _ type: T.Type) -> T? {
-    guard let text = try? rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json)));const V=\(call);return V==null?undefined:JSON.stringify(V)})()"),
+    guard let text = try? withState("const V=\(call);return V==null?undefined:JSON.stringify(V)"),
           let data = text.data(using: .utf8) else { return nil }
     return try? JSONDecoder().decode(T.self, from: data)
   }

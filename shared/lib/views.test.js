@@ -4,7 +4,7 @@ import { sleepScore } from './score.js'
 import { atClock } from './time.js'
 
 // What mySleep Night's screens show, as plain data (the app draws it): the night's report, the
-// journal's month, the trends. The wording and the numbers are the web app's own.
+// journal's month, the trends. The wording and the numbers are decided here.
 const settings = { bedtime: '23:00', wake: '06:45', alarm: true, smart: true }
 const night = (id, asleepMin = 450, extra = {}) => {
   const bed = atClock(id, '23:00')

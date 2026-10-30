@@ -11,7 +11,7 @@ import SwiftUI
     WindowGroup {
       RootView().environmentObject(engine).environmentObject(engine.alarm).environmentObject(server).environmentObject(data)
         .preferredColorScheme(.dark).tint(Theme.accent)
-        // the web app opens this app: to pair it, and from its Sleep button
+        // links open this app: to pair it (scripts/pair.sh), and to start a night (mysleepnight://sleep)
         .onOpenURL { url in
           switch AppLink.parse(url) {
           case .pair(let p)?: server.pair(p); Task { await data.refresh(pairing: p) }
@@ -126,7 +126,7 @@ struct Rise: ViewModifier {
 }
 extension View { func rise(_ order: Int = 0) -> some View { modifier(Rise(order: order)) } }
 
-/// A card: the app's one surface, rounded like the web app's.
+/// A card: the app's one surface.
 struct Card<Content: View>: View {
   var padding: CGFloat = 18
   @ViewBuilder let content: Content

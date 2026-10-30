@@ -1,6 +1,6 @@
 import Foundation
 
-/// The settings, as the web store keeps them (settings:main, synced with the nights): tonight's
+/// The settings (settings:main, synced with the nights): tonight's
 /// alarm, the bedtime and its reminder. `ts` is the time of the last edit; 0 means never edited.
 public struct AppSettings: Decodable, Equatable, Sendable {
   public var alarm = true, smart = true, remind = true
@@ -40,12 +40,14 @@ extension NightStore {
   }
 
   /// Tonight's alarm (the Sleep link, the Tonight tab).
-  public func saveAlarm(_ a: AlarmSettings, now: Date) throws { try change(["alarm": a.on, "smart": a.smart, "wake": a.time], now: now) }
+  public func saveAlarm(_ a: AlarmSettings, now: Date) throws { try change(Self.patch(a), now: now) }
 
   /// The alarm as the app kept it before settings were synced: taken in once, and as the oldest
   /// edit there is (time 1 ms), so anything the server has is newer and wins.
   public func adopt(legacy a: AlarmSettings) throws {
     guard settings.ts == 0 else { return }
-    try change(["alarm": a.on, "smart": a.smart, "wake": a.time], now: Date(timeIntervalSince1970: 0.001))
+    try change(Self.patch(a), now: Date(timeIntervalSince1970: 0.001))
   }
+
+  private static func patch(_ a: AlarmSettings) -> [String: Any] { ["alarm": a.on, "smart": a.smart, "wake": a.time] }
 }

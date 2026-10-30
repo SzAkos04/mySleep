@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-export const readDb = dir => { try { return JSON.parse(fs.readFileSync(path.join(dir, 'db.json'), 'utf8')); } catch { return { users: [], creds: [], subs: [] }; } };
+export const readDb = dir => { try { return JSON.parse(fs.readFileSync(path.join(dir, 'db.json'), 'utf8')); } catch { return { users: [] }; } };
 
 // The one profile that `who` (an id or a name) names; with no `who`, the only profile there is.
 export function profile(dir, who) {

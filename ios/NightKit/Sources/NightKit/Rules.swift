@@ -1,9 +1,9 @@
 import Foundation
 import JavaScriptCore
 
-/// The web app's night rules (shared/lib/rules.js: analysis, record, score, sentences,
+/// The night rules (shared/lib/rules.js: analysis, record, score, sentences,
 /// statistics, times), bundled into one script (ios/MySleepNight/rules.js) and run as they are by
-/// JavaScriptCore, so both apps judge a night the same way and the web app's tests cover both.
+/// JavaScriptCore, so the app judges a night the way the tests in shared/ say.
 /// The script defines `MySleepRules`.
 public final class Rules {
   public struct Failure: Error, CustomStringConvertible { public let description: String }

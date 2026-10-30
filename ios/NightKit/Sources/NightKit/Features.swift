@@ -1,7 +1,7 @@
 import Accelerate
 import Foundation
 
-/// One look at the microphone, as the PWA's AnalyserNode gives it (shared/lib/tracker.js):
+/// One look at the microphone:
 /// loudness on the tracker's scale (dBFS + 100) and the share of power under 500 Hz and between
 /// 500 and 3000 Hz, counted over 50–4000 Hz with a Blackman window.
 public struct Reading: Equatable, Sendable {

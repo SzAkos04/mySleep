@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// One night: its score and what it means, three numbers, the night as a picture, how the score adds
-/// up, what was heard. (The web app's night page.)
+/// up, what was heard.
 struct ReportScreen: View {
   let id: String
   @EnvironmentObject var data: NightData
@@ -119,11 +119,10 @@ private struct CorrectSheet: View {
 
   init(report: ReportView, saved: @escaping () -> Void) {
     self.report = report; self.saved = saved
-    func date(_ hm: String) -> Date { Self.format.date(from: hm) ?? Date() }
+    func date(_ hm: String) -> Date { TimeSheet.format.date(from: hm) ?? Date() }
     _bed = State(initialValue: date(report.times.bed)); _wake = State(initialValue: date(report.times.wake))
     _on = State(initialValue: date(report.times.on.isEmpty ? report.times.bed : report.times.on))
   }
-  static let format: DateFormatter = { let f = DateFormatter(); f.dateFormat = "HH:mm"; f.locale = Locale(identifier: "en_US_POSIX"); return f }()
 
   var body: some View {
     VStack(spacing: 0) {
@@ -137,7 +136,7 @@ private struct CorrectSheet: View {
       if let error { Text(error).font(.footnote).foregroundStyle(.red).padding(.top, 10).padding(.horizontal, 20) }
       Spacer()
       PrimaryButton(title: "Save", systemImage: "checkmark") {
-        let f = Self.format
+        let f = TimeSheet.format
         if let e = data.correct(report.id, bed: f.string(from: bed), on: f.string(from: on), wake: f.string(from: wake)) { withAnimation(.snappy) { error = e } }
         else { saved(); dismiss() }
       }

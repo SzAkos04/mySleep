@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The alarm's decisions, the same cases as the web app's (shared/lib/night.test.js).
+// The alarm's decisions: when it rings, the smart window, snoozing.
 let cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Europe/Budapest")!; return c }()
 func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponents(year: 2026, month: 10, day: day, hour: h, minute: m))! }
 
@@ -49,7 +49,7 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
 }
 
 @Suite struct SharedAnalysis {
-  // the web app's rules, bundled (ios/MySleepNight/rules.js), run by JavaScriptCore: one implementation for both apps
+  // the night rules, bundled (ios/MySleepNight/rules.js), run by JavaScriptCore
   static let source = Rules.bundleSource
 
   func night(_ seconds: Int, moving: (Int) -> Bool) -> Night {
@@ -84,7 +84,7 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
 }
 
 @Suite struct Rise {
-  // the web app's alarm curve (tracker.js riseCurve): from -42 dB, easing into full at 25 s, held
+  // the alarm's curve: from -42 dB, easing into full at 25 s, held
   @Test func fromNearSilenceToFullInTwentyFiveSecondsSmoothly() {
     #expect(abs(RiseCurve.gain(at: 0) - pow(10, -42.0 / 20)) < 1e-6)
     #expect(RiseCurve.gain(at: 25) == 1)

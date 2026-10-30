@@ -83,7 +83,7 @@ test('a night log is stored (gzipped too), read back, and kept over a later part
   assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-encoding': 'gzip' }, body: bomb })).status, 400)
 })
 
-// mySleep Night (the native app) has no passkey: the web app pairs it, and it signs its requests
+// mySleep Night (the native app) has no sign-in: scripts/pair.mjs pairs it, and it signs its requests
 // with the token it got (Authorization: Bearer), for its own few routes only.
 const bearer = t => ({ authorization: 'Bearer ' + t });
 const pair = () => fetch(base + '/api/devices', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: JSON.stringify({ name: 'mySleep Night' }) });
@@ -148,7 +148,7 @@ test('the app syncs with its device token, for its own profile only', async () =
   let r = await send(token, { since: 0, changes: [night('2026-11-03', 100, 7)] });
   assert.equal(r.status, 200);
   assert.ok((await r.json()).changes.some(c => c.id === '2026-11-03' && c.data.q === 7));
-  // the web app (a session) sees what the app pushed, and the app sees what the web app pushed
+  // the operator (a session) sees what the app pushed, and the app sees what the operator pushed
   await sync({ changes: [night('2026-11-04', 100, 8)] });
   const web = await (await sync({ since: 0, changes: [] })).json();
   assert.ok(web.changes.some(c => c.id === '2026-11-03'));

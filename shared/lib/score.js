@@ -1,7 +1,7 @@
 // The sleep score (0–100) and the night in a few plain sentences. Derived from a saved night, so
 // changing the formula re-scores every night (docs/dev/SOUND_ANALYSIS.md).
-import { fromNoon } from './stats.js'
-import { clockOf, dur } from './time.js'
+import { fromNoon, toNoon } from './stats.js'
+import { clockOf, dur, nTimes } from './time.js'
 
 // What a night is scored against: the middle of the 7–9 h adults need (AASM, 2015). Not a
 // setting: nobody knows their own number, and the score should not depend on a guess.
@@ -9,7 +9,6 @@ export const NEED = 480
 
 const clamp = v => Math.max(0, Math.min(1, v))
 const lerp = (v, zero, full) => clamp((v - zero) / (full - zero))
-const toNoon = hhmm => { const [h, m] = hhmm.split(':').map(Number); return (h * 60 + m + 720) % 1440 }
 
 export function sleepScore(n, settings) {
   const inBed = (n.wake - n.bed) / 60000, latency = n.on ? (n.on - n.bed) / 60000 : null
@@ -40,7 +39,9 @@ function longestRun(t, ch) {
   return best && best.map(e => t.start + e * 30000)
 }
 
-const times = list => list.map(e => clockOf(e.t)).join(', ')
+const clocks = list => list.map(e => clockOf(e.t)).join(', ')
+// "You coughed 5 times (01:00, 01:20, 01:40, 02:00…)." `show`: how many times of day to name.
+const occasions = (list, verb, show) => `${verb} ${nTimes(list.length)} (${clocks(list.slice(0, show))}${list.length > show ? '…' : ''})`
 
 // Most of the night without a recording ('g' epochs): the microphone sent nothing (29 October),
 // which says nothing about sleep. Told apart from a night the microphone heard and found no sleep in.
@@ -56,18 +57,17 @@ export function insights(n) {
   const out = []
   if (n.timeline && !n.on) out.push('No sleep was heard: you were moving, or the recording was too short.')
   if (n.on) out.push(`You fell asleep at ${clockOf(n.on)}, ${Math.round((n.on - n.bed) / 60000)} min after going to bed.`)
-  const wakes = (n.events || []).length && n.timeline ? wakeTimes(n.timeline) : []
-  if (n.wakes) out.push(`You woke ${n.wakes === 1 ? 'once' : n.wakes + ' times'}${wakes.length ? ' (' + wakes.join(', ') + ')' : ''}, ${Math.round(n.awakeMin || 0)} min awake in all.`)
+  const ev = n.events || [], wakes = ev.length && n.timeline ? wakeTimes(n.timeline) : []
+  if (n.wakes) out.push(`You woke ${nTimes(n.wakes)}${wakes.length ? ' (' + wakes.join(', ') + ')' : ''}, ${Math.round(n.awakeMin || 0)} min awake in all.`)
   else if (n.on && n.asleepMin > 0) out.push('You slept through without waking.')
-  const ev = n.events || []
   const snore = ev.filter(e => e.kind === 'snore')
   if (snore.length) out.push(`You snored for about ${Math.round(n.snoreMin)} min, ${snore.length === 1 ? 'from ' + clockOf(snore[0].t) : 'mostly ' + peakHour(snore)}.`)
   const talk = ev.filter(e => e.kind === 'talk')
-  if (talk.length) out.push(`You talked in your sleep ${talk.length === 1 ? 'once' : talk.length + ' times'} (${times(talk.slice(0, 4))}${talk.length > 4 ? '…' : ''}).`)
+  if (talk.length) out.push(`You ${occasions(talk, 'talked in your sleep', 4)}.`)
   const cough = ev.filter(e => e.kind === 'cough')
-  if (cough.length) out.push(`You coughed ${cough.length === 1 ? 'once' : cough.length + ' times'} (${times(cough.slice(0, 4))}${cough.length > 4 ? '…' : ''}).`)
+  if (cough.length) out.push(`You ${occasions(cough, 'coughed', 4)}.`)
   const noise = ev.filter(e => e.kind === 'noise')
-  if (noise.length) out.push(`The room was noisy ${noise.length === 1 ? 'once' : noise.length + ' times'} (${times(noise.slice(0, 3))}): long sounds that were not you.`)
+  if (noise.length) out.push(`The room ${occasions(noise, 'was noisy', 3)}: long sounds that were not you.`)
   const gaps = n.timeline ? gapRuns(n.timeline) : [], gapMin = gaps.reduce((s, g) => s + g[1], 0) / 2
   if (gapMin >= 10) {
     const longest = gaps.reduce((a, b) => b[1] > a[1] ? b : a), from = clockOf(n.timeline.start + longest[0] * 30000)

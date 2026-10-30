@@ -1,7 +1,6 @@
 import SwiftUI
 
-// The night's pictures, drawn as the web app drew them: the score ring, the night as the
-// microphone heard it. Plain shapes and one Canvas each: light work for an iPhone 11.
+// The night's pictures: the score ring, the night as the microphone heard it. Plain shapes and one Canvas each: light work for an iPhone 11.
 
 extension Tone {
   var color: Color { switch self { case .good: Theme.good; case .accent: Theme.accent; case .warn: Theme.warn } }

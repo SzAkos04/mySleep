@@ -1,15 +1,15 @@
 import Foundation
 
-/// The web app pairs mySleep Night with the server (Settings › Pair) by opening this link with a
-/// token it got for it (api/server.js POST /api/devices). Kept in the Keychain by the app.
+/// How mySleep Night reaches its server: the address and the device token that scripts/pair.sh
+/// got for it (api/server.js POST /api/devices), opened in the app as a link. Kept in the Keychain.
 public struct Pairing: Codable, Equatable, Sendable {
   public let server: URL
   public let token: String
   public init(server: URL, token: String) { self.server = server; self.token = token }
 }
 
-/// What the web app opens mySleep Night with: mysleepnight://pair?server&token, and Sleep,
-/// mysleepnight://sleep?alarm&smart&wake (lib/native.js). Anything else is ignored.
+/// The links that open mySleep Night: mysleepnight://pair?server&token (scripts/pair.sh), and Sleep,
+/// mysleepnight://sleep?alarm&smart&wake. Anything else is ignored.
 public enum AppLink: Equatable, Sendable {
   case pair(Pairing)
   case sleep(AlarmSettings?)   // nil: the app's own settings
@@ -53,7 +53,7 @@ public enum ServerAPI {
     return r
   }
 
-  /// A night's log (Night.json), for the web app to turn into the night.
+  /// A night's log (Night.json): the server keeps it as the night's flight recorder.
   public static func upload(_ p: Pairing, night: String, body: Data) -> URLRequest { request(p, "PUT", "api/debug/\(night)", body) }
 
   /// The nights and settings, both ways (NightStore.sync): the body is {since, changes}.

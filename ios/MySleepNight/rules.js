@@ -51,10 +51,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		.67
 	];
 	const CK_SUM = CK.reduce((a, b) => a + b);
-	function percentile(vals, p) {
-		if (!vals.length) return NaN;
-		vals.sort((a, b) => a - b);
-		return vals[Math.min(vals.length - 1, Math.floor(p * vals.length))];
+	function percentile(sorted, p) {
+		return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] : NaN;
 	}
 	function noiseFloors(db) {
 		const E = Math.ceil(db.length / 30), out = new Float64Array(E);
@@ -63,6 +61,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			const hi = Math.min(db.length, (e + 1) * 30), lo = Math.max(0, hi - 600);
 			const vals = [];
 			for (let s = lo; s < hi; s++) if (Number.isFinite(db[s])) vals.push(db[s]);
+			vals.sort((a, b) => a - b);
 			out[e] = percentile(vals, FLOOR_PCT);
 			out.margin[e] = Math.min(12, Math.max(6, 5 * (percentile(vals, .75) - out[e])));
 		}
@@ -244,7 +243,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 //#endregion
 //#region lib/time.js
-	const pad$2 = (n) => String(n).padStart(2, "0");
+	const pad = (n) => String(n).padStart(2, "0");
 	const DAY$1 = [
 		"Sun",
 		"Mon",
@@ -270,7 +269,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	];
 	function nightIdOf(ms) {
 		const d = /* @__PURE__ */ new Date(ms - 12 * 36e5);
-		return `${d.getFullYear()}-${pad$2(d.getMonth() + 1)}-${pad$2(d.getDate())}`;
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 	}
 	const noonOf = (id) => {
 		const [y, m, d] = id.split("-").map(Number);
@@ -282,17 +281,16 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		t.setMinutes(t.getMinutes() + (h * 60 + m - 720 + 1440) % 1440);
 		return t.getTime();
 	}
-	function nextAt(hhmm, from = Date.now()) {
-		const [h, m] = hhmm.split(":").map(Number), t = new Date(from);
-		t.setHours(h, m, 0, 0);
-		if (t.getTime() <= from) t.setDate(t.getDate() + 1);
-		return t.getTime();
-	}
 	const clockOf = (ms) => {
 		const d = new Date(ms);
-		return pad$2(d.getHours()) + ":" + pad$2(d.getMinutes());
+		return pad(d.getHours()) + ":" + pad(d.getMinutes());
 	};
-	const dur = (min) => min < 59.5 ? Math.round(min) + " min" : Math.floor(min / 60) + "h " + pad$2(Math.round(min % 60)) + "m";
+	const dur = (min) => {
+		if (min < 59.5) return Math.round(min) + " min";
+		const t = Math.round(min);
+		return Math.floor(t / 60) + "h " + pad(t % 60) + "m";
+	};
+	const nTimes = (n) => n === 1 ? "once" : `${n} times`;
 	const dayLabel = (id) => {
 		const d = noonOf(id);
 		return `${DAY$1[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}`;
@@ -300,15 +298,6 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 //#endregion
 //#region lib/night.js
-	const SMART_MIN = 30;
-	function alarmPlan(settings, from = Date.now()) {
-		if (!settings.alarm) return null;
-		const at = nextAt(settings.wake, from);
-		return {
-			at,
-			from: settings.smart ? Math.max(from, at - 30 * 6e4) : at
-		};
-	}
 	function nightRecord({ tr, samples, end, ringing, diag }) {
 		const r = summarize(samples, samples.start);
 		return {
@@ -364,7 +353,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			interruptions: c("interruption-began"),
 			restarts: events.filter((e) => e[1] === "audio" && e[2]?.reason !== "start").length,
 			micSilent: c("mic-silent"),
-			recoveries: c("recover"),
+			recoveries: c("recovered"),
 			stalls: c("stall"),
 			locked: c("locked"),
 			memoryWarnings: c("memory-warning")
@@ -521,11 +510,14 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		const d = new Date(ms);
 		return (d.getHours() * 60 + d.getMinutes() + 720) % 1440;
 	};
+	const toNoon = (hhmm) => {
+		const [h, m] = hhmm.split(":").map(Number);
+		return (h * 60 + m + 720) % 1440;
+	};
 	const noonToClock = (m) => {
 		m = ((Math.round(m) + 720) % 1440 + 1440) % 1440;
-		return pad$1(Math.floor(m / 60)) + ":" + pad$1(m % 60);
+		return pad(Math.floor(m / 60)) + ":" + pad(m % 60);
 	};
-	const pad$1 = (n) => String(n).padStart(2, "0");
 	const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
 	const sd = (a) => {
 		const m = mean(a);
@@ -556,10 +548,6 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	const NEED = 480;
 	const clamp = (v) => Math.max(0, Math.min(1, v));
 	const lerp = (v, zero, full) => clamp((v - zero) / (full - zero));
-	const toNoon$1 = (hhmm) => {
-		const [h, m] = hhmm.split(":").map(Number);
-		return (h * 60 + m + 720) % 1440;
-	};
 	function sleepScore(n, settings) {
 		const inBed = (n.wake - n.bed) / 6e4, latency = n.on ? (n.on - n.bed) / 6e4 : null;
 		const slept = (n.asleepMin || 0) > 0;
@@ -597,7 +585,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			slept && n.on && {
 				label: "Routine",
 				max: 10,
-				pts: 10 * lerp(Math.abs(fromNoon(n.on) - toNoon$1(settings.bedtime)), 90, 15),
+				pts: 10 * lerp(Math.abs(fromNoon(n.on) - toNoon(settings.bedtime)), 90, 15),
 				note: `asleep at ${clockOf(n.on)}, bedtime ${settings.bedtime}`
 			}
 		].filter(Boolean);
@@ -621,7 +609,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		}
 		return best && best.map((e) => t.start + e * 3e4);
 	}
-	const times$1 = (list) => list.map((e) => clockOf(e.t)).join(", ");
+	const clocks = (list) => list.map((e) => clockOf(e.t)).join(", ");
+	const occasions = (list, verb, show) => `${verb} ${nTimes(list.length)} (${clocks(list.slice(0, show))}${list.length > show ? "…" : ""})`;
 	const UNRECORDED = .9;
 	const gapRuns = (t) => [...t.states.matchAll(/g+/g)].map((m) => [m.index, m[0].length]);
 	const unrecorded = (n) => !!n.timeline?.states?.length && (n.timeline.states.match(/g/g) || []).length >= UNRECORDED * n.timeline.states.length;
@@ -630,18 +619,17 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		const out = [];
 		if (n.timeline && !n.on) out.push("No sleep was heard: you were moving, or the recording was too short.");
 		if (n.on) out.push(`You fell asleep at ${clockOf(n.on)}, ${Math.round((n.on - n.bed) / 6e4)} min after going to bed.`);
-		const wakes = (n.events || []).length && n.timeline ? wakeTimes(n.timeline) : [];
-		if (n.wakes) out.push(`You woke ${n.wakes === 1 ? "once" : n.wakes + " times"}${wakes.length ? " (" + wakes.join(", ") + ")" : ""}, ${Math.round(n.awakeMin || 0)} min awake in all.`);
+		const ev = n.events || [], wakes = ev.length && n.timeline ? wakeTimes(n.timeline) : [];
+		if (n.wakes) out.push(`You woke ${nTimes(n.wakes)}${wakes.length ? " (" + wakes.join(", ") + ")" : ""}, ${Math.round(n.awakeMin || 0)} min awake in all.`);
 		else if (n.on && n.asleepMin > 0) out.push("You slept through without waking.");
-		const ev = n.events || [];
 		const snore = ev.filter((e) => e.kind === "snore");
 		if (snore.length) out.push(`You snored for about ${Math.round(n.snoreMin)} min, ${snore.length === 1 ? "from " + clockOf(snore[0].t) : "mostly " + peakHour(snore)}.`);
 		const talk = ev.filter((e) => e.kind === "talk");
-		if (talk.length) out.push(`You talked in your sleep ${talk.length === 1 ? "once" : talk.length + " times"} (${times$1(talk.slice(0, 4))}${talk.length > 4 ? "…" : ""}).`);
+		if (talk.length) out.push(`You ${occasions(talk, "talked in your sleep", 4)}.`);
 		const cough = ev.filter((e) => e.kind === "cough");
-		if (cough.length) out.push(`You coughed ${cough.length === 1 ? "once" : cough.length + " times"} (${times$1(cough.slice(0, 4))}${cough.length > 4 ? "…" : ""}).`);
+		if (cough.length) out.push(`You ${occasions(cough, "coughed", 4)}.`);
 		const noise = ev.filter((e) => e.kind === "noise");
-		if (noise.length) out.push(`The room was noisy ${noise.length === 1 ? "once" : noise.length + " times"} (${times$1(noise.slice(0, 3))}): long sounds that were not you.`);
+		if (noise.length) out.push(`The room ${occasions(noise, "was noisy", 3)}: long sounds that were not you.`);
 		const gaps = n.timeline ? gapRuns(n.timeline) : [], gapMin = gaps.reduce((s, g) => s + g[1], 0) / 2;
 		if (gapMin >= 10) {
 			const longest = gaps.reduce((a, b) => b[1] > a[1] ? b : a), from = clockOf(n.timeline.start + longest[0] * 3e4);
@@ -668,7 +656,6 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 //#endregion
 //#region lib/views.js
-	const pad = (n) => String(n).padStart(2, "0");
 	const MONTH = [
 		"January",
 		"February",
@@ -702,16 +689,11 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	const tone = (s) => s >= 80 ? "good" : s >= 60 ? "accent" : "warn";
 	const list = (nights) => Object.values(nights).filter((n) => !n.deleted).sort((a, b) => b.id.localeCompare(a.id));
 	const dayOf = (id) => /* @__PURE__ */ new Date(id + "T12:00");
-	const toNoon = (hhmm) => {
-		const [h, m] = hhmm.split(":").map(Number);
-		return (h * 60 + m + 720) % 1440;
-	};
 	const meanScore = (nights, settings) => {
 		const r = nights.filter((n) => !unrecorded(n));
 		return r.length ? Math.round(r.reduce((t, n) => t + sleepScore(n, settings).score, 0) / r.length) : null;
 	};
 	const fmtSec = (s) => s < 60 ? `${s} s` : `${Math.round(s / 60)} min`;
-	const times = (n, w) => n === 1 ? "once" : `${n} times`;
 	function reportView(state, id) {
 		const n = state.nights[id];
 		if (!n || n.deleted) return null;
@@ -827,17 +809,18 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			};
 		});
 		const n = byId[sel ?? all[0]?.id];
+		const blank = n && unrecorded(n), score = n && sleepScore(n, settings).score;
 		const selected = n && {
 			id: n.id,
 			title: dayLabel(n.id),
-			blank: unrecorded(n),
-			score: sleepScore(n, settings).score,
-			tone: tone(sleepScore(n, settings).score),
-			headline: unrecorded(n) ? "Nothing recorded" : dur(n.asleepMin || 0) + " asleep",
+			blank,
+			score,
+			tone: tone(score),
+			headline: blank ? "Nothing recorded" : dur(n.asleepMin || 0) + " asleep",
 			line: [
-				n.wakes ? `Woke ${times(n.wakes)}` : n.on && "Slept through",
+				n.wakes ? `Woke ${nTimes(n.wakes)}` : n.on && "Slept through",
 				n.snoreMin ? `snored ${n.snoreMin} min` : null,
-				n.talks ? `talked ${times(n.talks)}` : null
+				n.talks ? `talked ${nTimes(n.talks)}` : null
 			].filter(Boolean).join(" · "),
 			timeline: n.timeline ?? null
 		};
@@ -854,10 +837,13 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	function trendsView(state, days) {
 		const { settings } = state, all = list(state.nights), L = all.slice(0, days), s = summary(L, 480);
 		if (!s) return { empty: "Trends start after a couple of nights." };
-		const chrono = L.slice().reverse(), score = (n) => sleepScore(n, settings).score;
+		const chrono = L.slice().reverse(), scored = chrono.map((n) => sleepScore(n, settings).score);
 		const avg = meanScore(L, settings) ?? 0, prev = meanScore(all.slice(days, 2 * days), settings);
 		const period = days === 7 ? "week" : days === 30 ? "month" : "year";
-		const label = (n) => chrono.length <= 7 ? DAY[dayOf(n.id).getDay()] : dayOf(n.id).getDay() === 1 ? String(dayOf(n.id).getDate()) : "";
+		const label = (n) => {
+			const d = dayOf(n.id);
+			return chrono.length <= 7 ? DAY[d.getDay()] : d.getDay() === 1 ? String(d.getDate()) : "";
+		};
 		return {
 			label: `This ${period}`,
 			avg,
@@ -880,11 +866,11 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 					label: s.wake ? `awake ± ${Math.round(s.wake.sd)} min` : "awake"
 				}
 			],
-			scores: chrono.map((n) => ({
+			scores: chrono.map((n, i) => ({
 				id: n.id,
 				label: label(n),
-				value: score(n),
-				tone: tone(score(n))
+				value: scored[i],
+				tone: tone(scored[i])
 			})),
 			hours: chrono.map((n) => ({
 				id: n.id,
@@ -917,7 +903,6 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 //#endregion
 exports.afterSync = afterSync;
-exports.alarmPlan = alarmPlan;
 exports.atClock = atClock;
 exports.canonical = canonical;
 exports.clockOf = clockOf;

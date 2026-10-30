@@ -2,8 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The same numbers the PWA's tracker.js makes (shared/lib/tracker.test.js), so a night from
-// the app reads like a night from the web: dB = 20·log10(rms) + 100, the share of power under
+// What the microphone's frames become: dB = 20·log10(rms) + 100, the share of power under
 // 500 Hz and between 500 and 3000 Hz, one value per second, NaN where nothing was heard.
 
 let rate = 48000.0
@@ -33,7 +32,7 @@ func sine(_ hz: Double, rms: Double, n: Int = 2048) -> [Float] {
 }
 
 @Suite struct Seconds {
-  // reads every 100 ms, as the PWA polls
+  // reads every 100 ms
   func feed(_ n: Night, from: Int64, to: Int64, rms: Double) {
     var t = from
     while t <= to { n.add(rms == 0 ? [Float](repeating: 0, count: 2048) : sine(440, rms: rms), sampleRate: rate, at: t); t += 100 }
@@ -151,8 +150,8 @@ func sine(_ hz: Double, rms: Double, n: Int = 2048) -> [Float] {
   }
 }
 
-// iOS may end the app in the night: its log stays unfinished, and the web app turns only finished
-// logs into nights. The next launch finishes it where the readings stop.
+// iOS may end the app in the night: its log stays unfinished, and only finished
+// logs become nights. The next launch finishes it where the readings stop.
 @Suite struct Recovery {
   @Test func aNightCutShortIsFinishedAtItsLastSecond() throws {
     let n = Night(start: 1_000_000, night: "2026-10-29")

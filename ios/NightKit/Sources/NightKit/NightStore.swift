@@ -1,9 +1,8 @@
 import Foundation
 
-/// The nights and settings on the phone, and their sync with the server (POST /api/sync, the same
-/// route and rules as the web app: shared/lib/sync.js, run by `Rules`). The state is the
-/// web store's own JSON: `nights`, `settings`, `rev`, `dirty`; the app only holds it, writes it to
-/// a file and does the HTTP.
+/// The nights and settings on the phone, and their sync with the server (POST /api/sync, by the
+/// rules of shared/lib/sync.js, run by `Rules`). The state is JSON: `nights`, `settings`, `rev`,
+/// `dirty`; the app only holds it, writes it to a file and does the HTTP.
 public final class NightStore {
   public enum SyncResult: Equatable, Sendable { case synced, offline, unauthorized, failed(Int) }
 
@@ -23,7 +22,7 @@ public final class NightStore {
   public func write(to url: URL) throws { try Data(json.utf8).write(to: url, options: .atomic) }
 
   /// Entries edited here that the server has not confirmed.
-  public var dirtyCount: Int { Int((try? rules.evaluate("Object.keys(JSON.parse(\(Self.lit(json))).dirty).length")) ?? "") ?? 0 }
+  public var dirtyCount: Int { Int((try? withState("return Object.keys(S.dirty).length")) ?? "") ?? 0 }
 
   /// A night record (JSON) saved or replaced; it goes up on the next sync.
   public func saveNight(_ night: String, now: Date) throws { try update("withNight", night, now) }
@@ -32,10 +31,10 @@ public final class NightStore {
   public func saveSettings(_ patch: String, now: Date) throws { try update("withSettings", patch, now) }
 
   /// A finished night log (JSON) of the app's own, made into the night it holds, unless that night
-  /// is here already (the web app's rule, `takeIn`). True: a night was added.
+  /// is here already (the rules' `takeIn`). True: a night was added.
   @discardableResult
   public func takeIn(log: String, now: Date) throws -> Bool {
-    let night = try rules.evaluate("(function(){const N=MySleepRules.takeIn(JSON.parse(\(Self.lit(log))),JSON.parse(\(Self.lit(json))).nights);return N?JSON.stringify(N):undefined})()")
+    let night = try withState("const N=MySleepRules.takeIn(JSON.parse(\(Self.lit(log))),S.nights);return N?JSON.stringify(N):undefined")
     guard let night else { return false }
     try saveNight(night, now: now)
     return true
@@ -46,7 +45,7 @@ public final class NightStore {
   @discardableResult
   public func correct(_ id: String, bed: String, on: String, wake: String, now: Date) throws -> String? {
     let times = "{bed:\(Self.lit(bed)),on:\(Self.lit(on)),wake:\(Self.lit(wake))}"
-    let out = try rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json)));const N=S.nights[\(Self.lit(id))];if(!N||N.deleted)return JSON.stringify({error:'This night is gone.'});const R=MySleepRules.corrected(N,\(times));return JSON.stringify(R.error?{error:R.error}:{night:JSON.stringify(R.night)})})()") ?? "{}"
+    let out = try withState("const N=S.nights[\(Self.lit(id))];if(!N||N.deleted)return JSON.stringify({error:'This night is gone.'});const R=MySleepRules.corrected(N,\(times));return JSON.stringify(R.error?{error:R.error}:{night:JSON.stringify(R.night)})") ?? "{}"
     let o = (try? JSONSerialization.jsonObject(with: Data(out.utf8))) as? [String: Any] ?? [:]
     if let e = o["error"] as? String { return e }
     if let night = o["night"] as? String { try saveNight(night, now: now) }
@@ -54,14 +53,17 @@ public final class NightStore {
   }
 
   private func update(_ fn: String, _ arg: String, _ now: Date) throws {
-    json = try rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json)));return JSON.stringify({...S,...MySleepRules.\(fn)(S,\(arg),\(Self.ms(now)))})})()") ?? json
+    json = try withState("return JSON.stringify({...S,...MySleepRules.\(fn)(S,\(arg),\(Self.ms(now)))})") ?? json
   }
+
+  /// Runs the body of a JavaScript function with `S`, the stored state, parsed; its return value as text.
+  func withState(_ body: String) throws -> String? { try rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json)));\(body)})()") }
 
   /// Push what was edited here, take what the server has that this has not. Edits made while the
   /// request is out stay to send. `send` does the HTTP: the status (0: no answer) and the body.
   public func sync(now: Date, send: (Data) async -> (status: Int, body: Data)) async -> SyncResult {
     do {
-      let request = try rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json)));return JSON.stringify({since:S.rev||0,changes:MySleepRules.pendingChanges(S)})})()") ?? "{}"
+      let request = try withState("return JSON.stringify({since:S.rev||0,changes:MySleepRules.pendingChanges(S)})") ?? "{}"
       let (status, body) = await send(Data(request.utf8))
       switch status {
       case 200..<300: break
@@ -70,7 +72,7 @@ public final class NightStore {
       default: return .failed(status)
       }
       // the state as it is now, not as it was: it may have been edited while the request was out
-      json = try rules.evaluate("(function(){const S=JSON.parse(\(Self.lit(json))),R=JSON.parse(\(Self.lit(String(decoding: body, as: UTF8.self)))),P=JSON.parse(\(Self.lit(request))).changes;return JSON.stringify({...S,...MySleepRules.afterSync(S,R,P,\(Self.ms(now)))})})()") ?? json
+      json = try withState("const R=JSON.parse(\(Self.lit(String(decoding: body, as: UTF8.self)))),P=JSON.parse(\(Self.lit(request))).changes;return JSON.stringify({...S,...MySleepRules.afterSync(S,R,P,\(Self.ms(now)))})") ?? json
       return .synced
     } catch { return .failed(-1) }
   }

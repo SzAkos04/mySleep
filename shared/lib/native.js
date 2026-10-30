@@ -9,7 +9,7 @@ export function nativeSummary(events) {
     app: 'native', events: events.length,
     interruptions: c('interruption-began'),
     restarts: events.filter(e => e[1] === 'audio' && e[2]?.reason !== 'start').length,
-    micSilent: c('mic-silent'), recoveries: c('recover'), stalls: c('stall'),
+    micSilent: c('mic-silent'), recoveries: c('recovered'), stalls: c('stall'),
     locked: c('locked'), memoryWarnings: c('memory-warning')
   }
 }
@@ -34,5 +34,5 @@ export const toImport = (logs, nights) => logs.filter(l => {
 })
 
 // The night mySleep Night makes of one of its own finished logs (null: nothing to make), by the
-// same rule as toImport, so the app and the web app do not make it twice.
+// same rule as toImport, so a log is not made into a night twice.
 export const takeIn = (log, nights) => toImport([{ app: 'native', final: !!log.final, night: log.night, start: log.start }], nights).length ? nightFromLog(log) : null

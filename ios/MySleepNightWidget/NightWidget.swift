@@ -64,7 +64,7 @@ private struct NightCard: View {
         VStack(alignment: .trailing, spacing: 2) {
           if let ringAt = card.ringAt {
             Group {
-              if let from = card.ringFrom, from != ringAt { clock(from) + Text(" – ") + clock(ringAt) } else { clock(ringAt) }
+              if let from = card.ringFrom, from != ringAt { Text("\(clock(from)) – \(clock(ringAt))") } else { clock(ringAt) }
             }
             .font(.system(size: compact ? 20 : 26, weight: .light)).monospacedDigit().foregroundStyle(.white.opacity(0.85))
             Text(card.ringFrom != nil && card.ringFrom != ringAt ? "smart alarm" : "alarm").font(.caption2).foregroundStyle(.white.opacity(0.5))

@@ -10,8 +10,8 @@ public struct AlarmSettings: Codable, Equatable, Sendable {
   public var time: String { String(format: "%02d:%02d", hour, minute) }
 }
 
-/// When tonight's alarm rings, the same rules as the web app's (shared/lib/night.js):
-/// at the next wake time, or, when smart, from SMART_MIN before it once the sleeper stirs.
+/// When tonight's alarm rings: at the next wake time, or, when smart, from `smartMinutes` before it
+/// once the sleeper stirs.
 public struct AlarmPlan: Equatable, Sendable {
   public static let smartMinutes = 30
   public static let snoozeMinutes = 9
@@ -43,13 +43,13 @@ public struct AlarmPlan: Equatable, Sendable {
   }
 
   public func label(calendar: Calendar = .current) -> String {
-    let f = DateFormatter(); f.calendar = calendar; f.timeZone = calendar.timeZone; f.dateFormat = "HH:mm"
-    return from == at ? f.string(from: at) : "\(f.string(from: from)) – \(f.string(from: at))"
+    let clock = { InstallStatus.clock($0, calendar) }
+    return from == at ? clock(at) : "\(clock(from)) – \(clock(at))"
   }
 }
 
-/// The alarm's loudness while the app rings by itself (no system alarm): the web app's curve
-/// (tracker.js riseCurve), smooth in decibels from -42 dB, easing into full at `seconds`, then held.
+/// The alarm's loudness while the app rings by itself (no system alarm): smooth in decibels from
+/// -42 dB, easing into full at `seconds`, then held.
 public enum RiseCurve {
   public static let fromDb = -42.0, seconds = 25.0
   public static func gain(at t: Double) -> Double {

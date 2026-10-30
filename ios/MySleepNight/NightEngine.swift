@@ -6,7 +6,7 @@ import UIKit
 /// the `audio` background mode, an engine whose input is read in frames into a `Night` (NightKit).
 /// Everything iOS does to it is logged: interruptions, route changes, media services resets, the
 /// screen locking, the app going to the background, battery and heat, once a minute a heartbeat.
-/// The log is saved every minute to Documents/<night>.json, in the web app's format.
+/// The log is saved every minute to Documents/<night>.json.
 @MainActor final class NightEngine: ObservableObject {
   @Published private(set) var night: Night?
   @Published private(set) var level: Double?       // the last second's loudness, nil = nothing heard
@@ -26,7 +26,7 @@ import UIKit
   @Published private(set) var selfRinging = false   // no system alarm: the app rings itself
   private var smart = false, rangEarly = false, lastCheck: Int64 = 0
   private var player: AVAudioPlayer?, ramp: Timer?, ringStart = Date()
-  // the web app's night rules (rules.js, built from shared/lib/rules.js): the smart alarm's judge
+  // the night rules (rules.js, built from shared/lib/rules.js): the smart alarm's judge, the night's id
   private let rules: Rules? = Bundle.main.url(forResource: "rules", withExtension: "js")
     .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.flatMap { try? Rules(source: $0) }
 
@@ -69,7 +69,7 @@ import UIKit
       }
     }.value
   }
-  static var nowMs: Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
+  nonisolated static var nowMs: Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
 
   func start(_ settings: AlarmSettings) async throws {
     guard await AVAudioApplication.requestRecordPermission() else { throw NSError(domain: "mySleep", code: 1, userInfo: [NSLocalizedDescriptionKey: "mySleep Night needs the microphone: allow it in Settings."]) }
@@ -88,7 +88,7 @@ import UIKit
     smart = settings.smart; rangEarly = false; rangEarlyBy = nil; snoozes = 0; lastNight = nil
     plan = AlarmPlan.make(settings, from: Date())
     if let p = plan {
-      n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart, "analysis": rules != nil])
+      n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart])
       // the system alarm rings at full volume at once (29 October: it frightened): it waits behind
       // the app's own, gentle one, ringing only if the app could not, or nobody stopped it
       await alarm.set(at: p.backup)
@@ -146,7 +146,7 @@ import UIKit
 
   private func startAudio(reason: String) throws {
     let session = AVAudioSession.sharedInstance()
-    // .measurement: no automatic gain or noise suppression, as the web app asks for
+    // .measurement: no automatic gain or noise suppression
     let listening = AudioPlan.forListening
     try session.setCategory(AVAudioSession.Category(rawValue: listening.category), mode: AVAudioSession.Mode(rawValue: listening.mode), options: [.defaultToSpeaker, .mixWithOthers])
     try session.setActive(true)
@@ -155,7 +155,7 @@ import UIKit
     input.installTap(onBus: 0, bufferSize: 4800, format: format) { [queue, weak self] buffer, _ in
       guard let ch = buffer.floatChannelData?[0] else { return }
       let n = Int(buffer.frameLength), take = min(n, 2048)
-      // the last 2048 samples, as the web app's analyser looks at its last 2048
+      // the last 2048 samples of the buffer
       let frame = take == 2048 ? Array(UnsafeBufferPointer(start: ch + (n - take), count: take)) : []
       let now = NightEngine.nowMs
       queue.async { if let night = self?.nightForQueue { night.add(frame, sampleRate: rate, at: now) } }
@@ -228,7 +228,7 @@ import UIKit
   }
 
   // MARK: the app's own alarm, first: the piano through the audio session kept all night, rising from
-  // near silence as in the web app. Stopped here (held), or snoozed here or on the lock screen card.
+  // near silence. Stopped here (held), or snoozed here or on the lock screen card.
 
   private func ringItself(early: Int) {
     guard let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"), let p = try? AVAudioPlayer(contentsOf: url) else {

@@ -3,7 +3,7 @@ import Foundation
 @testable import NightKit
 
 // The nights and settings on the phone, and their sync with the server (POST /api/sync). The
-// rules are the web app's own (sync.js, run in JavaScriptCore); here: that the app drives them
+// rules are shared/lib/sync.js, run in JavaScriptCore; here: that the app drives them
 // right, against a stand-in server.
 @Suite struct NightStoreTests {
   func store(_ json: String? = nil) throws -> NightStore { try NightStore(rules: Rules(source: Rules.bundleSource), json: json) }

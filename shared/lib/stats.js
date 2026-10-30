@@ -1,8 +1,10 @@
+import { pad } from './time.js'
+
 // Clock times as minutes after noon, so a night's 23:50 and 00:10 sit 20 minutes apart
 // instead of 23 hours.
 export const fromNoon = ms => { const d = new Date(ms); return (d.getHours() * 60 + d.getMinutes() + 720) % 1440 }
+export const toNoon = hhmm => { const [h, m] = hhmm.split(':').map(Number); return (h * 60 + m + 720) % 1440 }
 export const noonToClock = m => { m = ((Math.round(m) + 720) % 1440 + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60) }
-const pad = n => String(n).padStart(2, '0')
 
 const mean = a => a.reduce((s, v) => s + v, 0) / a.length
 const sd = a => { const m = mean(a); return Math.sqrt(mean(a.map(v => (v - m) ** 2))) }

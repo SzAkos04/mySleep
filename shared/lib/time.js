@@ -1,4 +1,4 @@
-const pad = n => String(n).padStart(2, '0')
+export const pad = n => String(n).padStart(2, '0')
 const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -17,14 +17,12 @@ export function atClock(id, hhmm) {
   return t.getTime()
 }
 
-// The next time the clock shows "HH:MM", after `from`.
-export function nextAt(hhmm, from = Date.now()) {
-  const [h, m] = hhmm.split(':').map(Number), t = new Date(from)
-  t.setHours(h, m, 0, 0)
-  if (t.getTime() <= from) t.setDate(t.getDate() + 1)
-  return t.getTime()
-}
-
 export const clockOf = ms => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()) }
-export const dur = min => min < 59.5 ? Math.round(min) + ' min' : Math.floor(min / 60) + 'h ' + pad(Math.round(min % 60)) + 'm'
+export const dur = min => {
+  if (min < 59.5) return Math.round(min) + ' min'
+  const t = Math.round(min)   // whole minutes first, so 119.6 is 2h 00m, not 1h 60m
+  return Math.floor(t / 60) + 'h ' + pad(t % 60) + 'm'
+}
+// "once" or "3 times"
+export const nTimes = n => n === 1 ? 'once' : `${n} times`
 export const dayLabel = id => { const d = noonOf(id); return `${DAY[d.getDay()]}, ${MON[d.getMonth()]} ${d.getDate()}` }

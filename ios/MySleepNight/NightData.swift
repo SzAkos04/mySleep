@@ -74,7 +74,7 @@ import Foundation
   /// store has not got it (NightStore.takeIn). A log is looked at again when it is written again.
   private func takeInLogs(_ store: NightStore) {
     let fm = FileManager.default, dir = NightEngine.documents
-    var seen = Set(UserDefaults.standard.stringArray(forKey: "takenIn") ?? [])
+    let seen = Set(UserDefaults.standard.stringArray(forKey: "takenIn") ?? [])
     var now = Set<String>()
     for name in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] where name.hasSuffix(".json") {
       let url = dir.appendingPathComponent(name)
@@ -84,8 +84,7 @@ import Foundation
       if seen.contains(key) { continue }
       if let log = try? String(contentsOf: url, encoding: .utf8) { _ = try? store.takeIn(log: log, now: Date()) }
     }
-    seen = now   // only what is there: the list does not grow
-    UserDefaults.standard.set(Array(seen), forKey: "takenIn")
+    UserDefaults.standard.set(Array(now), forKey: "takenIn")   // only what is there: the list does not grow
     version += 1
   }
 

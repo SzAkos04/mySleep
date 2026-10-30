@@ -1,17 +1,7 @@
-// The night's rules that stay the web app's: tonight's alarm plan (shown on Today and passed to
-// mySleep Night by the Sleep link), and the night record made from the samples (lib/native.js turns
-// mySleep Night's logs into nights with it).
+// The night record made from the samples (native.js turns mySleep Night's logs into nights with it),
+// and a night's times put right by hand.
 import { summarize } from './analysis.js'
-import { atClock, nextAt } from './time.js'
-
-export const SMART_MIN = 30    // the smart alarm may ring this much before the wake time
-
-// When tonight's alarm rings: { at, from }, `from` opening the smart window (never in the past).
-export function alarmPlan(settings, from = Date.now()) {
-  if (!settings.alarm) return null
-  const at = nextAt(settings.wake, from)
-  return { at, from: settings.smart ? Math.max(from, at - SMART_MIN * 60000) : at }
-}
+import { atClock } from './time.js'
 
 // What the morning shows, saved when the night ends. `ringing`: the alarm, if it rang.
 export function nightRecord({ tr, samples, end, ringing, diag }) {

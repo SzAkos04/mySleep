@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The app runs the web app's night rules as one bundled script (shared/lib/rules.js, built
+// The app runs the night rules as one bundled script (shared/lib/rules.js, built
 // into ios/MySleepNight/rules.js) in JavaScriptCore. A fixed night goes through it here and must
 // come out as node made it (golden.json, shared/scripts/golden.mjs), letter for letter, in any time
 // zone (the fixture makes local time UTC): scores,

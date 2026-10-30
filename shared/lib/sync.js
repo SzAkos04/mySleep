@@ -1,6 +1,7 @@
-// Client side of POST /api/sync. Every night (and the one settings record) carries `ts`, the time
-// of its last edit; the newer edit wins per entry, on the server and here. `dirty` lists the
-// entries edited on this device that the server has not confirmed yet ("night:<id>", "settings:main").
+// Client side of POST /api/sync, run by mySleep Night in JavaScriptCore (ios/NightKit NightStore).
+// Every night (and the one settings record) carries `ts`, the time of its last edit; the newer
+// edit wins per entry, on the server and here. `dirty` lists the entries edited on this device
+// that the server has not confirmed yet ("night:<id>", "settings:main").
 
 const entryOf = (state, key) => {
   const [kind, id] = key.split(/:(.*)/)
@@ -36,8 +37,7 @@ export function stillDirty(state, pushed) {
   return dirty
 }
 
-// The store's edits, as functions of the state (the store and mySleep Night both use them): the
-// pieces of state that change. `ts` is the time of the edit.
+// The edits, as functions of the state: the pieces of state that change. `ts` is the time of the edit.
 export const withNight = (state, n, ts) => ({ nights: { ...state.nights, [n.id]: { ...n, ts } }, dirty: { ...state.dirty, ['night:' + n.id]: true } })
 export const withoutNight = (state, id, ts) => ({ nights: { ...state.nights, [id]: { id, deleted: true, ts } }, dirty: { ...state.dirty, ['night:' + id]: true } })
 export const withSettings = (state, patch, ts) => ({ settings: { ...state.settings, ...patch, ts }, dirty: { ...state.dirty, 'settings:main': true } })

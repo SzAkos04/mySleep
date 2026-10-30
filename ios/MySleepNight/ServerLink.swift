@@ -1,9 +1,9 @@
 import Foundation
 import Security
 
-/// mySleep Night and the server: the pairing the web app hands over (kept in the Keychain), the
-/// nights' logs going up after each night and whenever the app opens, and when the app's free
-/// signature runs out, so the server can remind before it does (api/reminders.js).
+/// mySleep Night and the server: the pairing (kept in the Keychain), the nights' logs going up after
+/// each night and whenever the app opens, and when the app's free signature runs out, so an uptime
+/// monitor can see it (api/status.js).
 @MainActor final class ServerLink: ObservableObject {
   @Published private(set) var pairing: Pairing? = Keychain.load()
   @Published private(set) var lastUpload: Date?

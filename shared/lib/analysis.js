@@ -47,10 +47,9 @@ const NAME = ['quiet', 'move', 'snore', 'talk', 'cough', 'noise']
 const CK = [1.06, 0.54, 0.58, 0.76, 2.3, 0.74, 0.67]   // epochs -4 .. +2
 const CK_SUM = CK.reduce((a, b) => a + b)
 
-function percentile(vals, p) {
-  if (!vals.length) return NaN
-  vals.sort((a, b) => a - b)
-  return vals[Math.min(vals.length - 1, Math.floor(p * vals.length))]
+// `sorted` ascending.
+function percentile(sorted, p) {
+  return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] : NaN
 }
 
 // One floor per epoch, from the seconds before and including it, and the margin above it that
@@ -63,6 +62,7 @@ export function noiseFloors(db) {
     const hi = Math.min(db.length, (e + 1) * EPOCH), lo = Math.max(0, hi - FLOOR_WIN)
     const vals = []
     for (let s = lo; s < hi; s++) if (Number.isFinite(db[s])) vals.push(db[s])
+    vals.sort((a, b) => a - b)
     out[e] = percentile(vals, FLOOR_PCT)
     out.margin[e] = Math.min(LOUD_MAX, Math.max(LOUD_DB, WOBBLE_K * (percentile(vals, 0.75) - out[e])))
   }

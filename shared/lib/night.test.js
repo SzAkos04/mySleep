@@ -1,28 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { alarmPlan, nightRecord, corrected, SMART_MIN } from './night.js'
+import { nightRecord, corrected } from './night.js'
 
 const at = (h, m, day = 28) => new Date(2026, 9, day, h, m).getTime()
-const settings = { alarm: true, smart: true, wake: '06:45' }
-
-describe('alarmPlan', () => {
-  it('rings at the next wake time; smart opens a 30-minute window before it', () => {
-    expect(alarmPlan({ ...settings, smart: false }, at(23, 0))).toEqual({ at: at(6, 45, 29), from: at(6, 45, 29) })
-    expect(alarmPlan(settings, at(23, 0))).toEqual({ at: at(6, 45, 29), from: at(6, 15, 29) })
-    expect(SMART_MIN).toBe(30)
-  })
-  it('after midnight, still this morning; after the wake time, tomorrow', () => {
-    expect(alarmPlan(settings, at(1, 0, 29)).at).toBe(at(6, 45, 29))
-    expect(alarmPlan(settings, at(6, 50, 29)).at).toBe(at(6, 45, 30))
-  })
-  it('inside the window already: the window starts now, not in the past', () => {
-    const p = alarmPlan(settings, at(6, 30, 29))
-    expect(p.at).toBe(at(6, 45, 29))
-    expect(p.from).toBe(at(6, 30, 29))
-  })
-  it('plans nothing with the alarm off', () => {
-    expect(alarmPlan({ ...settings, alarm: false }, at(23, 0))).toBeNull()
-  })
-})
 
 describe('nightRecord', () => {
   // 8 quiet hours, as the tracker leaves them; the first 15 minutes tossing

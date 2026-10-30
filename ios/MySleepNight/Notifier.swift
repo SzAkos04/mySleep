@@ -7,13 +7,11 @@ import UserNotifications
 enum NotifyStatus: Equatable { case unknown, denied, scheduled([String]) }
 
 enum Notifier {
-  static let ids = ["bedtime", "reinstall-soon", "reinstall-today", "reinstall-expired"]
-
   @discardableResult
   static func apply(_ settings: AppSettings, expires: Date?) async -> NotifyStatus {
     let center = UNUserNotificationCenter.current()
     let plan = Reminders.all(settings, expires: expires, now: Date(), calendar: .current)
-    center.removePendingNotificationRequests(withIdentifiers: ids)
+    center.removePendingNotificationRequests(withIdentifiers: Reminders.ids)
     guard !plan.isEmpty else { return .scheduled([]) }
     guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return .denied }
     for r in plan {

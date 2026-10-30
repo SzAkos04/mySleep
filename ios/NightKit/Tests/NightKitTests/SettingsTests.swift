@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The settings are the web store's own record (settings:main), synced with the nights: the alarm,
+// The settings are one synced record (settings:main), synced with the nights: the alarm,
 // the smart window, the wake time, the bedtime and its reminder.
 @Suite struct SettingsTests {
   func store(_ json: String? = nil) throws -> NightStore { try NightStore(rules: Rules(source: Rules.bundleSource), json: json) }

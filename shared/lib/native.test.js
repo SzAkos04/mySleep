@@ -72,3 +72,10 @@ describe('takeIn: the night to make of a log, if there is one (mySleep Night doe
     expect(takeIn(log({ from: start + 3600e3 }), { '2026-10-29': { id: '2026-10-29', source: 'native', bed: start } })).not.toBeNull()
   })
 })
+
+describe('nativeSummary', () => {
+  it('counts the microphone coming back, under the name the app logs it by', () => {
+    const events = [[0, 'start'], [5000, 'mic-silent'], [9000, 'recovered', { afterSec: 14 }], [20000, 'mic-silent'], [30000, 'recovered', { afterSec: 10 }]]
+    expect(nativeSummary(events)).toMatchObject({ micSilent: 2, recoveries: 2 })
+  })
+})

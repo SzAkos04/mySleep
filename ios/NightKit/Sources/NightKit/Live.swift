@@ -49,10 +49,7 @@ public struct LiveCard: Codable, Hashable, Sendable {
     return "Alarm \(clock(ringFrom, calendar)) – \(clock(ringAt, calendar))"
   }
 
-  private func clock(_ d: Date, _ c: Calendar) -> String {
-    let f = DateFormatter(); f.calendar = c; f.timeZone = c.timeZone; f.dateFormat = "HH:mm"
-    return f.string(from: d)
-  }
+  private func clock(_ d: Date, _ c: Calendar) -> String { InstallStatus.clock(d, c) }
 }
 
 /// When the app updates, hands over and lets go of the card.

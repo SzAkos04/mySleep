@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// mySleep Night and the server: the links the web app opens it with, its pairing, when its free
+// mySleep Night and the server: the links that open it, its pairing, when its free
 // signature runs out, and its uploads (api/server.js: PUT /api/debug/<night>, /api/devices/status).
 
 @Suite struct Links {
