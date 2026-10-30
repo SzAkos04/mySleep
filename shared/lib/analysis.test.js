@@ -57,6 +57,31 @@ describe('summarize', () => {
   })
 })
 
+// A very quiet room (a real one, 2026-10-30: floor 21 dB, close to the microphone's own noise) whose
+// level wobbles by itself: now and then a second is 7-9 dB up, with nobody moving.
+function wobbly(hours = 4) {
+  const f = night(hours); let seed = 7
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+  for (let s = 0; s < f.db.length; s++) f.db[s] = 21 + rnd() * 3 + (rnd() < 0.08 ? 7 + rnd() * 2 : 0)
+  return f
+}
+
+describe('a quiet room that wobbles by itself', () => {
+  it('is not mistaken for someone awake', () => {
+    const r = summarize(wobbly(), 0)
+    expect(r.wakes).toBeLessThanOrEqual(1)
+    expect(r.asleepMin).toBeGreaterThan(3.5 * 60)
+  })
+
+  it('still hears real movement in it', () => {
+    const f = wobbly()
+    for (let s = 2 * 3600; s < 2 * 3600 + 5 * 60; s += 15) f.burst(s, 3, { db: 45 })   // 5 minutes of tossing
+    const r = summarize(f, 0)
+    expect(r.wakes).toBe(1)
+    expect(r.awakeMin).toBeGreaterThanOrEqual(4)
+  })
+})
+
 describe('sounds', () => {
   it('tells talking, coughing, snoring and room noise apart, and lists them as events', () => {
     const f = night(2)

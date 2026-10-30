@@ -15,7 +15,9 @@
 // awake from asleep. Sleep stages proper are not attempted: sound cannot tell them apart well.
 
 // Tuning knobs. They are set on paper; real nights in a real bedroom will move them.
-export const LOUD_DB = 6           // dB above the noise floor that makes a second part of a sound
+export const LOUD_DB = 6           // least dB above the noise floor that makes a second part of a sound
+export const WOBBLE_K = 5          // ...or this many times the room's own wobble (floor to 75th percentile)
+export const LOUD_MAX = 12         // ...but never more: a rustle in bed is 15 dB and up
 export const FLOOR_PCT = 0.1       // noise floor: this percentile of the last FLOOR_WIN seconds
 export const FLOOR_WIN = 600
 export const SNORE_LOW = 0.5       // share of energy under 500 Hz for a snore (0.54–0.58 measured)
@@ -51,14 +53,18 @@ function percentile(vals, p) {
   return vals[Math.min(vals.length - 1, Math.floor(p * vals.length))]
 }
 
-// One floor per epoch, from the seconds before and including it.
+// One floor per epoch, from the seconds before and including it, and the margin above it that
+// makes a second loud: LOUD_DB, or more in a room whose level wobbles by itself (a very quiet room
+// sits at the microphone's own noise: 21 dB, moving 3-4 dB for nothing).
 export function noiseFloors(db) {
   const E = Math.ceil(db.length / EPOCH), out = new Float64Array(E)
+  out.margin = new Float64Array(E)
   for (let e = 0; e < E; e++) {
     const hi = Math.min(db.length, (e + 1) * EPOCH), lo = Math.max(0, hi - FLOOR_WIN)
     const vals = []
     for (let s = lo; s < hi; s++) if (Number.isFinite(db[s])) vals.push(db[s])
     out[e] = percentile(vals, FLOOR_PCT)
+    out.margin[e] = Math.min(LOUD_MAX, Math.max(LOUD_DB, WOBBLE_K * (percentile(vals, 0.75) - out[e])))
   }
   return out
 }
@@ -67,7 +73,7 @@ export function noiseFloors(db) {
 export function sounds(f) {
   const { db } = f, floors = noiseFloors(db), out = []
   for (let s = 0; s < db.length; s++) {
-    if (!(db[s] > floors[Math.floor(s / EPOCH)] + LOUD_DB)) continue
+    if (!(db[s] > floors[Math.floor(s / EPOCH)] + floors.margin[Math.floor(s / EPOCH)])) continue
     const last = out[out.length - 1]
     if (last && last.end === s) {
       last.end++; last.low += f.low[s] || 0; last.mid += f.mid?.[s] || 0; last.vr += f.vr?.[s] || 0

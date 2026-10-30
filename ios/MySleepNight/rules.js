@@ -5,6 +5,8 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 //#region lib/analysis.js
 	const LOUD_DB = 6;
+	const WOBBLE_K = 5;
+	const LOUD_MAX = 12;
 	const FLOOR_PCT = .1;
 	const FLOOR_WIN = 600;
 	const SNORE_LOW = .5;
@@ -56,18 +58,20 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 	}
 	function noiseFloors(db) {
 		const E = Math.ceil(db.length / 30), out = new Float64Array(E);
+		out.margin = new Float64Array(E);
 		for (let e = 0; e < E; e++) {
 			const hi = Math.min(db.length, (e + 1) * 30), lo = Math.max(0, hi - 600);
 			const vals = [];
 			for (let s = lo; s < hi; s++) if (Number.isFinite(db[s])) vals.push(db[s]);
 			out[e] = percentile(vals, FLOOR_PCT);
+			out.margin[e] = Math.min(12, Math.max(6, 5 * (percentile(vals, .75) - out[e])));
 		}
 		return out;
 	}
 	function sounds(f) {
 		const { db } = f, floors = noiseFloors(db), out = [];
 		for (let s = 0; s < db.length; s++) {
-			if (!(db[s] > floors[Math.floor(s / 30)] + 6)) continue;
+			if (!(db[s] > floors[Math.floor(s / 30)] + floors.margin[Math.floor(s / 30)])) continue;
 			const last = out[out.length - 1];
 			if (last && last.end === s) {
 				last.end++;
