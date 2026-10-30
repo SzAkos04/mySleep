@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { cookieName } from './scripts/session.mjs';
+import { appStatus } from './status.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -16,6 +17,8 @@ const SESSION_DAYS = 180;
 const MAX_BODY = 4 * 1024 * 1024;
 const COOKIE = cookieName(ORIGIN);
 const KINDS = new Set(['night', 'settings']);
+// the app syncs after every night: a day and a half without a word is a night missed or an app that stopped
+const APP_SILENT_HOURS = +(process.env.APP_SILENT_HOURS || 36);
 
 fs.mkdirSync(DATA, { recursive: true });
 
@@ -165,6 +168,12 @@ const publicDevice = d => ({ id: d.id, name: d.name, expires: d.expires, lastSee
 
 const routes = {
   'GET /api/health': (req, res) => json(res, 200, { ok: true }),
+
+  // for an uptime monitor (no sign-in, nothing secret): the server answers, and is the app alive?
+  'GET /api/health/app': (req, res) => {
+    const r = appStatus(db.users, Date.now(), APP_SILENT_HOURS * 3600e3);
+    json(res, r.ok ? 200 : 503, r);
+  },
 
   'GET /api/devices': (req, res) => json(res, 200, (needUser(req).devices || []).map(publicDevice)),
 

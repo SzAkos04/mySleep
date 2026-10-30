@@ -204,3 +204,17 @@ test('pairing on an https server: the script makes the cookie that server reads'
     assert.equal(r.status, 200);
   } finally { server2.kill(); fs.rmSync(dir2, { recursive: true, force: true }); }
 });
+
+// What an uptime monitor asks: the server is up, and so is the app (GET /api/health/app, no sign-in).
+test('the app’s health: not heard from, then heard from', async () => {
+  const get = () => fetch(base + '/api/health/app');
+  await pair();   // a fresh device: paired, never heard from
+  let r = await get();
+  assert.equal(r.status, 503);
+  assert.deepEqual(await r.json(), { ok: false, app: 'never heard', seenHoursAgo: null });
+  const { token } = await (await pair()).json();
+  await fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), 'content-type': 'application/json' }, body: JSON.stringify({ expires: Date.now() + 3 * 864e5, build: 'x' }) });
+  r = await get();
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { ok: true, app: 'running', seenHoursAgo: 0 });
+});
