@@ -16,6 +16,8 @@ const ORIGIN = process.env.ORIGIN || 'http://localhost:5173';
 const MAX_BODY = 4 * 1024 * 1024;
 const COOKIE = cookieName(ORIGIN);
 const KINDS = new Set(['night', 'settings']);
+// nothing sits in front of the API (it is Tailscale serve's backend): its own answers say what they are
+const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 // the app syncs after every night: a day and a half without a word is a night missed or an app that stopped
 const APP_SILENT_HOURS = +(process.env.APP_SILENT_HOURS || 36);
 
@@ -65,7 +67,7 @@ async function debugRoute(req, res, night) {
   const file = path.join(debugDir(user.id), night + '.json');
   if (req.method === 'GET') {
     if (!fs.existsSync(file)) throw new HttpError(404, 'no log for that night');
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.writeHead(200, JSON_HEADERS);
     return fs.createReadStream(file).pipe(res);
   }
   if (req.method !== 'PUT') throw new HttpError(405, 'GET or PUT');
@@ -149,7 +151,7 @@ function csrfOk(req) {
 /* ---------- http ---------- */
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 function json(res, code, obj, headers = {}) {
-  res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers });
+  res.writeHead(code, { ...JSON_HEADERS, ...headers });
   res.end(JSON.stringify(obj));
 }
 async function readBody(req) {

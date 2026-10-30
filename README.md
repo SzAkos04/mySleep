@@ -7,8 +7,8 @@ the phone and syncs them to a small server on your own machine: the history and 
 
 ```bash
 cp .env.example .env              # set ORIGIN to the address the phone reaches the server at
-docker compose up -d --build      # the API on 127.0.0.1:8081, behind nginx
-tailscale serve --bg --https=8443 http://127.0.0.1:8081
+docker compose up -d --build      # the API on 127.0.0.1:8083
+tailscale serve --bg --https=8443 http://127.0.0.1:8083
 scripts/ios-install.sh            # the app onto the iPhone (a free Apple ID: reinstall weekly)
 scripts/pair.sh                   # a link that pairs the app with the server: paste it on the iPhone, tap it
 ```

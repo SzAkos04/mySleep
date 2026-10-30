@@ -67,7 +67,7 @@ public final class NightStore {
       let (status, body) = await send(Data(request.utf8))
       switch status {
       case 200..<300: break
-      case 0, 502...504: return .offline          // no answer, or nginx up with the API behind it not
+      case 0, 502...504: return .offline          // no answer, or Tailscale up with the API behind it not
       case 401: return .unauthorized
       default: return .failed(status)
       }

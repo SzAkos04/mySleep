@@ -360,3 +360,13 @@ test('a log nobody can read is left out of the list, not a reason for it to fail
   assert.ok(!(await r.json()).some(l => l.night === '2027-02-02'));
   fs.rmSync(path.join(dbg, '2027-02-02.json'));
 });
+
+// Nothing sits in front of the API any more (it used to be nginx): the headers it set are the API's own.
+test('every answer says the browser must not guess its type', async () => {
+  const nosniff = r => r.headers.get('x-content-type-options');
+  assert.equal(nosniff(await fetch(base + '/api/health')), 'nosniff');
+  assert.equal(nosniff(await fetch(base + '/api/nothing-here')), 'nosniff', 'also the refusals');
+  const put = await fetch(base + '/api/debug/2027-03-01', { method: 'PUT', headers: { cookie, ...same }, body: JSON.stringify({ night: '2027-03-01', start: 1, final: true, events: [] }) });
+  assert.equal(put.status, 200);
+  assert.equal(nosniff(await fetch(base + '/api/debug/2027-03-01', { headers: { cookie } })), 'nosniff', 'also a log read back from its file');
+});

@@ -17,7 +17,6 @@ shared/    The night rules in JavaScript (analysis, record, score, sentences, st
            JavaScriptCore as one bundle (ios/MySleepNight/rules.js). scripts/ makes the bundle and the
            golden file, replays audio, reports on a log.
 api/       server.js on node:http, JSON files in DATA_DIR. No dependencies. Sync, night logs, pairing.
-web/       nginx in front of the API (one address for Tailscale serve, the request-size limit).
 scripts/   server-update.sh (runs on the server), test.sh, pair.sh, dev-local.sh, ios-install.sh,
            ios-fetch-night.sh, fetch-debug.sh.
 ```
@@ -63,7 +62,7 @@ Use Node 22 (Homebrew `node@22`). Homebrew's npm 10 crashes resolving this tree
   `ssh szakos@csodabogar2 '~/mySleep/scripts/server-update.sh'`. Verify live: `/api/health`.
 - Back up `data/` before touching it on the server: `ssh szakos@csodabogar2 'cd ~/mySleep &&
   docker compose exec -T api tar -C /data -cf - . > ~/backups/mysleep-data-$(date +%Y%m%d-%H%M%S).tar'`.
-- `https://csodabogar2.tailbd3336.ts.net:8443` (Tailscale serve → 127.0.0.1:8081). `ORIGIN` in `.env` is that
+- `https://csodabogar2.tailbd3336.ts.net:8443` (Tailscale serve → 127.0.0.1:8083, the API container itself). `ORIGIN` in `.env` is that
   address: the pairing link carries it, and the server names its cookie by it.
 
 ## Test-driven (the user's rule since 2026-10-29)

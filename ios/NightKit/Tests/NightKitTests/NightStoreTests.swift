@@ -81,7 +81,7 @@ import Foundation
     server.status = 0
     #expect(await s.sync(now: t0, send: server.send) == .offline)
     server.status = 502
-    #expect(await s.sync(now: t0, send: server.send) == .offline)    // nginx up, the API behind it not
+    #expect(await s.sync(now: t0, send: server.send) == .offline)    // Tailscale up, the API behind it not
     server.status = 401
     #expect(await s.sync(now: t0, send: server.send) == .unauthorized)
     server.status = 500

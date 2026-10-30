@@ -41,16 +41,16 @@ jobs:
       - run: npm test
         working-directory: api
 
-  # The images the server builds: both have to build, and the stack has to boot and answer.
+  # The image the server builds has to build, and the stack has to boot and answer.
   images:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - run: docker compose build
       - run: docker compose up -d
-      - name: the API answers through nginx
+      - name: the API answers on its published port
         run: |
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8081/api/health && break; sleep 1; done
-          curl -fsS http://127.0.0.1:8081/api/health | grep -q '"ok":true'
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8083/api/health && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8083/api/health | grep -q '"ok":true'
       - if: failure()
         run: docker compose logs

@@ -65,5 +65,3 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 ## shared/scripts
 `build-rules.mjs`, `golden.mjs`, `loud-alarm.mjs`, `night-report.mjs`, `replay.mjs`
 
-## web
-`Dockerfile`, `nginx.conf.template`

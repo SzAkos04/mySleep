@@ -13,7 +13,7 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<!-- the alarm is the system's (AlarmKit): it rings on the lock screen, through silent mode -->
-	<!-- the web app opens it: mysleepnight://pair (Settings) and mysleepnight://sleep (Sleep) -->
+	<!-- links open it: mysleepnight://pair (scripts/pair.sh) and mysleepnight://sleep (Sleep) -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

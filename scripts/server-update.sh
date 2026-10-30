@@ -6,5 +6,5 @@ set -eu
 cd "$(dirname "$0")/.."
 git pull --ff-only
 echo "Building $(git rev-parse --short HEAD)"
-docker compose up -d --build
+docker compose up -d --build --remove-orphans   # a service taken out of the compose file goes too
 docker compose ps
