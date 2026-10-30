@@ -17,11 +17,13 @@ public final class Night {
   public let night: String        // the night's id, the evening's date
   public let env: [String: Any]
   public private(set) var db: [Double] = [], low: [Double] = [], mid: [Double] = [], vr: [Double] = [], at: [Double] = []
+  /// The body's movement through the phone's accelerometer: the largest jerk of each second, in milli-g (NaN: no reading).
+  public private(set) var mv: [Double] = []
   public private(set) var events: [Event] = []
   public private(set) var silent = false
   public var hearing: Bool { !silent }
 
-  private struct Second { var n = 0, db = -Double.infinity, low = 0.0, mid = 0.0, dbs: [Double] = [], at = 0.0 }
+  private struct Second { var n = 0, db = -Double.infinity, low = 0.0, mid = 0.0, dbs: [Double] = [], at = 0.0, mv = Double.nan }
   private struct Minute { var reads = 0, zeros = 0, peak = -Double.infinity, floor = Double.infinity }
   private var acc = Second(), minute = Minute()
   private var lastDb: Double?, lastRead: Int64 = 0, quietSince: Int64 = 0
@@ -51,6 +53,12 @@ public final class Night {
     lastDb = r.db
   }
 
+  /// One accelerometer step: how far the acceleration moved since the last reading, in g.
+  public func motion(_ jerk: Double, at now: Int64) {
+    tick(at: now)
+    acc.mv = max(acc.mv.isNaN ? 0 : acc.mv, jerk * 1000)
+  }
+
   /// Closes the seconds up to `now`; seconds nothing was read in are gaps.
   public func tick(at now: Int64) {
     if lastRead != 0 && now - lastRead > 3000 { log("stall", ["ms": now - lastRead], at: now) }
@@ -61,7 +69,7 @@ public final class Night {
 
   /// A whole second as it was recorded (tests, and a night carried over from a saved log).
   func append(db d: Double, low l: Double, mid m: Double, vr v: Double, at a: Double) {
-    db.append(d); low.append(l); mid.append(m); vr.append(v); at.append(a)
+    db.append(d); low.append(l); mid.append(m); vr.append(v); at.append(a); mv.append(.nan)
   }
 
   private func push() {
@@ -72,6 +80,7 @@ public final class Night {
     let mean = acc.n > 0 ? acc.dbs.reduce(0, +) / n : 0
     vr.append(acc.n > 0 ? (acc.dbs.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / n).squareRoot() : 0)
     at.append(acc.at)
+    mv.append(acc.mv)
   }
 
   public func log(_ type: String, _ data: [String: Any] = [:], at: Int64? = nil) {
@@ -111,7 +120,7 @@ public final class Night {
       "v": 1, "night": night, "start": start, "env": env, "final": final,
       "uploadedAt": Int64(Date().timeIntervalSince1970 * 1000),
       "events": events.map { e -> [Any] in e.data.isEmpty ? [e.ms, e.type] : [e.ms, e.type, e.data] },
-      "samples": ["start": start, "db": db.map(r1), "low": low.map(r2), "mid": mid.map(r2), "vr": vr.map(r1), "at": at.map(r1)]
+      "samples": ["start": start, "db": db.map(r1), "low": low.map(r2), "mid": mid.map(r2), "vr": vr.map(r1), "at": at.map(r1), "mv": mv.map(r1)]
     ]
     return try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
   }

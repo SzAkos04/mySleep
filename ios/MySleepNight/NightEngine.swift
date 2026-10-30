@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreMotion
 import UIKit
 
 /// The microphone all night, with the phone locked: an audio session for recording, kept alive by
@@ -88,6 +89,7 @@ import UIKit
     night = n; nightForQueue = n; lastBeat = start
     n.log("start", ["battery": device.batteryLevel, "charging": device.batteryState == .charging || device.batteryState == .full])
     try startAudio(reason: "start")
+    startMotion(n)
     watch()
     smart = settings.smart; rangEarly = false; rangEarlyBy = nil; snoozes = 0; lastNight = nil
     plan = AlarmPlan.make(settings, from: Date())
@@ -109,6 +111,7 @@ import UIKit
     observers.forEach(NotificationCenter.default.removeObserver); observers = []
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
+    motion.stopAccelerometerUpdates()
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     alarm.cancel()
     silence()
@@ -120,6 +123,30 @@ import UIKit
                          heardMinutes: heard / 60, early: rangEarlyBy, snoozes: snoozes)
     night = nil; nightForQueue = nil; level = nil; plan = nil
     onFinished?()
+  }
+
+  // MARK: motion
+
+  // The phone on the bed (under the pillow, on the mattress) feels the sleeper move: the body's own
+  // movement, the signal actigraphy's algorithms are made for. It only goes in the log for now.
+  private let motion = CMMotionManager()
+  nonisolated(unsafe) private var lastAcceleration: (Double, Double, Double)?   // on `queue` only
+
+  private func startMotion(_ n: Night) {
+    n.log("motion", ["available": motion.isAccelerometerAvailable])
+    guard motion.isAccelerometerAvailable else { return }
+    motion.accelerometerUpdateInterval = 0.1
+    lastAcceleration = nil
+    let updates = OperationQueue(); updates.maxConcurrentOperationCount = 1   // not the main thread: a locked phone may starve it
+    motion.startAccelerometerUpdates(to: updates) { [queue, weak self] data, _ in
+      guard let a = data?.acceleration else { return }
+      let now = NightEngine.nowMs
+      queue.async {
+        guard let self, let night = self.nightForQueue else { return }
+        if let l = self.lastAcceleration { night.motion(((a.x - l.0) * (a.x - l.0) + (a.y - l.1) * (a.y - l.1) + (a.z - l.2) * (a.z - l.2)).squareRoot(), at: now) }
+        self.lastAcceleration = (a.x, a.y, a.z)
+      }
+    }
   }
 
   // MARK: audio

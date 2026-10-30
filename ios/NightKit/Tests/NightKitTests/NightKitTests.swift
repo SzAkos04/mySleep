@@ -108,6 +108,19 @@ func sine(_ hz: Double, rms: Double, n: Int = 2048) -> [Float] {
     #expect(n.events.last!.data["reads"] as? Int == 0)   // counted afresh each minute
   }
 
+  @Test func bodyMovementIsTheLargestJerkOfEachSecond() throws {
+    let n = Night(start: 1_793_270_000_000)
+    n.motion(0.002, at: n.start + 100); n.motion(0.05, at: n.start + 400); n.motion(0.01, at: n.start + 800)   // second 0
+    n.motion(0.004, at: n.start + 1200)                                                                         // second 1
+    n.tick(at: n.start + 4000)                                                                                  // seconds 2, 3: nothing
+    #expect(n.mv.count == 4)
+    #expect(n.mv[0] == 50 && n.mv[1] == 4)                                      // milli-g
+    #expect(n.mv[2].isNaN && n.mv[3].isNaN)                                      // no reading is not stillness
+    let json = try #require(try JSONSerialization.jsonObject(with: n.json(final: true)) as? [String: Any])
+    let mv = try #require((json["samples"] as? [String: Any])?["mv"] as? [Any])
+    #expect(mv.count == 4 && mv[0] as? Double == 50 && mv[3] is NSNull)
+  }
+
   @Test func savedInTheWebAppsLogFormat() throws {
     let n = Night(start: 1_793_270_000_000, night: "2026-10-29", env: ["app": "native"])
     var t = n.start + 100
