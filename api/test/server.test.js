@@ -331,3 +331,32 @@ test('an unknown route is 404 and a change that is not valid is 400, in JSON', a
   const many = await fetch(base + '/api/sync', { method: 'POST', headers: { cookie, ...same }, body: JSON.stringify({ since: 0, changes: Array.from({ length: 1001 }, (_, i) => night('2027-01-01', i, 1)) }) });
   assert.equal(many.status, 400, 'at most 1000 changes at a time');
 });
+
+// Listing the logs must not read them: a night's log is a megabyte, and thirty of them are kept.
+test('the log list comes from a small note kept beside each log, and makes one for a log that has none', async () => {
+  const put = body => fetch(base + '/api/debug/2027-02-01', { method: 'PUT', headers: { cookie, ...same }, body: JSON.stringify(body) });
+  assert.equal((await put({ night: '2027-02-01', start: 5, final: true, env: { app: 'native' }, events: [] })).status, 200);
+  const dbg = path.join(DATA, 'debug', fs.readdirSync(path.join(DATA, 'debug'))[0]);
+  const list = async () => (await (await fetch(base + '/api/debug', { headers: { cookie } })).json()).find(l => l.night === '2027-02-01');
+  const first = await list();
+  assert.deepEqual({ ...first, uploadedAt: typeof first.uploadedAt }, { night: '2027-02-01', start: 5, final: true, app: 'native', uploadedAt: 'number' });
+  // the log itself is made unreadable: the list does not need it
+  fs.writeFileSync(path.join(dbg, '2027-02-01.json'), '{ not json');
+  assert.deepEqual(await list(), first);
+  // a log from before the notes: the list reads it once and leaves a note
+  fs.rmSync(path.join(dbg, '2027-02-01.meta.json'));
+  fs.writeFileSync(path.join(dbg, '2027-02-01.json'), JSON.stringify({ night: '2027-02-01', start: 5, final: false, env: {}, events: [], receivedAt: 99 }));
+  assert.deepEqual(await list(), { night: '2027-02-01', start: 5, final: false, app: 'web', uploadedAt: 99 });
+  assert.ok(fs.existsSync(path.join(dbg, '2027-02-01.meta.json')));
+  // a note never shows up as a night of its own
+  assert.equal((await (await fetch(base + '/api/debug', { headers: { cookie } })).json()).filter(l => l.night === '2027-02-01').length, 1);
+});
+
+test('a log nobody can read is left out of the list, not a reason for it to fail', async () => {
+  const dbg = path.join(DATA, 'debug', fs.readdirSync(path.join(DATA, 'debug'))[0]);
+  fs.writeFileSync(path.join(dbg, '2027-02-02.json'), '{ half written');
+  const r = await fetch(base + '/api/debug', { headers: { cookie } });
+  assert.equal(r.status, 200);
+  assert.ok(!(await r.json()).some(l => l.night === '2027-02-02'));
+  fs.rmSync(path.join(dbg, '2027-02-02.json'));
+});

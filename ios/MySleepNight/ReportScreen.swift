@@ -107,42 +107,58 @@ struct ReportScreen: View {
 }
 
 /// The times of a night, when the microphone got them wrong: when you went to bed, fell asleep, woke.
+/// A night without sleep found has no "fell asleep" time until one is added.
 private struct CorrectSheet: View {
   let report: ReportView
   let saved: () -> Void
   @EnvironmentObject var data: NightData
   @Environment(\.dismiss) private var dismiss
-  @State private var bed: Date
-  @State private var on: Date
-  @State private var wake: Date
+  @State private var times: Correction
   @State private var error: String?
 
   init(report: ReportView, saved: @escaping () -> Void) {
     self.report = report; self.saved = saved
-    func date(_ hm: String) -> Date { TimeSheet.format.date(from: hm) ?? Date() }
-    _bed = State(initialValue: date(report.times.bed)); _wake = State(initialValue: date(report.times.wake))
-    _on = State(initialValue: date(report.times.on.isEmpty ? report.times.bed : report.times.on))
+    _times = State(initialValue: Correction(report.times))
   }
 
   var body: some View {
     VStack(spacing: 0) {
       HStack { Text("Correct the times").font(.headline); Spacer(); Button("Cancel") { dismiss() } }.padding(20)
       VStack(spacing: 0) {
-        row("In bed", $bed); Divider().overlay(Theme.line)
-        row("Fell asleep", $on); Divider().overlay(Theme.line)
-        row("Woke up", $wake)
+        row("In bed", $times.bed); Divider().overlay(Theme.line)
+        fellAsleep; Divider().overlay(Theme.line)
+        row("Woke up", $times.wake)
       }
       .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous)).padding(.horizontal, 20)
+      .animation(.snappy(duration: 0.25), value: times.on == nil)
       if let error { Text(error).font(.footnote).foregroundStyle(.red).padding(.top, 10).padding(.horizontal, 20) }
       Spacer()
       PrimaryButton(title: "Save", systemImage: "checkmark") {
-        let f = TimeSheet.format
-        if let e = data.correct(report.id, bed: f.string(from: bed), on: f.string(from: on), wake: f.string(from: wake)) { withAnimation(.snappy) { error = e } }
+        let t = times.texts
+        if let e = data.correct(report.id, bed: t.bed, on: t.on, wake: t.wake) { withAnimation(.snappy) { error = e } }
         else { saved(); dismiss() }
       }
       .padding(20)
     }
     .background(Theme.bg)
+  }
+
+  @ViewBuilder private var fellAsleep: some View {
+    if let on = times.on {
+      HStack {
+        Text("Fell asleep"); Spacer()
+        DatePicker("Fell asleep", selection: Binding(get: { on }, set: { times.on = $0 }), displayedComponents: .hourAndMinute).labelsHidden()
+        Button { times.removeFellAsleep() } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.text2) }
+          .buttonStyle(Pressable()).accessibilityLabel("No sleep")
+      }
+      .padding(.horizontal, 16).padding(.vertical, 8)
+    } else {
+      HStack {
+        Text("Fell asleep"); Spacer()
+        Button("Not found · add") { times.addFellAsleep() }
+      }
+      .padding(.horizontal, 16).padding(.vertical, 14)
+    }
   }
 
   private func row(_ title: String, _ date: Binding<Date>) -> some View {

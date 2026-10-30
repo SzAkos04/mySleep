@@ -39,10 +39,10 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `Package.swift`
 
 ## ios/NightKit/Sources/NightKit
-`Alarm.swift`, `Features.swift`, `Jerk.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Reminders.swift`, `Rules.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Views.swift`
+`Alarm.swift`, `Correction.swift`, `Features.swift`, `Jerk.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Reminders.swift`, `Rules.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Views.swift`
 
 ## ios/NightKit/Tests/NightKitTests
-`AlarmTests.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `ReminderTests.swift`, `RulesTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `ViewsTests.swift`
+`AlarmTests.swift`, `CorrectionTests.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `ReminderTests.swift`, `RulesTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `ViewsTests.swift`
 
 ## ios/NightKit/Tests/NightKitTests/Fixtures
 `fixture.js`, `golden.json`

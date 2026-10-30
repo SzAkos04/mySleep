@@ -50,6 +50,15 @@ const DEBUG_DAYS = +(process.env.DEBUG_DAYS || 30);
 const DEBUG_PATH = /^\/api\/debug\/(\d{4}-\d{2}-\d{2})$/;
 const debugDir = uid => path.join(DATA, 'debug', uid.replace(/[^\w-]/g, ''));
 const DEBUG_FILE = /^\d{4}-\d{2}-\d{2}\.json$/;
+// What the list shows of a log, kept in a small note beside it, so the list never reads the logs.
+const noteFile = file => file.replace(/\.json$/, '.meta.json');
+const noteOf = l => ({ night: l.night, start: l.start, final: !!l.final, app: l.env?.app || 'web', uploadedAt: l.uploadedAt ?? l.receivedAt });
+function noteFor(file) {
+  try { const note = readJSON(noteFile(file), null); if (note) return note; } catch {}   // a broken note is made again
+  const note = noteOf(readJSON(file, {}));   // a log from before the notes: read once
+  writeJSON(noteFile(file), note);
+  return note;
+}
 async function debugRoute(req, res, night) {
   // reading needs the session (the operator's); mySleep Night uploads with its device token
   const user = req.method === 'PUT' && !readSession(req) ? needDevice(req).user : needUser(req);
@@ -76,7 +85,9 @@ async function debugRoute(req, res, night) {
     if (kept?.final && kept.start === body.start) return json(res, 200, { ok: true, kept: 'final' });
   }
   fs.mkdirSync(debugDir(user.id), { recursive: true });
-  writeJSON(file, { ...body, receivedAt: Date.now() });
+  const saved = { ...body, receivedAt: Date.now() };
+  writeJSON(file, saved);
+  writeJSON(noteFile(file), noteOf(saved));
   json(res, 200, { ok: true });
 }
 function sweepDebug() {
@@ -200,10 +211,9 @@ const routes = {
     const user = needUser(req);
     let files = [];
     try { files = fs.readdirSync(debugDir(user.id)).filter(f => DEBUG_FILE.test(f)); } catch {}
-    json(res, 200, files.map(f => {
-      const l = readJSON(path.join(debugDir(user.id), f), {});
-      return { night: l.night, start: l.start, final: !!l.final, app: l.env?.app || 'web', uploadedAt: l.uploadedAt ?? l.receivedAt };
-    }));
+    const notes = [];
+    for (const f of files) { try { notes.push(noteFor(path.join(debugDir(user.id), f))); } catch (e) { console.error('debug', f, e.message); } }   // a log nobody can read is left out
+    json(res, 200, notes);
   },
 
   // Push what changed, get back what this device has not seen. One round trip both ways.
