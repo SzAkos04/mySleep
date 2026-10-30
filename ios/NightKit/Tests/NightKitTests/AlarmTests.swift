@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The alarm's decisions, the same cases as the web app's (frontend/src/lib/night.test.js).
+// The alarm's decisions, the same cases as the web app's (shared/lib/night.test.js).
 let cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Europe/Budapest")!; return c }()
 func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponents(year: 2026, month: 10, day: day, hour: h, minute: m))! }
 

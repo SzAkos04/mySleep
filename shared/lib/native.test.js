@@ -1,18 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
-import { sleepLink, pairLink, toImport, nightFromLog, nativeSummary, expiryNote, importNative, isEmbedded, takeIn } from './native.js'
+import { describe, it, expect } from 'vitest'
+import { toImport, nightFromLog, nativeSummary, takeIn } from './native.js'
 
-// The web app no longer listens: mySleep Night (ios/) records the night and uploads its log; the
-// web app opens it, pairs it, turns its logs into nights, and says when it needs reinstalling.
-
-describe('links into mySleep Night', () => {
-  it('Sleep opens the app with tonight’s alarm', () => {
-    expect(sleepLink({ alarm: true, smart: true, wake: '06:45' })).toBe('mysleepnight://sleep?alarm=1&smart=1&wake=06%3A45')
-    expect(sleepLink({ alarm: false, smart: false, wake: '07:00' })).toBe('mysleepnight://sleep?alarm=0&smart=0&wake=07%3A00')
-  })
-  it('pairing hands the app this server and its token', () => {
-    expect(pairLink('https://host.ts.net:8443', 'tok_123')).toBe('mysleepnight://pair?server=https%3A%2F%2Fhost.ts.net%3A8443&token=tok_123')
-  })
-})
+// mySleep Night (ios/) records the night and keeps its log; the rules turn a finished log into the
+// night it holds, once.
 
 // a night as mySleep Night logs it: 23:00 to 07:00, quiet, 15 min tossing first; the alarm rang early
 const start = new Date(2026, 9, 29, 23, 0).getTime()
@@ -25,7 +15,7 @@ function log({ night = '2026-10-29', from = start, final = true, events } = {}) 
 }
 
 describe('turning a log into a night', () => {
-  it('is the web app’s own night record, marked as recorded by the app', () => {
+  it('is the night record, marked as recorded by the app', () => {
     const n = nightFromLog(log())
     expect(n).toMatchObject({ id: '2026-10-29', bed: start, wake: start + 8 * 3600e3, source: 'native', clips: [] })
     expect(n.asleepMin).toBeGreaterThan(7 * 60)
@@ -65,50 +55,6 @@ describe('which logs to import', () => {
   })
   it('a later night the same date from the app replaces the earlier one', () => {
     expect(toImport(logs, { '2026-10-29': { id: '2026-10-29', bed: start - 5000, source: 'native' } }).map(l => l.night)).toEqual(['2026-10-29', '2026-10-26'])
-  })
-})
-
-describe('importing', () => {
-  it('fetches the new logs and saves their nights; one that fails waits for next time', async () => {
-    const full = { '2026-10-29': log(), '2026-10-26': log({ night: '2026-10-26', from: start - 3 * 864e5 }) }
-    const get = vi.fn(async path => {
-      if (path === '/api/debug') return [{ night: '2026-10-29', start, final: true, app: 'native' }, { night: '2026-10-26', start: start - 3 * 864e5, final: true, app: 'native' }, { night: '2026-10-25', start: 1, final: true, app: 'native' }]
-      const id = path.split('/').pop()
-      if (!full[id]) throw new Error('gone')
-      return full[id]
-    })
-    const save = vi.fn()
-    expect(await importNative({ get, nights: {}, save })).toBe(2)
-    expect(save.mock.calls.map(c => c[0].id)).toEqual(['2026-10-29', '2026-10-26'])
-  })
-})
-
-describe('when the app needs reinstalling', () => {
-  const now = new Date(2026, 10, 3, 12, 0).getTime(), day = 864e5
-  const app = expires => [{ id: 'a', name: 'mySleep Night', expires, lastSeen: now - day }]
-  it('says nothing while there is time', () => {
-    expect(expiryNote(app(now + 5 * day), now)).toBeNull()
-  })
-  it('two days before, the last day, and after', () => {
-    expect(expiryNote(app(now + 2 * day - 3600e3), now)).toMatchObject({ level: 'soon' })
-    expect(expiryNote(app(now + 3600e3), now)).toMatchObject({ level: 'today' })
-    expect(expiryNote(app(now - 3600e3), now)).toMatchObject({ level: 'expired' })
-  })
-  it('not paired yet, or never said when: says how to start', () => {
-    expect(expiryNote([], now)).toMatchObject({ level: 'unpaired' })
-    expect(expiryNote(app(null), now)).toMatchObject({ level: 'unknown' })
-  })
-  it('names the day it stops', () => {
-    expect(expiryNote(app(new Date(2026, 10, 5, 13, 0).getTime()), now).until).toBe(new Date(2026, 10, 5, 13, 0).getTime())
-  })
-})
-
-describe('inside mySleep Night', () => {
-  it('the app opens the pages with ?embed=1', () => {
-    expect(isEmbedded('?embed=1')).toBe(true)
-    expect(isEmbedded('?x=2&embed=1')).toBe(true)
-    expect(isEmbedded('')).toBe(false)
-    expect(isEmbedded('?embedded=1')).toBe(false)
   })
 })
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // A session cookie for a profile in a local data dir, signed the way server.js signs one, so a
-// browser without the passkey (Claude's browser pane, the iOS Simulator) can be signed in.
+// script (pair.mjs, curl on the server) can pair the app and read its logs: there is no sign-in page.
 // Local test data only: it needs DATA_DIR/secret, which is full control of the instance anyway.
 //
 //   DATA_DIR=../data node scripts/dev-session.mjs [name-or-id]   # prints sleepsid=<token>

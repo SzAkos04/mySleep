@@ -4,14 +4,8 @@
     {
       "name": "api",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd api && DATA_DIR=../data ORIGIN=http://localhost:5173 node server.js"],
+      "runtimeArgs": ["-c", "cd api && DATA_DIR=../data ORIGIN=http://localhost:3000 node server.js"],
       "port": 3000
-    },
-    {
-      "name": "web",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd frontend && DEV_SESSION=$(cd ../api && DATA_DIR=../data node scripts/dev-session.mjs Test) npx vite --port 5173 --strictPort"],
-      "port": 5173
     }
   ]
 }

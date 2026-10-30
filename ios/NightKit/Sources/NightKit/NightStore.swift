@@ -1,7 +1,7 @@
 import Foundation
 
 /// The nights and settings on the phone, and their sync with the server (POST /api/sync, the same
-/// route and rules as the web app: frontend/src/lib/sync.js, run by `Rules`). The state is the
+/// route and rules as the web app: shared/lib/sync.js, run by `Rules`). The state is the
 /// web store's own JSON: `nights`, `settings`, `rev`, `dirty`; the app only holds it, writes it to
 /// a file and does the HTTP.
 public final class NightStore {

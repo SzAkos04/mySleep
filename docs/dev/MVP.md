@@ -1,5 +1,10 @@
 # mySleep MVP (v0.1)
 
+> **2026-10-30:** the web app described below is gone. mySleep Night (ios/) records the night, keeps the
+> nights and shows them; the rules this document explains live on in `shared/lib` and run in the app.
+> The server keeps the history. See `NATIVE_PLAN.md` and `CLAUDE.md` for how it is now; this file is the
+> reasoning behind the night's analysis and the first design.
+
 A self-hosted sleep tracker and smart alarm for one iPhone, built the way myGym was: React PWA,
 dependency-free Node API, JSON files, Docker on `csodabogar2` behind Tailscale. Deliberately an
 early version: the point is to sleep with it and tune it, not to be complete.

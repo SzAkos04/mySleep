@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The same numbers the PWA's tracker.js makes (frontend/src/lib/tracker.test.js), so a night from
+// The same numbers the PWA's tracker.js makes (shared/lib/tracker.test.js), so a night from
 // the app reads like a night from the web: dB = 20·log10(rms) + 100, the share of power under
 // 500 Hz and between 500 and 3000 Hz, one value per second, NaN where nothing was heard.
 

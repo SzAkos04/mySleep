@@ -1,11 +1,6 @@
-// mySleep Night (ios/), the native app, records the night: the web app opens it from Sleep, pairs it
-// with this server, turns the logs it uploads into nights, and says when it needs reinstalling
-// (a free Apple ID signs it for 7 days). The night's analysis stays this app's: nightRecord.
+// mySleep Night (ios/) records the night and keeps its log; this turns a finished log into the night
+// it holds (the analysis is nightRecord's).
 import { nightRecord } from './night.js'
-
-const q = o => Object.entries(o).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
-export const sleepLink = s => 'mysleepnight://sleep?' + q({ alarm: s.alarm ? 1 : 0, smart: s.smart ? 1 : 0, wake: s.wake })
-export const pairLink = (server, token) => 'mysleepnight://pair?' + q({ server, token })
 
 // What went wrong in the night, as mySleep Night logs it (ios/MySleepNight/NightEngine.swift).
 export function nativeSummary(events) {
@@ -41,26 +36,3 @@ export const toImport = (logs, nights) => logs.filter(l => {
 // The night mySleep Night makes of one of its own finished logs (null: nothing to make), by the
 // same rule as toImport, so the app and the web app do not make it twice.
 export const takeIn = (log, nights) => toImport([{ app: 'native', final: !!log.final, night: log.night, start: log.start }], nights).length ? nightFromLog(log) : null
-
-// Runs when the app opens. A log that does not come now is tried again next time.
-export async function importNative({ get, nights, save }) {
-  let done = 0
-  for (const l of toImport(await get('/api/debug'), nights)) {
-    try { save(nightFromLog(await get('/api/debug/' + l.night))); done++ } catch {}
-  }
-  return done
-}
-
-// For Today: is mySleep Night paired, and how long until it stops?
-export function expiryNote(devices, now = Date.now()) {
-  const d = devices.find(x => x.name === 'mySleep Night') ?? devices[0]
-  if (!d) return { level: 'unpaired' }
-  if (!Number.isFinite(d.expires)) return { level: 'unknown' }
-  const days = Math.round((new Date(d.expires).setHours(12, 0, 0, 0) - new Date(now).setHours(12, 0, 0, 0)) / 864e5)
-  const level = d.expires <= now ? 'expired' : days === 0 ? 'today' : days <= 2 ? 'soon' : null
-  return level && { level, until: d.expires }
-}
-
-// mySleep Night shows the Journal and Trends inside itself (its tabs) and opens them with ?embed=1:
-// then the app's own tab bar and Sleep button are the way around, not this page's.
-export const isEmbedded = (search = typeof location !== 'undefined' ? location.search : '') => new URLSearchParams(search).has('embed')

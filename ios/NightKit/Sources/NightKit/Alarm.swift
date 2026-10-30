@@ -10,7 +10,7 @@ public struct AlarmSettings: Codable, Equatable, Sendable {
   public var time: String { String(format: "%02d:%02d", hour, minute) }
 }
 
-/// When tonight's alarm rings, the same rules as the web app's (frontend/src/lib/night.js):
+/// When tonight's alarm rings, the same rules as the web app's (shared/lib/night.js):
 /// at the next wake time, or, when smart, from SMART_MIN before it once the sleeper stirs.
 public struct AlarmPlan: Equatable, Sendable {
   public static let smartMinutes = 30

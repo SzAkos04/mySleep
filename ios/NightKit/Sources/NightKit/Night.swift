@@ -2,7 +2,7 @@ import Foundation
 
 /// A night as the tracker keeps it: one value per second from the start (NaN where nothing was
 /// heard), and the flight-recorder log, saved as JSON that the web app turns into the night
-/// (lib/native.js nightFromLog) and frontend/scripts/night-report.mjs reads.
+/// (lib/native.js nightFromLog) and shared/scripts/night-report.mjs reads.
 public final class Night {
   public struct Event {
     public let ms: Int64          // since the start

@@ -25,7 +25,7 @@ import UIKit
   @Published private(set) var selfRinging = false   // no system alarm: the app rings itself
   private var smart = false, rangEarly = false, lastCheck: Int64 = 0
   private var player: AVAudioPlayer?, ramp: Timer?, ringStart = Date()
-  // the web app's night rules (rules.js, built from frontend/src/lib/rules.js): the smart alarm's judge
+  // the web app's night rules (rules.js, built from shared/lib/rules.js): the smart alarm's judge
   private let rules: Rules? = Bundle.main.url(forResource: "rules", withExtension: "js")
     .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.flatMap { try? Rules(source: $0) }
 

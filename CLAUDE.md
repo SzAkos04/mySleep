@@ -1,48 +1,52 @@
 # CLAUDE.md
 
-mySleep: a self-hosted sleep tracker and smart alarm PWA for one iPhone, built like myGym
-(`~/Projects/myGym`). The plan and the reasons are in `docs/dev/MVP.md`; read it first.
-The web app is being retired step by step for the native app: `docs/dev/NATIVE_PLAN.md`, in order.
-The file layout is in `PROJECT_STRUCTURE.md`.
+mySleep: a self-hosted sleep tracker and smart alarm for one iPhone: the native app mySleep Night and a
+small server on the user's own machine. Built like myGym (`~/Projects/myGym`). The plan and the reasons
+are in `docs/dev/MVP.md` (the first version, now partly history) and `docs/dev/NATIVE_PLAN.md` (how the
+web app was retired for the native app). The file layout is in `PROJECT_STRUCTURE.md`.
 
 ## Layout
 
 ```
-frontend/  React + Vite + Zustand + react-router, nothing else. src/lib/ pure logic with *.test.js
-           beside it (analysis.js: the sound analysis and its tuning constants), src/views/ screens,
-           src/components/ shared UI, src/store.js the persisted, synced store.
-api/       server.js on node:http, JSON files in DATA_DIR. Deps: @simplewebauthn/server, web-push.
-web/       multi-stage Dockerfile (builds frontend/, nginx) + nginx.conf.template (proxies /api).
-scripts/   server-update.sh (runs on the server), test.sh, ios-install.sh, ios-fetch-night.sh.
-ios/       mySleep Night, the native app for the night only (record with the phone locked; the PWA
-           does the rest). NightKit/: its logic as a Swift package with tests (swift test on the
-           Mac); MySleepNight/: the SwiftUI app. Logs in the web app's format (lib/diag.js).
+ios/       mySleep Night: the app (SwiftUI): Tonight (the alarm, Sleep), the night itself (record with the
+           phone locked, alarm, Live Activity), the Journal, Trends, the night's report, Settings.
+           NightKit/: its logic as a Swift package with tests (swift test on the Mac); MySleepNight/: the
+           app; rules.js there is GENERATED from shared/ (below). Logs go up as JSON, nights sync.
+shared/    The night rules in JavaScript (analysis, record, score, sentences, statistics, the sync's
+           reducers, the view models of the screens), tested here with vitest and run by the app in
+           JavaScriptCore as one bundle (ios/MySleepNight/rules.js). scripts/ makes the bundle and the
+           golden file, replays audio, reports on a log.
+api/       server.js on node:http, JSON files in DATA_DIR. No dependencies. Sync, night logs, pairing.
+web/       nginx in front of the API (one address for Tailscale serve, the request-size limit).
+scripts/   server-update.sh (runs on the server), test.sh, pair.sh, dev-local.sh, ios-install.sh,
+           ios-fetch-night.sh, fetch-debug.sh.
 ```
+
+There is no web app any more (removed 2026-10-30). The server is a backup and the history: the app keeps
+its nights on the phone and syncs them (`POST /api/sync`, with the device token).
 
 ## Commands
 
 ```bash
-scripts/test.sh                    # everything: frontend tests, API tests, ios/NightKit tests, build
+scripts/test.sh                    # everything: shared tests, API tests, ios/NightKit tests
 scripts/ios-install.sh             # mySleep Night onto the iPhone (free Apple ID: weekly, 7 days)
+scripts/pair.sh                    # a link that pairs the app with the server (copied: paste it on the iPhone)
 scripts/ios-fetch-night.sh         # its night logs from the iPhone into debug/ios/, with the report
-cd frontend && npm run test:watch  # vitest while writing code
+scripts/dev-local.sh               # the API on http://localhost:3000 (data/), prints the Simulator's pairing link
+cd shared && npm run build:rules   # after changing shared/lib: rebuilds ios/MySleepNight/rules.js and the golden file
+cd shared && npm run test:watch    # vitest while writing code
 cd api && npm test                 # node:test, boots server.js on a temp DATA_DIR
-scripts/dev-local.sh               # API + hot-reload frontend on http://localhost:5173, signed in as
-                                   # Test (data/), Ctrl-C stops both; API_PORT/WEB_PORT to move them
+cd ios/NightKit && swift test      # the app's logic
 ```
 
-iPhone checks: the iOS Simulator device "iPhone 11 Pro Max test". Serve the build signed in
-(`npm run build && DEV_SESSION=… npx vite preview --port 4174`; 4173 is often myGym's), open
-`http://localhost:4174/__dev-session?c=<cookie value>` in its Safari, and test the home-screen app
-(Share › Add to Home Screen; quit it with `xcrun simctl terminate <udid> com.apple.webapp`).
-Record with `xcrun simctl io <udid> recordVideo --codec h264` to see an animation frame by frame.
-WebKit: `swift frontend/scripts/webkit-run.swift <url> "<cookie>" flow.js` (outside the sandbox).
-Its window runs hidden, so animations do not advance and timers are throttled: use it for what
-happens (elements, classes, state), measure motion in the Simulator.
-The Simulator's microphone is a steady tone with a click every second, not the Mac's: it tests the
-tracking flow and the clip upload, never what the analysis hears. For that, replay audio:
-`node frontend/scripts/replay.mjs some.wav` (a clip from data/clips/, or `say -o x.wav
---data-format=LEI16@48000 "…"`), and see docs/dev/SOUND_ANALYSIS.md for the measured thresholds.
+iPhone checks: the iOS Simulator device "iPhone 11 Pro Max test". Build with
+`xcodebuild -project ios/MySleepNight.xcodeproj -scheme MySleepNight -sdk iphonesimulator -configuration Debug -derivedDataPath ios/build/sim CODE_SIGN_IDENTITY=- build`,
+install and launch with `xcrun simctl install/launch booted hu.szakos.mysleep.night`. Start `scripts/dev-local.sh`
+and open its pairing link with `xcrun simctl openurl booted`. Start a night with
+`xcrun simctl openurl booted "mysleepnight://sleep?alarm=1&smart=0&wake=HH%3AMM"`. The Simulator's microphone is a
+steady tone with a click every second, never what the analysis hears; AlarmKit is always denied there.
+To see the screens with a month of nights, seed `Application Support/nights.json` in the app's container.
+To check audio analysis: `node shared/scripts/replay.mjs some.wav` and `docs/dev/SOUND_ANALYSIS.md`.
 
 Use Node 22 (Homebrew `node@22`). Homebrew's npm 10 crashes resolving this tree
 (`Cannot read properties of null (reading 'edgesOut')`): change dependencies with
@@ -55,11 +59,11 @@ Use Node 22 (Homebrew `node@22`). Homebrew's npm 10 crashes resolving this tree
   Docker only. Nobody codes there.
 - **Merging `dev` into `main` and deploying happen only when the user says so** ("mergelj",
   "telepítsd"). Then: `git switch main && git merge dev && git push && git switch dev`, and
-  `ssh szakos@csodabogar2 '~/mySleep/scripts/server-update.sh'`. Verify live: `/api/health`, the
-  build in Settings.
-- Back up `data/` before touching it on the server (MVP.md, Hosting).
-- `https://csodabogar2.tailbd3336.ts.net:8443` (Tailscale serve → 127.0.0.1:8081). `RP_ID` is
-  the hostname, shared with myGym; never change it (the passkeys are bound to it).
+  `ssh szakos@csodabogar2 '~/mySleep/scripts/server-update.sh'`. Verify live: `/api/health`.
+- Back up `data/` before touching it on the server: `ssh szakos@csodabogar2 'cd ~/mySleep &&
+  docker compose exec -T api tar -C /data -cf - . > ~/backups/mysleep-data-$(date +%Y%m%d-%H%M%S).tar'`.
+- `https://csodabogar2.tailbd3336.ts.net:8443` (Tailscale serve → 127.0.0.1:8081). `ORIGIN` in `.env` is that
+  address: the pairing link carries it, and the server names its cookie by it.
 
 ## Test-driven (the user's rule since 2026-10-29)
 
@@ -69,29 +73,28 @@ Every change starts with a test, so anything can be checked for working or broke
 3. A bug is fixed only after a test reproduces it (it fails before the fix, passes after).
 4. `scripts/test.sh` green before every commit. The pre-commit hook runs it
    (`git config core.hooksPath scripts/hooks` in a new clone); never bypass it with `--no-verify`.
-   The Docker builds run the tests too, so a failing change cannot be deployed.
+   The Docker builds run the API tests too, so a failing change cannot be deployed.
 
 Where tests go:
-- Logic: `frontend/src/lib/*.test.js` beside the code. Keep logic out of views and `tracker.js`
-  so it can be tested; move it into `src/lib` when it grows.
-- Screens: `frontend/src/views/screens.test.jsx` renders each one to HTML with seeded nights (no
-  DOM library: `react-dom/server`). New screen, new figure or new text → a case there.
-- Page globals for tests: `frontend/src/test-setup.js` (document, localStorage, matchMedia).
+- What the night means (analysis, record, score, sentences, statistics, sync, the screens' wording and
+  numbers): `shared/lib/*.test.js` beside the code. `views.js` decides what each screen shows; the app draws it.
+  Export what the app needs from `shared/lib/rules.js`, rebuild the bundle (`npm run build:rules`);
+  `rules.test.js` fails while the bundle or `golden.json` is stale.
+- The app's logic: `ios/NightKit/Tests`. `RulesTests` runs the bundle in JavaScriptCore and compares a fixed
+  night with node's output as strings (in any time zone: the fixture makes local time UTC).
 - API: `api/test/server.test.js`, a real server on a temp DATA_DIR. Every route and its refusals.
-- What only the iPhone can show (microphone, wake lock, lock screen, sound): check it in the
-  Simulator (below) and say what was not verified. A failure found there gets a unit test when
-  its cause is in code.
+- What only the iPhone can show (microphone, lock screen, sound, notifications): check it in the Simulator
+  and say what was not verified. A failure found there gets a unit test when its cause is in code.
 
 ## Rules
 
-- Analysis, stats, sync and time logic stay pure in `src/lib` with a test beside them.
-- Tuning constants in `analysis.js` are knobs: change them from real nights, not from guesses.
+- Rules about a night live in `shared/lib`, pure, with a test beside them; the app has no copy of them.
+  Tuning constants in `analysis.js` are knobs: change them from real nights, not from guesses.
 - The UI is English; the user writes Hungarian.
-- The night (microphone, alarm) is mySleep Night's (ios/), since 2026-10-29: the web app's Sleep
-  button opens it (mysleepnight://sleep), Settings pairs it (a device token), and the web app turns
-  the logs it uploads into nights (lib/native.js). The server reminds by push before the app's
-  free signature runs out (api/reminders.js). Only a real iPhone shows the night; say what was not
-  verified.
+- The night (microphone, alarm) runs for real only on the iPhone; say what was not verified.
+- Motion: opacity, offset, scale, numbers and symbol effects only (an iPhone 11 Pro Max); none of it with Reduce
+  Motion; no animated blur.
+- Never `pkill -f` a broad pattern (myGym's servers run on this Mac too): stop what you started by port or pid.
 
 ## Token and context efficiency
 

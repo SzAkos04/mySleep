@@ -46,7 +46,7 @@ import SwiftUI
   }
 }
 
-// The web app's colours (frontend/src/index.css)
+// The app's colours
 enum Theme {
   static let bg = Color(red: 0x0b / 255, green: 0x0a / 255, blue: 0x09 / 255)
   static let card = Color(red: 0x1a / 255, green: 0x19 / 255, blue: 0x18 / 255)

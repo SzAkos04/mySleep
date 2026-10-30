@@ -1,6 +1,6 @@
 import Foundation
 
-// What the screens show of the nights, as the rules give it (frontend/src/lib/views.js: the
+// What the screens show of the nights, as the rules give it (shared/lib/views.js: the
 // wording and the numbers are decided and tested there). The app draws these.
 
 public enum Tone: String, Decodable, Sendable { case good, accent, warn }

@@ -1,0 +1,16 @@
+{
+  "name": "mysleep-shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The night rules (analysis, record, score, sentences, statistics, sync, view models) that mySleep Night runs in JavaScriptCore as ios/MySleepNight/rules.js, and their tests.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build:rules": "node scripts/build-rules.mjs && node scripts/golden.mjs"
+  },
+  "devDependencies": {
+    "rolldown": "1.1.5",
+    "vitest": "4.1.11"
+  }
+}

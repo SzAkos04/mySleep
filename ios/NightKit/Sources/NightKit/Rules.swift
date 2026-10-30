@@ -1,7 +1,7 @@
 import Foundation
 import JavaScriptCore
 
-/// The web app's night rules (frontend/src/lib/rules.js: analysis, record, score, sentences,
+/// The web app's night rules (shared/lib/rules.js: analysis, record, score, sentences,
 /// statistics, times), bundled into one script (ios/MySleepNight/rules.js) and run as they are by
 /// JavaScriptCore, so both apps judge a night the same way and the web app's tests cover both.
 /// The script defines `MySleepRules`.

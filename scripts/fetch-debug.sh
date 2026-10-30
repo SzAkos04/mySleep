@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copy the night logs (frontend/src/lib/diag.js) from the server to the Mac, read-only on the
+# Copy the night logs (ios/NightKit, Night.swift) from the server to the Mac, read-only on the
 # server side, into debug/ (gitignored), and print a report of the newest or the named night.
 #
 #   scripts/fetch-debug.sh               # all logs, report of the newest
@@ -11,4 +11,4 @@ ssh szakos@csodabogar2 'cd ~/mySleep && docker compose exec -T api tar -C /data 
 night="${1:-}"
 if [ -z "$night" ]; then file=$(ls -t debug/*/*.json | head -1); else file=$(ls debug/*/"$night".json | head -1); fi
 echo "== $file"
-node frontend/scripts/night-report.mjs "$file"
+node shared/scripts/night-report.mjs "$file"

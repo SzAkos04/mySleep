@@ -12,7 +12,7 @@ we can do on the phone, with no new dependency:
 - Tell sounds apart by measurable traits, per second, from the microphone (100 ms readings:
   loudness, share of energy under 500 Hz and in 500–3000 Hz, the spread of the readings within the
   second, and the largest jump from one reading to the next). First guesses were wrong (speech
-  was taken for coughing); the thresholds now come from `frontend/scripts/replay.mjs`, which runs
+  was taken for coughing); the thresholds now come from `shared/scripts/replay.mjs`, which runs
   a WAV through the same analysis:
 
   | measured (room at -45 dBFS) | jump | 500–3000 Hz | < 500 Hz | spread | length |

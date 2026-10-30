@@ -12,52 +12,25 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `test.yml`
 
 ## api
-`Dockerfile`, `package.json`, `reminders.js`, `server.js`
+`Dockerfile`, `package.json`, `server.js`
 
 ## api/scripts
-`dev-session.mjs`
+`dev-session.mjs`, `pair.mjs`, `session.mjs`
 
 ## api/test
-`reminders.test.js`, `server.test.js`
+`server.test.js`
 
 ## docs/dev
-`MVP.md`, `NATIVE_PLAN.md`, `SOUND_ANALYSIS.md`, `design-draft-v2.html`, `design-draft.html`, `structure-options.html`
-
-## frontend
-`index.html`, `package.json`, `vite.config.js`
-
-## frontend/public
-`icon.svg`, `manifest.json`, `sw.js`
-
-## frontend/scripts
-`icons.mjs`, `icons.test.mjs`, `loud-alarm.mjs`, `night-report.mjs`, `replay.mjs`, `webkit-run.swift`
-
-## frontend/src
-`App.jsx`, `index.css`, `main.jsx`, `store.js`, `store.test.js`, `test-setup.js`, `ui.js`
-
-## frontend/src/components
-`Charts.jsx`, `Icon.jsx`, `Report.jsx`, `ReviewSheet.jsx`, `ServerStatus.jsx`, `Sheet.jsx`
-
-## frontend/src/lib
-`analysis.js`, `analysis.test.js`, `api.js`, `api.test.js`, `native.js`, `native.test.js`, `night.js`, `night.test.js`, `score.js`, `score.test.js`, `stats.js`, `stats.test.js`, `sync.js`, `sync.test.js`, `time.js`, `time.test.js`
-
-## frontend/src/test
-`dom.js`
-
-## frontend/src/views
-`Journal.jsx`, `Login.jsx`, `Night.jsx`, `Settings.jsx`, `Today.jsx`, `Trends.jsx`, `screens.test.jsx`, `taps.test.jsx`
+`MVP.md`, `NATIVE_PLAN.md`, `SOUND_ANALYSIS.md`
 
 ## ios/MySleepNight
-`AlarmController.swift`, `Info.plist`, `LiveCardController.swift`, `MySleepNightApp.swift`, `NightEngine.swift`, `NightViews.swift`, `ServerLink.swift`, `SettingsTab.swift`, `TonightTab.swift`, `WebTab.swift`
+`AlarmController.swift`, `Info.plist`, `JournalScreen.swift`, `LiveCardController.swift`, `MySleepNightApp.swift`, `NightData.swift`, `NightEngine.swift`, `NightPictures.swift`, `NightViews.swift`, `Notifier.swift`, `ReportScreen.swift`, `ServerLink.swift`, `SettingsTab.swift`, `TonightTab.swift`, `TrendsScreen.swift`, `rules.js`
 
 ## ios/MySleepNight.xcodeproj
 `project.pbxproj`
 
 ## ios/MySleepNight.xcodeproj/xcshareddata/xcschemes
 `MySleepNight.xcscheme`
-
-## ios/MySleepNight.xcodeproj/xcuserdata/admin.xcuserdatad/xcschemes
-`xcschememanagement.plist`
 
 ## ios/MySleepNightWidget
 `Info.plist`, `NightWidget.swift`
@@ -66,19 +39,31 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `Package.swift`
 
 ## ios/NightKit/Sources/NightKit
-`Alarm.swift`, `Analysis.swift`, `Features.swift`, `Live.swift`, `Night.swift`, `Screens.swift`, `Server.swift`
+`Alarm.swift`, `Features.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Reminders.swift`, `Rules.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Views.swift`
 
 ## ios/NightKit/Tests/NightKitTests
-`AlarmTests.swift`, `LiveTests.swift`, `NightKitTests.swift`, `ScreenTests.swift`, `ServerTests.swift`
+`AlarmTests.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `ReminderTests.swift`, `RulesTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `ViewsTests.swift`
+
+## ios/NightKit/Tests/NightKitTests/Fixtures
+`fixture.js`, `golden.json`
 
 ## ios/Shared
 `NightActivity.swift`
 
 ## scripts
-`dev-local.sh`, `fetch-debug.sh`, `ios-fetch-night.sh`, `ios-install.sh`, `server-update.sh`, `test.sh`
+`dev-local.sh`, `fetch-debug.sh`, `ios-fetch-night.sh`, `ios-install.sh`, `pair.sh`, `server-update.sh`, `test.sh`
 
 ## scripts/hooks
 `pre-commit`
+
+## shared
+`package.json`
+
+## shared/lib
+`analysis.js`, `analysis.test.js`, `native.js`, `native.test.js`, `night.js`, `night.test.js`, `rules.js`, `rules.test.js`, `score.js`, `score.test.js`, `stats.js`, `stats.test.js`, `sync.js`, `sync.test.js`, `time.js`, `time.test.js`, `views.js`, `views.test.js`
+
+## shared/scripts
+`build-rules.mjs`, `golden.mjs`, `loud-alarm.mjs`, `night-report.mjs`, `replay.mjs`
 
 ## web
 `Dockerfile`, `nginx.conf.template`

@@ -182,7 +182,9 @@ reinstall, so this is rare.
   an unknown one.
 - Settings, when the token is refused: "Pairing lost: run scripts/pair.sh on the Mac".
 
-## Phase 5: retire the web
+## Phase 5: retire the web *(done on `dev` 2026-10-30, merged and deployed only when the user says)*
+*(`frontend/` is gone; the rules and their tests are `shared/`; the API has no dependencies and none of the web's routes; the nginx image only proxies; `scripts/test.sh`, CI, `dev-local.sh`, the docs follow. Not done: the one-week trial of 5.1 and a clean first night on the phone, which the user decided to skip.)*
+
 
 ### 5.1 Before
 A week on the native app alone: every new night on the server, the history on the phone matching

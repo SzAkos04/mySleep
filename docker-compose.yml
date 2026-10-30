@@ -11,14 +11,12 @@ services:
       - DATA_DIR=/data
       - PORT=3000
     volumes:
-      - ./data:/data    # users, passkeys, nights, secret, vapid keys: BACK THIS UP
+      - ./data:/data    # users, devices, nights, logs, secret: BACK THIS UP
 
   web:
     build:
       context: .
       dockerfile: web/Dockerfile
-      args:
-        APP_BUILD: ${APP_BUILD:-}
     restart: unless-stopped
     depends_on:
       - api

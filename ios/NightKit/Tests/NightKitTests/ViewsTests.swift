@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// What the screens show, as the app reads it from the rules (frontend/src/lib/views.js: its own
+// What the screens show, as the app reads it from the rules (shared/lib/views.js: its own
 // tests decide the wording and numbers). Here: that the app can read it, from a store with a real
 // night in it (the fixture's: 165 min asleep on 29 October 2026).
 @Suite struct ViewsTests {

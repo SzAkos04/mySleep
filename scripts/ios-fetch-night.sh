@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copy mySleep Night's night logs from the iPhone to debug/ios/ (gitignored) and print the report of
-# the newest. The logs are in the web app's format (lib/diag.js), so night-report.mjs reads them.
+# the newest. night-report.mjs reads them.
 #   scripts/ios-fetch-night.sh
 set -eu
 cd "$(dirname "$0")/.."
@@ -16,4 +16,4 @@ xcrun devicectl device copy from --device "$DEVICE" --domain-type appDataContain
   --source Documents --destination debug/ios >/dev/null
 file=$(ls -t debug/ios/*.json debug/ios/Documents/*.json 2>/dev/null | head -1)
 echo "== $file"
-node frontend/scripts/night-report.mjs "$file"
+node shared/scripts/night-report.mjs "$file"

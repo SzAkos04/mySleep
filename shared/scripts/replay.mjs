@@ -6,7 +6,7 @@
 //
 //   node scripts/replay.mjs recording.wav [--room -60]   # room noise added under it, dBFS
 import { readFileSync } from 'node:fs'
-import { sounds, events } from '../src/lib/analysis.js'
+import { sounds, events } from '../lib/analysis.js'
 
 const [file, ...rest] = process.argv.slice(2)
 const room = rest.includes('--room') ? +rest[rest.indexOf('--room') + 1] : -60

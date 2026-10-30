@@ -1,9 +1,9 @@
 // A night log (lib/diag.js) as something to read: the device, every event with its clock time,
 // where the readings have holes and why, and, when the raw readings are there, the analysis run
 // again on them (so a change to analysis.js can be tried on a real night).
-//   node frontend/scripts/night-report.mjs debug/<uid>/<night>.json [--events all]
+//   node shared/scripts/night-report.mjs debug/<uid>/<night>.json [--events all]
 import { readFileSync } from 'node:fs'
-import { summarize, events as soundEvents } from '../src/lib/analysis.js'
+import { summarize, events as soundEvents } from '../lib/analysis.js'
 
 const [file, ...rest] = process.argv.slice(2)
 const all = rest.includes('all')
