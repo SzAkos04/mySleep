@@ -14,8 +14,11 @@ export function profile(dir, who) {
   throw new Error(`No single match. Profiles in ${dir}:\n` + users.map(u => `  ${u.id}  ${u.name}`).join('\n'));
 }
 
-export function cookieFor(dir, user) {
+// The cookie's name follows the address the server is behind: https gets the __Host- one (server.js reads it).
+export const cookieName = origin => String(origin || '').startsWith('https:') ? '__Host-sleepsid' : 'sleepsid';
+
+export function cookieFor(dir, user, origin = process.env.ORIGIN) {
   const secret = fs.readFileSync(path.join(dir, 'secret'), 'utf8').trim();
   const p = user.id + ':' + (Date.now() + 180 * 864e5);
-  return 'sleepsid=' + p + '.' + crypto.createHmac('sha256', secret).update(p).digest('base64url');
+  return cookieName(origin) + '=' + p + '.' + crypto.createHmac('sha256', secret).update(p).digest('base64url');
 }

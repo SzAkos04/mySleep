@@ -9,7 +9,6 @@ const dir = path.dirname(new URL(import.meta.url).pathname);
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'mysleep-test-'));
 const PORT = 20000 + Math.floor(Math.random() * 20000);
 const base = `http://127.0.0.1:${PORT}`;
-const PUSH_LOG = path.join(DATA, 'pushes.jsonl');
 let proc, cookie, otherCookie;
 
 // Registered at the top level, not inside before (node:test).
@@ -19,8 +18,7 @@ before(async () => {
   cookie = execFileSync('node', [path.join(dir, '../scripts/dev-session.mjs'), '--create', 'Test'], { env: { ...process.env, DATA_DIR: DATA } }).toString().trim();
   // a second profile, to see that one's token never reaches the other's nights
   otherCookie = execFileSync('node', [path.join(dir, '../scripts/dev-session.mjs'), '--create', 'Other'], { env: { ...process.env, DATA_DIR: DATA } }).toString().trim();
-  // TICK_MS: reminders checked often; PUSH_LOG: pushes written to a file instead of sent
-  proc = spawn('node', [path.join(dir, '../server.js')], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), TICK_MS: '200', PUSH_LOG: PUSH_LOG }, stdio: 'inherit' });
+  proc = spawn('node', [path.join(dir, '../server.js')], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT) }, stdio: 'inherit' });
   for (let i = 0; i < 50; i++) {
     try { if ((await fetch(base + '/api/health')).ok) return; } catch {}
     await new Promise(r => setTimeout(r, 100));
@@ -35,11 +33,6 @@ const night = (id, ts, q) => ({ kind: 'night', id, ts, data: { q } });
 
 test('sync needs a session', async () => {
   assert.equal((await sync({ changes: [] }, { cookie: '' })).status, 401);
-});
-
-test('sign-up is closed once a profile exists', async () => {
-  const r = await fetch(base + '/api/register/options', { method: 'POST', body: '{"name":"x"}' });
-  assert.equal(r.status, 403);
 });
 
 test('a request from another origin on the same host is refused', async () => {
@@ -64,28 +57,6 @@ test('newer edit wins per entry, and a device gets only what it has not seen', a
 test('bad changes are refused whole', async () => {
   assert.equal((await sync({ changes: [{ kind: 'user', id: 'x', ts: 1, data: {} }] })).status, 400);
 });
-
-// Sound clips came from the web app's own night tracking, gone since mySleep Night records the
-// night: old nights' clips play back until they age out, and nothing uploads new ones.
-test('an old clip is served back and goes with its night; none can be uploaded any more', async () => {
-  const wav = Buffer.alloc(64); wav.write('RIFF', 0, 'latin1'); wav.write('WAVE', 8, 'latin1')
-  const uid = cookie.split('=')[1].split(':')[0]
-  fs.mkdirSync(path.join(DATA, 'clips', uid), { recursive: true })
-  fs.writeFileSync(path.join(DATA, 'clips', uid, '2026-10-20_abc123.wav'), wav)
-  const url = base + '/api/clips/2026-10-20/abc123'
-  assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, 'sec-fetch-site': 'same-origin' }, body: wav })).status, 405)
-  assert.equal((await fetch(url)).status, 401)
-  const got = await fetch(url, { headers: { cookie } })
-  assert.equal(got.headers.get('content-type'), 'audio/wav')
-  assert.deepEqual(Buffer.from(await got.arrayBuffer()), wav)
-  assert.equal((await fetch(base + '/api/clips/2026-10-20/../../db', { headers: { cookie } })).status, 404)
-  await sync({ changes: [{ kind: 'night', id: '2026-10-20', ts: 999, deleted: true }] })
-  assert.equal((await fetch(url, { headers: { cookie } })).status, 404)
-})
-
-test('the web app’s backup alarm is gone (mySleep Night rings through AlarmKit)', async () => {
-  assert.equal((await fetch(base + '/api/alarm', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: '{"at":1}' })).status, 404)
-})
 
 test('a night log is stored (gzipped too), read back, and kept over a later partial one', async () => {
   const zlib = await import('node:zlib')
@@ -130,11 +101,13 @@ test('pairing mySleep Night: a token for the app, which uploads its night and sa
   const expires = Date.now() + 6 * 864e5;
   const st = await fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), 'content-type': 'application/json' }, body: JSON.stringify({ expires, build: '202611011200' }) });
   assert.equal(st.status, 200);
-  // the web app sees the device (never its token) and the night's log
-  const me = await (await fetch(base + '/api/me', { headers: { cookie } })).json();
-  assert.equal(me.devices.length, 1);
-  assert.deepEqual(Object.keys(me.devices[0]).sort(), ['build', 'expires', 'id', 'lastSeen', 'name']);
-  assert.equal(me.devices[0].expires, expires);
+  // the operator sees the device (never its token) and the night's log
+  const devices = await (await fetch(base + '/api/devices', { headers: { cookie } })).json();
+  assert.equal(devices.length, 1);
+  assert.deepEqual(Object.keys(devices[0]).sort(), ['build', 'expires', 'id', 'lastSeen', 'name']);
+  assert.equal(devices[0].expires, expires);
+  assert.equal((await fetch(base + '/api/devices')).status, 401);
+  assert.equal((await fetch(base + '/api/devices', { headers: bearer(token) })).status, 401);
   const logs = await (await fetch(base + '/api/debug', { headers: { cookie } })).json();
   const listed = logs.find(l => l.night === '2026-11-01');
   assert.deepEqual({ ...listed, uploadedAt: typeof listed.uploadedAt }, { night: '2026-11-01', start: nativeLog.start, final: true, app: 'native', uploadedAt: 'number' });
@@ -145,83 +118,24 @@ test('pairing mySleep Night: a token for the app, which uploads its night and sa
   const { token: again } = await (await pair()).json();
   assert.equal((await put(token)).status, 401);
   assert.equal((await put(again)).status, 200);
-  assert.equal((await (await fetch(base + '/api/me', { headers: { cookie } })).json()).devices.length, 1);
+  assert.equal((await (await fetch(base + '/api/devices', { headers: { cookie } })).json()).length, 1);
 });
 
-test('a reminder to reinstall goes out once when mySleep Night is about to stop', async () => {
-  // a time zone where it is midday now, so the reminder's waking hours hold whenever this runs
-  const off = (12 - new Date().getUTCHours() + 24) % 24, o = off > 12 ? off - 24 : off;
-  const tz = o === 0 ? 'UTC' : 'Etc/GMT' + (o > 0 ? '-' : '+') + Math.abs(o);
-  assert.equal((await sync({ changes: [{ kind: 'settings', id: 'main', ts: Date.now(), data: { tz, remind: false } }] })).status, 200);
-  const { token } = await (await pair()).json();
-  await fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), 'content-type': 'application/json' }, body: JSON.stringify({ expires: Date.now() + 3600e3, build: 'x' }) });
-  const sent = () => fs.existsSync(PUSH_LOG) ? fs.readFileSync(PUSH_LOG, 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(p => p.payload.tag === 'reinstall') : [];
-  for (let i = 0; i < 30 && !sent().length; i++) await new Promise(r => setTimeout(r, 100));
-  assert.equal(sent().length, 1);
-  assert.match(sent()[0].payload.title, /mySleep Night stops tonight/);
-  await new Promise(r => setTimeout(r, 800));   // several ticks later: still once
-  assert.equal(sent().length, 1);
-});
-
-// mySleep Night shows the web app's Journal and Trends inside itself: it signs those pages in with
-// a one-time code it gets with its device token (no passkey inside an app).
-test('the app signs its web pages in with a one-time code', async () => {
-  const { token } = await (await pair()).json();
-  const code = () => fetch(base + '/api/devices/web-code', { method: 'POST', headers: bearer(token) });
-  assert.equal((await fetch(base + '/api/devices/web-code', { method: 'POST' })).status, 401);
-  const r = await code();
-  assert.equal(r.status, 200);
-  const { code: c, expires } = await r.json();
-  assert.ok(c.length >= 30);
-  assert.ok(expires - Date.now() <= 60000 && expires > Date.now());
-  // exchanged for a session and sent on to the page asked for, inside this site only
-  const go = (cc, to) => fetch(base + '/api/session/code?c=' + encodeURIComponent(cc) + (to ? '&to=' + encodeURIComponent(to) : ''), { redirect: 'manual' });
-  const ok = await go(c, '/?embed=1#/journal');
-  assert.equal(ok.status, 302);
-  assert.equal(ok.headers.get('location'), '/?embed=1#/journal');
-  const cookieSet = ok.headers.get('set-cookie');
-  assert.match(cookieSet, /sleepsid=[^;]+; Path=\//);
-  const me = await fetch(base + '/api/me', { headers: { cookie: cookieSet.split(';')[0] } });
-  assert.equal(me.status, 200);
-  // once only
-  assert.equal((await go(c, '/')).status, 401);
-  // never off the site
-  for (const to of ['https://evil.example/', '//evil.example/x', '/\\evil.example']) {
-    const { code: fresh } = await (await code()).json();
-    assert.equal((await go(fresh, to)).headers.get('location'), '/');
-  }
-  // nonsense
-  assert.equal((await go('nope', '/')).status, 401);
-});
-
-test('the bedtime reminder goes out once, 30 min before bedtime in the profile’s own time zone', async () => {
-  // a minute well inside, so the minute does not turn while the ticks look
-  if (new Date().getUTCSeconds() > 50) await new Promise(r => setTimeout(r, 11000));
-  const t = new Date(Date.now() + 30 * 60000), bedtime = String(t.getUTCHours()).padStart(2, '0') + ':' + String(t.getUTCMinutes()).padStart(2, '0');
-  assert.equal((await sync({ changes: [{ kind: 'settings', id: 'main', ts: Date.now(), data: { tz: 'UTC', remind: true, bedtime } }] })).status, 200);
-  const sent = () => fs.existsSync(PUSH_LOG) ? fs.readFileSync(PUSH_LOG, 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(p => p.payload.tag === 'bedtime') : [];
-  for (let i = 0; i < 30 && !sent().length; i++) await new Promise(r => setTimeout(r, 100));
-  assert.equal(sent().length, 1);
-  assert.deepEqual(sent()[0].payload, { title: 'Bedtime in 30 min', body: 'Lights out at ' + bedtime + '.', tag: 'bedtime' });
-  await new Promise(r => setTimeout(r, 800));
-  assert.equal(sent().length, 1);
-});
-
-test('refused: a device saying nonsense about its expiry, a push subscription that is not https', async () => {
+test('refused: a device saying nonsense about its expiry', async () => {
   const { token } = await (await pair()).json();
   const st = body => fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), 'content-type': 'application/json' }, body: JSON.stringify(body) });
   assert.equal((await st({ expires: 'soon' })).status, 400);
   assert.equal((await st({ expires: null, build: 'x' })).status, 200);
-  const sub = subscription => fetch(base + '/api/push/subscribe', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' }, body: JSON.stringify({ subscription }) });
-  assert.equal((await sub({ endpoint: 'http://push.example/x', keys: { p256dh: 'a', auth: 'b' } })).status, 400);
-  assert.equal((await sub({ endpoint: 'https://push.example/x', keys: {} })).status, 400);
-  assert.equal((await sub({ endpoint: 'https://push.example/x', keys: { p256dh: 'a', auth: 'b' } })).status, 200);
 });
 
-test('signing out clears the cookie', async () => {
-  const r = await fetch(base + '/api/logout', { method: 'POST', headers: { cookie, 'sec-fetch-site': 'same-origin' } });
-  assert.equal(r.status, 200);
-  assert.match(r.headers.get('set-cookie'), /sleepsid=; Path=\/; Max-Age=0/);
+// mySleep Night is the only app: what the web app needed is gone from the server.
+test('the web app’s routes are gone: passkeys, push, its sign-in, clips, the backup alarm', async () => {
+  for (const [method, p] of [['POST', '/api/register/options'], ['POST', '/api/register/verify'], ['POST', '/api/login/options'], ['POST', '/api/login/verify'], ['POST', '/api/logout'],
+    ['GET', '/api/me'], ['GET', '/api/push/key'], ['POST', '/api/push/subscribe'], ['POST', '/api/push/test'], ['POST', '/api/alarm'],
+    ['POST', '/api/devices/web-code'], ['GET', '/api/session/code'], ['GET', '/api/clips/2026-10-20/abc123'], ['PUT', '/api/clips/2026-10-20/abc123']]) {
+    const r = await fetch(base + p, { method, headers: { cookie, 'sec-fetch-site': 'same-origin' } });
+    assert.equal(r.status, 404, method + ' ' + p);
+  }
 });
 
 // The app syncs nights and settings itself (NATIVE_PLAN 0.1): the same route as the web app, with
@@ -256,11 +170,11 @@ test('the app syncs with its device token, for its own profile only', async () =
 // Without the web app there is no page to pair from: a script on the server asks the running server
 // for the token as the profile (api/scripts/pair.mjs) and prints the link the phone opens.
 test('pairing without the web app: a script on the server prints the link', async () => {
-  const run = (...args) => execFileSync('node', [path.join(dir, '../scripts/pair.mjs'), ...args], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), ORIGIN: 'https://host.example:8443' }, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
+  const run = (...args) => execFileSync('node', [path.join(dir, '../scripts/pair.mjs'), ...args], { env: { ...process.env, DATA_DIR: DATA, PORT: String(PORT), ORIGIN: 'http://localhost:5173' }, stdio: ['ignore', 'pipe', 'pipe'] })   // the server's own, as in production.toString().trim();
   const link = new URL(run('Test'));
   assert.equal(link.protocol, 'mysleepnight:');
   assert.equal(link.host, 'pair');
-  assert.equal(link.searchParams.get('server'), 'https://host.example:8443');
+  assert.equal(link.searchParams.get('server'), 'http://localhost:5173');
   const token = link.searchParams.get('token');
   assert.ok(token.length >= 40);
   // the token is the app's: it syncs the profile it was made for, and nobody else's
@@ -274,4 +188,19 @@ test('pairing without the web app: a script on the server prints the link', asyn
   // a profile it does not know, or none named when there are several: refused, and it says which there are
   assert.throws(() => run('Nobody'), e => /Nobody|Test/.test(String(e.stderr)));
   assert.throws(() => run(), e => /Other/.test(String(e.stderr)));
+});
+
+// In production the server is behind https and reads the __Host- cookie; the script has to make that one.
+test('pairing on an https server: the script makes the cookie that server reads', async () => {
+  const ORIGIN = 'https://host.example:8443', dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'mysleep-test-https-')), port2 = PORT + 1;
+  const env = { ...process.env, DATA_DIR: dir2, PORT: String(port2), ORIGIN };
+  execFileSync('node', [path.join(dir, '../scripts/dev-session.mjs'), '--create', 'Solo'], { env });
+  const server2 = spawn('node', [path.join(dir, '../server.js')], { env, stdio: 'inherit' });
+  try {
+    for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://127.0.0.1:${port2}/api/health`)).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
+    const link = new URL(execFileSync('node', [path.join(dir, '../scripts/pair.mjs')], { env }).toString().trim());
+    assert.equal(link.searchParams.get('server'), ORIGIN);
+    const r = await fetch(`http://127.0.0.1:${port2}/api/sync`, { method: 'POST', headers: { ...bearer(link.searchParams.get('token')), 'content-type': 'application/json' }, body: '{"since":0,"changes":[]}' });
+    assert.equal(r.status, 200);
+  } finally { server2.kill(); fs.rmSync(dir2, { recursive: true, force: true }); }
 });
