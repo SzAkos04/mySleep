@@ -30,6 +30,9 @@ public final class Rules {
     return ctx.objectForKeyedSubscript("JSON")?.invokeMethod("stringify", withArguments: [v])?.toString()
   }
 
+  /// The night a start (ms since 1970) belongs to: its evening's date, "2026-10-29" (time.js nightIdOf).
+  public func nightId(_ ms: Int64) -> String { (try? evaluate("MySleepRules.nightIdOf(\(ms))")) ?? "" }
+
   /// Is the sleeper moving now? (the smart alarm). The rules look at the last 11 minutes; only
   /// those cross into JavaScript, so it stays cheap every few seconds.
   public func stirring(_ n: Night) -> Bool {

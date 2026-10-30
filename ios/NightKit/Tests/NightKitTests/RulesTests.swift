@@ -21,6 +21,20 @@ import Foundation
     for (k, v) in b { #expect(a[k] == v, "\(k)") }
   }
 
+  /// A night is named after its evening: starting before noon belongs to the day before (the user chose noon).
+  @Test func aNightIsNamedAfterItsEvening() throws {
+    let rules = try Rules(source: Rules.bundleSource)
+    func id(_ day: Int, _ h: Int, _ m: Int) throws -> String {
+      let date = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: day, hour: h, minute: m)))
+      return rules.nightId(Int64(date.timeIntervalSince1970 * 1000))
+    }
+    #expect(try id(30, 4, 55) == "2026-10-29")    // after midnight: the evening before
+    #expect(try id(30, 11, 59) == "2026-10-29")
+    #expect(try id(30, 12, 0) == "2026-10-30")    // noon on
+    #expect(try id(30, 23, 30) == "2026-10-30")
+    #expect(try id(1, 3, 0) == "2026-09-30")      // across a month
+  }
+
   @Test func ASyntaxErrorOrAThrowingScriptIsReported() throws {
     let rules = try Rules(source: Rules.bundleSource)
     #expect(throws: (any Error).self) { try rules.evaluate("MySleepRules.nothingHere()") }

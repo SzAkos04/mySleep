@@ -237,4 +237,6 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   server.listen(PORT, () => console.log(`mySleep API on :${PORT}, ORIGIN=${ORIGIN}`));
   sweepDebug();
   setInterval(sweepDebug, 864e5).unref();
+  // docker stop: finish what is running, then leave with 0
+  process.on('SIGTERM', () => { server.close(() => process.exit(0)); server.closeIdleConnections(); });
 }

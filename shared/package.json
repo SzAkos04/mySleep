@@ -7,9 +7,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:rules": "node scripts/build-rules.mjs && node scripts/golden.mjs"
+    "build:rules": "node scripts/build-rules.mjs && node scripts/golden.mjs",
+    "coverage": "vitest run --coverage --coverage.include='lib/**' --coverage.exclude='**/*.test.js' --coverage.reporter=text"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.11",
     "rolldown": "1.1.5",
     "vitest": "4.1.11"
   }

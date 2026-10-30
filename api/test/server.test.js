@@ -4,6 +4,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const dir = path.dirname(new URL(import.meta.url).pathname);
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'mysleep-test-'));
@@ -217,4 +218,116 @@ test('the app’s health: not heard from, then heard from', async () => {
   r = await get();
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), { ok: true, app: 'running', seenHoursAgo: 0 });
+});
+
+// `docker stop` sends SIGTERM: the server finishes its requests and leaves cleanly (exit code 0).
+test('SIGTERM stops the server cleanly', async () => {
+  const dir3 = fs.mkdtempSync(path.join(os.tmpdir(), 'mysleep-test-term-')), port3 = PORT + 2;
+  const s = spawn('node', [path.join(dir, '../server.js')], { env: { ...process.env, DATA_DIR: dir3, PORT: String(port3) }, stdio: 'inherit' });
+  try {
+    for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://127.0.0.1:${port3}/api/health`)).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
+    const exited = new Promise(r => s.once('exit', (code, signal) => r({ code, signal })));
+    s.kill('SIGTERM');
+    assert.deepEqual(await exited, { code: 0, signal: null });
+  } finally { s.kill('SIGKILL'); fs.rmSync(dir3, { recursive: true, force: true }); }
+});
+
+/* ---------- sessions, devices, bodies, the debug route: the refusals and the tidying ---------- */
+const same = { 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' };
+const signed = (uid, exp) => {   // a cookie signed as server.js signs one (DATA/secret)
+  const p = uid + ':' + exp, secret = fs.readFileSync(path.join(DATA, 'secret'), 'utf8').trim();
+  return 'sleepsid=' + p + '.' + crypto.createHmac('sha256', secret).update(p).digest('base64url');
+};
+
+test('a session cookie that is forged, expired or malformed is no session', async () => {
+  const value = cookie.split('=')[1], uid = value.split(':')[0];
+  const list = c => fetch(base + '/api/devices', { headers: { cookie: c } });
+  assert.equal((await list(cookie)).status, 200);
+  assert.equal((await list(cookie.slice(0, -3) + 'xxx')).status, 401, 'a changed signature');
+  assert.equal((await list('sleepsid=nodothere')).status, 401, 'no signature at all');
+  assert.equal((await list(signed(uid, Date.now() - 1000))).status, 401, 'expired');
+  assert.equal((await list(signed('nobody', Date.now() + 1e6))).status, 401, 'a profile that does not exist');
+  assert.equal((await list(signed(uid, Date.now() + 1e6))).status, 200, 'the same cookie, still valid, is accepted');
+});
+
+test('devices: named, trimmed, one per name, listed without their secrets', async () => {
+  const add = async name => (await fetch(base + '/api/devices', { method: 'POST', headers: { cookie, ...same }, body: JSON.stringify({ name }) })).json();
+  await add('  Bedside  ');
+  const first = await add('Bedside');                 // the same name again replaces the device
+  await add('x'.repeat(60));
+  await add('   ');                                    // a blank name is the default one
+  const list = await (await fetch(base + '/api/devices', { headers: { cookie } })).json();
+  assert.equal(list.filter(d => d.name === 'Bedside').length, 1);
+  assert.ok(list.some(d => d.name === 'x'.repeat(40)), 'cut to 40 characters');
+  assert.ok(list.some(d => d.name === 'mySleep Night'));
+  assert.ok(list.every(d => !('hash' in d) && !('token' in d)), 'never the token or its hash');
+  assert.ok(first.token && first.id);
+});
+
+test('a device says when it expires and which build it is; nothing else goes in', async () => {
+  const { token } = await (await fetch(base + '/api/devices', { method: 'POST', headers: { cookie, ...same }, body: JSON.stringify({ name: 'Status test' }) })).json();
+  const status = body => fetch(base + '/api/devices/status', { method: 'POST', headers: { ...bearer(token), ...same }, body: JSON.stringify(body) });
+  assert.equal((await status({ expires: 'soon' })).status, 400);
+  assert.equal((await status({})).status, 400, 'expires has to be there');
+  assert.equal((await status({ expires: 1893456000000, build: 'b'.repeat(60) })).status, 200);
+  const d = (await (await fetch(base + '/api/devices', { headers: { cookie } })).json()).find(x => x.name === 'Status test');
+  assert.equal(d.expires, 1893456000000);
+  assert.equal(d.build, 'b'.repeat(40));
+  assert.ok(d.lastSeen > 0);
+  assert.equal((await status({ expires: null, build: 7 })).status, 200);   // a build that is not text is dropped
+  const again = (await (await fetch(base + '/api/devices', { headers: { cookie } })).json()).find(x => x.name === 'Status test');
+  assert.equal(again.build, null);
+  assert.equal(again.expires, null);
+});
+
+test('a body that is not JSON is refused, and one that is too large', async () => {
+  const post = body => fetch(base + '/api/devices', { method: 'POST', headers: { cookie, ...same }, body });
+  assert.equal((await post('{not json')).status, 400);
+  assert.equal((await post('x'.repeat(4 * 1024 * 1024 + 10))).status, 413);
+  assert.equal((await fetch(base + '/api/sync', { method: 'POST', headers: { cookie, ...same }, body: '{"since":0,"changes":"no"}' })).status, 200, 'changes that are not a list are none');
+});
+
+test('the debug route takes GET and PUT, and a log not too large', async () => {
+  const url = base + '/api/debug/2026-12-24';
+  assert.equal((await fetch(url, { method: 'DELETE', headers: { cookie, ...same } })).status, 405);
+  assert.equal((await fetch(url, { method: 'PUT', headers: { cookie, ...same }, body: 'x'.repeat(4 * 1024 * 1024 + 10) })).status, 413);
+});
+
+test('a log nobody can read is replaced by the next one; old logs are swept at start', async () => {
+  const dbg = path.join(DATA, 'debug', fs.readdirSync(path.join(DATA, 'debug'))[0]);
+  fs.writeFileSync(path.join(dbg, '2026-12-25.json'), '{ broken');           // a half-written file
+  const put = await fetch(base + '/api/debug/2026-12-25', { method: 'PUT', headers: { cookie, ...same }, body: JSON.stringify({ night: '2026-12-25', start: 1, final: false, env: { app: 'native' }, events: [] }) });
+  assert.equal(put.status, 200);
+  const logs = await (await fetch(base + '/api/debug', { headers: { cookie } })).json();
+  assert.ok(logs.some(l => l.night === '2026-12-25' && l.final === false && l.app === 'native'));
+  // swept at start: a log older than DEBUG_DAYS goes, a fresh one stays
+  const old = path.join(dbg, '2020-01-01.json'), fresh = path.join(dbg, '2026-12-26.json');
+  fs.writeFileSync(old, '{}'); fs.writeFileSync(fresh, '{}');
+  const t = new Date(Date.now() - 40 * 864e5); fs.utimesSync(old, t, t);
+  const dir4 = DATA, port4 = PORT + 3;
+  const s = spawn('node', [path.join(dir, '../server.js')], { env: { ...process.env, DATA_DIR: dir4, PORT: String(port4) }, stdio: 'inherit' });
+  try {
+    for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://127.0.0.1:${port4}/api/health`)).ok) break; } catch {} await new Promise(r => setTimeout(r, 100)); }
+    assert.equal(fs.existsSync(old), false);
+    assert.equal(fs.existsSync(fresh), true);
+  } finally { s.kill(); }
+});
+
+test('a request from another site is refused, one from our own page or from the app is not', async () => {
+  const post = headers => fetch(base + '/api/sync', { method: 'POST', headers: { cookie, 'content-type': 'application/json', ...headers }, body: '{"since":0,"changes":[]}' });
+  assert.equal((await post({ 'sec-fetch-site': 'cross-site' })).status, 403);
+  assert.equal((await post({ 'sec-fetch-site': 'same-site' })).status, 403);
+  assert.equal((await post({ origin: 'https://evil.example' })).status, 403, 'no Sec-Fetch-Site: the Origin has to be ours');
+  assert.equal((await post({ 'sec-fetch-site': 'same-origin' })).status, 200);
+  assert.equal((await post({})).status, 200, 'the app sends neither');
+});
+
+test('an unknown route is 404 and a change that is not valid is 400, in JSON', async () => {
+  const r = await fetch(base + '/api/nothing-here');
+  assert.equal(r.status, 404);
+  assert.deepEqual(await r.json(), { error: 'not found' });
+  const bad = await fetch(base + '/api/sync', { method: 'POST', headers: { cookie, ...same }, body: JSON.stringify({ since: 0, changes: [{ kind: 'night' }] }) });
+  assert.equal(bad.status, 400);
+  const many = await fetch(base + '/api/sync', { method: 'POST', headers: { cookie, ...same }, body: JSON.stringify({ since: 0, changes: Array.from({ length: 1001 }, (_, i) => night('2027-01-01', i, 1)) }) });
+  assert.equal(many.status, 400, 'at most 1000 changes at a time');
 });

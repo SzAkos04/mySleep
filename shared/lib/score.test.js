@@ -79,3 +79,22 @@ describe('a night the microphone did not record', () => {
     expect(insights(brief).join(' ')).not.toMatch(/recorded nothing/)   // 5 min: not worth a line
   })
 })
+
+describe('what the night heard, in words', () => {
+  const base = { bed: at(20, 22, 50), on: at(20, 23, 0), wake: at(21, 7, 15), asleepMin: 490, awakeMin: 0, wakes: 0, restfulMin: 170, snoreMin: 0, timeline: { states: '' } }
+  const ev = (kind, ...hm) => hm.map(([h, m]) => ({ kind, t: at(21, h, m), sec: 3 }))
+
+  it('counts coughs and room noise, once or many times, and cuts long lists short', () => {
+    const lines = insights({ ...base, events: [...ev('cough', [1, 0]), ...ev('noise', [2, 0], [3, 30]), ...ev('talk', [1, 1], [1, 2], [1, 3], [1, 4], [1, 5])] })
+    expect(lines).toContain('You coughed once (01:00).')
+    expect(lines).toContain('The room was noisy 2 times (02:00, 03:30): long sounds that were not you.')
+    expect(lines).toContain('You talked in your sleep 5 times (01:01, 01:02, 01:03, 01:04…).')
+  })
+
+  it('says where the snoring began when it was one stretch, and when it peaked when it was many', () => {
+    const one = insights({ ...base, snoreMin: 6, events: ev('snore', [2, 10]) })
+    expect(one).toContain('You snored for about 6 min, from 02:10.')
+    const many = insights({ ...base, snoreMin: 40, events: ev('snore', [2, 10], [2, 30], [2, 50], [4, 0]) })
+    expect(many.find(l => l.startsWith('You snored'))).toMatch(/^You snored for about 40 min, mostly /)
+  })
+})

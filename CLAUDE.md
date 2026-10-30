@@ -35,6 +35,7 @@ scripts/ios-fetch-night.sh         # its night logs from the iPhone into debug/i
 scripts/dev-local.sh               # the API on http://localhost:3000 (data/), prints the Simulator's pairing link
 cd shared && npm run build:rules   # after changing shared/lib: rebuilds ios/MySleepNight/rules.js and the golden file
 cd shared && npm run test:watch    # vitest while writing code
+cd shared && npm run coverage      # which lines of shared/lib no test runs
 cd api && npm test                 # node:test, boots server.js on a temp DATA_DIR
 cd ios/NightKit && swift test      # the app's logic
 ```

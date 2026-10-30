@@ -121,6 +121,16 @@ func sine(_ hz: Double, rms: Double, n: Int = 2048) -> [Float] {
     #expect(mv.count == 4 && mv[0] as? Double == 50 && mv[3] is NSNull)
   }
 
+  @Test func jerkIsHowFarTheAccelerationMovedSinceTheLastReading() {
+    var j = Jerk()
+    #expect(j.step(0, 0, -1) == nil)                                   // the first reading has nothing to compare with
+    #expect(abs(j.step(0, 0, -1.05)! - 0.05) < 1e-9)                   // one axis
+    #expect(abs(j.step(0.03, 0.04, -1.05)! - 0.05) < 1e-9)             // three axes: a 3-4-5 step
+    #expect(j.step(0.03, 0.04, -1.05) == 0)                            // lying still
+    j.reset()
+    #expect(j.step(5, 5, 5) == nil)                                    // after a restart: nothing to compare with again
+  }
+
   @Test func savedInTheWebAppsLogFormat() throws {
     let n = Night(start: 1_793_270_000_000, night: "2026-10-29", env: ["app": "native"])
     var t = n.start + 100

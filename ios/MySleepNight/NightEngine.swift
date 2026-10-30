@@ -71,18 +71,12 @@ import UIKit
   }
   static var nowMs: Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
 
-  // The evening's date, as the web app names nights (lib/time.js nightIdOf: before noon is the night before).
-  static func nightId(_ ms: Int64) -> String {
-    let d = Date(timeIntervalSince1970: Double(ms) / 1000 - 12 * 3600)
-    let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.timeZone = .current
-    return f.string(from: d)
-  }
-
   func start(_ settings: AlarmSettings) async throws {
     guard await AVAudioApplication.requestRecordPermission() else { throw NSError(domain: "mySleep", code: 1, userInfo: [NSLocalizedDescriptionKey: "mySleep Night needs the microphone: allow it in Settings."]) }
+    guard let rules else { throw NSError(domain: "mySleep", code: 2, userInfo: [NSLocalizedDescriptionKey: "mySleep Night is missing its night rules (rules.js): reinstall the app."]) }
     let start = Self.nowMs, device = UIDevice.current
     device.isBatteryMonitoringEnabled = true
-    let n = Night(start: start, night: Self.nightId(start), env: [
+    let n = Night(start: start, night: rules.nightId(start), env: [
       "app": "native", "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?",
       "system": "\(device.systemName) \(device.systemVersion)", "model": device.model
     ])
@@ -130,21 +124,20 @@ import UIKit
   // The phone on the bed (under the pillow, on the mattress) feels the sleeper move: the body's own
   // movement, the signal actigraphy's algorithms are made for. It only goes in the log for now.
   private let motion = CMMotionManager()
-  nonisolated(unsafe) private var lastAcceleration: (Double, Double, Double)?   // on `queue` only
+  nonisolated(unsafe) private var jerk = Jerk()   // on `queue` only
 
   private func startMotion(_ n: Night) {
     n.log("motion", ["available": motion.isAccelerometerAvailable])
     guard motion.isAccelerometerAvailable else { return }
     motion.accelerometerUpdateInterval = 0.1
-    lastAcceleration = nil
+    jerk.reset()
     let updates = OperationQueue(); updates.maxConcurrentOperationCount = 1   // not the main thread: a locked phone may starve it
     motion.startAccelerometerUpdates(to: updates) { [queue, weak self] data, _ in
       guard let a = data?.acceleration else { return }
       let now = NightEngine.nowMs
       queue.async {
         guard let self, let night = self.nightForQueue else { return }
-        if let l = self.lastAcceleration { night.motion(((a.x - l.0) * (a.x - l.0) + (a.y - l.1) * (a.y - l.1) + (a.z - l.2) * (a.z - l.2)).squareRoot(), at: now) }
-        self.lastAcceleration = (a.x, a.y, a.z)
+        if let j = self.jerk.step(a.x, a.y, a.z) { night.motion(j, at: now) }
       }
     }
   }
