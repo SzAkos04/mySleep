@@ -85,8 +85,8 @@ functions in JavaScriptCore, and does the round trip with a `send` closure; the 
 keeps it in `Application Support/nights.json` and syncs (`ServerAPI.sync`, the device token) at
 launch, on coming back, after a night and on pairing. Tested against a stand-in server: push,
 merge, newer edit wins, an edit during the push stays to send, offline/502/401/500, tombstones.
-Still to do: the every-minute sync while open and the retry after 30 s offline (the app syncs
-when it is opened, which is when it is read).
+While the app is open it syncs again a minute after a sync and half a minute after a miss, and stops
+on a refusal (`SyncSchedule`, tested; the loop is in `MySleepNightApp`).
 
 ## Phase 1: the night lands in the app
 

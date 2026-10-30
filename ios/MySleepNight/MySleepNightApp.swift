@@ -24,10 +24,18 @@ import SwiftUI
         .onAppear { engine.onFinished = { Task { await sync() } }; data.pairing = { server.pairing } }
         // at launch: a night iOS cut short is finished first, then everything goes up
         .task { await NightEngine.finishCutShort(); await sync() }
+        // while open: again a minute after a sync, half a minute after a miss, not after a refusal
+        .task(id: "\(phase)-\(server.pairing?.token ?? "")") {
+          guard phase == .active else { return }
+          while !Task.isCancelled, let wait = SyncSchedule.next(after: data.syncResult ?? .synced) {
+            try? await Task.sleep(for: .seconds(wait))
+            if !Task.isCancelled { await sync() }
+          }
+        }
+        // a changed bedtime or reminder switch: scheduled again
+        .onChange(of: data.settings) { _, s in Task { data.notify = await Notifier.apply(s, expires: server.expires) } }
     }
     .onChange(of: phase) { _, p in if p == .active { Task { await sync() } } }
-    // a changed bedtime or reminder switch: scheduled again
-    .onChange(of: data.settings) { _, s in Task { data.notify = await Notifier.apply(s, expires: server.expires) } }
   }
 
   /// The night into the nights here, then everything to and from the server.

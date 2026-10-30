@@ -32,7 +32,7 @@ import Security
   private func refreshOnce() async {
     guard let p = pairing else { return }
     let code = await send(ServerAPI.status(p, expires: expires, build: build))
-    if code == 401 { problem = "The server does not know this app any more: pair it again from mySleep › Settings."; return }
+    if code == 401 { problem = "The server does not know this app any more: run scripts/pair.sh on the Mac and open the link here."; return }
     problem = code == 0 ? "The server could not be reached; the nights go up later." : nil
     var done = Set(UserDefaults.standard.stringArray(forKey: "uploaded") ?? [])
     let dir = NightEngine.documents, fm = FileManager.default

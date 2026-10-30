@@ -26,7 +26,7 @@ struct SettingsTab: View {
                 detail: server.problem ?? server.lastUpload.map { "Last sent \(InstallStatus.clock($0, .current))" } ?? "Nothing sent yet", detailWarn: server.problem != nil)
           } else {
             Row(icon: "icloud.slash", tint: Theme.warn, title: "Not paired with your server",
-                detail: "In mySleep on the web: Settings › Pair mySleep Night", detailWarn: true)
+                detail: "Run scripts/pair.sh on the Mac, paste the link here and tap it", detailWarn: true)
           }
         }
 
@@ -81,12 +81,8 @@ struct SettingsTab: View {
           }
         } header: { Text("Alarm sound") } footer: { Text("A soft piano that rises from near silence; set the volume with the side buttons.") }
 
-        if let p = server.pairing {
-          Section {
-            Link(destination: p.server) { Label("Open mySleep in Safari", systemImage: "safari") }
-          } footer: {
-            Text("mySleep Night \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")")
-          }
+        Section {
+          HStack { Text("mySleep Night"); Spacer(); Text("\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")").foregroundStyle(Theme.text2) }
         }
       }
       .scrollContentBackground(.hidden)

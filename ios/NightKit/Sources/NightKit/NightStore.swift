@@ -79,3 +79,15 @@ public final class NightStore {
   /// Text as a JavaScript string literal.
   static func lit(_ s: String) -> String { (try? JSONEncoder().encode(s)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\"" }
 }
+
+/// When to sync again while the app is open (seconds), after how the last one went; nil: not until
+/// something changes (a refusal means the pairing is gone).
+public enum SyncSchedule {
+  public static func next(after result: NightStore.SyncResult) -> TimeInterval? {
+    switch result {
+    case .synced: 60
+    case .offline, .failed: 30
+    case .unauthorized: nil
+    }
+  }
+}
