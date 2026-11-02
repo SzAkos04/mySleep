@@ -22,6 +22,16 @@ if [ -z "${DEVICE:-}" ]; then
 fi
 [ -n "$DEVICE" ] || { echo "No iPhone found: connect it with a cable (the first time), unlock it, and trust this Mac."; exit 1; }
 
+# Xcode reuses a cached profile until it is nearly expired, so a weekly reinstall would keep the first
+# week's expiry. Move this app's profiles aside (not deleted) so -allowProvisioningUpdates gets fresh ones.
+PROFILES="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+for f in "$PROFILES"/*.mobileprovision; do
+  [ -e "$f" ] || continue
+  if security cms -D -i "$f" 2>/dev/null | grep -q "hu.szakos.mysleep"; then
+    mkdir -p "$PROFILES/old"; mv "$f" "$PROFILES/old/"
+  fi
+done
+
 echo "== tests"; (cd NightKit && swift test --quiet)   # nothing goes on the phone with a failing test
 echo "== build for $DEVICE (team $TEAM)"
 xcodebuild -project MySleepNight.xcodeproj -scheme MySleepNight -configuration Release \
@@ -30,4 +40,6 @@ xcodebuild -project MySleepNight.xcodeproj -scheme MySleepNight -configuration R
   DEVELOPMENT_TEAM="$TEAM" CURRENT_PROJECT_VERSION="$(date +%Y%m%d%H%M)" build -quiet
 echo "== install"
 xcrun devicectl device install app --device "$DEVICE" build/device/Build/Products/Release-iphoneos/MySleepNight.app
-echo "Installed. It runs until $(date -v+7d '+%A %d %B'): install again before then."
+# the real expiry: what the app itself shows, from the profile it was signed with
+EXP=$(security cms -D -i build/device/Build/Products/Release-iphoneos/MySleepNight.app/embedded.mobileprovision | plutil -extract ExpirationDate raw - 2>/dev/null)
+echo "Installed. It runs until $(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$EXP" '+%A %d %B %H:%M' 2>/dev/null || echo "$EXP"): install again before then."
