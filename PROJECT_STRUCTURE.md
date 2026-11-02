@@ -12,16 +12,16 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `test.yml`
 
 ## api
-`Dockerfile`, `package.json`, `server.js`
+`Dockerfile`, `package.json`, `server.js`, `status.js`
 
 ## api/scripts
 `dev-session.mjs`, `pair.mjs`, `session.mjs`
 
 ## api/test
-`server.test.js`
+`server.test.js`, `status.test.js`
 
 ## docs/dev
-`MVP.md`, `NATIVE_PLAN.md`, `SOUND_ANALYSIS.md`
+`MVP.md`, `NATIVE_PLAN.md`, `SERVER_MASTER_PROMPT.md`, `SOUND_ANALYSIS.md`
 
 ## ios/MySleepNight
 `AlarmController.swift`, `Info.plist`, `JournalScreen.swift`, `LiveCardController.swift`, `MySleepNightApp.swift`, `NightData.swift`, `NightEngine.swift`, `NightPictures.swift`, `NightViews.swift`, `Notifier.swift`, `ReportScreen.swift`, `ServerLink.swift`, `SettingsTab.swift`, `TonightTab.swift`, `TrendsScreen.swift`, `rules.js`

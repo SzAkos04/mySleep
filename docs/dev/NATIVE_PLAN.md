@@ -24,7 +24,7 @@ the web app keeps working until the last phase.
   read. The web's shape is the contract; new fields pass through without a Swift change.
 - **Test-driven, every step** (CLAUDE.md). Where tests go:
   - server: `api/test/server.test.js`, a real server on a temp DATA_DIR;
-  - the rules: `frontend/src/lib/*.test.js` (later `shared/`);
+  - the rules: `shared/lib/*.test.js`;
   - Swift logic (store, sync, screen models): `ios/NightKit/Tests`;
   - JS and Swift agreeing: golden files written by node, read by the Swift tests;
   - screens: a NightKit model per screen with its strings and numbers tested, plus a Simulator
@@ -142,10 +142,8 @@ snoring.
 - After 2.3 and 2.4 the web views are unused in the app: `WebTab`, `WebPage`, the sign-in codes
   go (their tests with them).
 
-### 2.5 Old clips (last, optional)
-Nights from the web's own tracking have sound clips; the app records none. Playing them needs
-`GET /api/clips/…` to take the device token (api test first), then a play button on the report's
-events. The Settings "clips" switch goes: nothing records clips any more.
+### 2.5 Old clips *(dropped: the server's clip routes went with the web app, and nothing in the app mentions clips)*
+Nothing records clips any more and the server has no clip route; old nights show no clips.
 
 ## Phase 3: settings and reminders on the phone
 
@@ -193,7 +191,7 @@ the server's, both reminders arriving, a reinstall keeping pairing and nights.
 ### 5.2 Remove
 - `frontend/`: the views, components, store, PWA files. The rules (`lib/*.js` and their tests)
   move to `shared/`, still bundled into the app and tested by node.
-- `web/`: no frontend build; nginx stays as the `/api` proxy behind Tailscale (least change).
+- `web/`: gone too (commit d002b21): no nginx; the API container is Tailscale serve's backend itself.
 - Server: the sign-in code exchange, passkey registration and login (and `@simplewebauthn`),
   sessions, Web Push (and `web-push`), the push reminders. Sync, devices, debug logs and backups
   stay. RP_ID stops mattering here; myGym keeps it.
