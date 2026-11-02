@@ -14,6 +14,11 @@ it('sends edited nights and deletions', () => {
   ])
 })
 
+it('a dirty mark with no entry behind it is not sent, and does not stop the rest', () => {
+  const s = { ...state(), dirty: { 'night:gone': true, 'night:a': true } }
+  expect(pendingChanges(s).map(c => c.id)).toEqual(['a'])
+})
+
 it('keeps the newer side per entry', () => {
   const m = mergeRemote(state(), [
     { kind: 'night', id: 'a', ts: 100, data: { id: 'a', q: 1 } },        // older than local: ignored

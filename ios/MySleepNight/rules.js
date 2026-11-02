@@ -407,10 +407,11 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		return kind === "settings" ? state.settings : state.nights[id];
 	};
 	function pendingChanges(state) {
-		return Object.keys(state.dirty).map((key) => {
+		return Object.keys(state.dirty).flatMap((key) => {
 			const [kind, id] = key.split(/:(.*)/);
 			const data = entryOf(state, key);
-			return data?.deleted ? {
+			if (!data) return [];
+			return [data.deleted ? {
 				kind,
 				id,
 				ts: data.ts,
@@ -420,7 +421,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 				id,
 				ts: data.ts,
 				data
-			};
+			}];
 		});
 	}
 	function mergeRemote(state, changes) {

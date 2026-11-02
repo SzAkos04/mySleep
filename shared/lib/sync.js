@@ -9,10 +9,11 @@ const entryOf = (state, key) => {
 }
 
 export function pendingChanges(state) {
-  return Object.keys(state.dirty).map(key => {
+  return Object.keys(state.dirty).flatMap(key => {
     const [kind, id] = key.split(/:(.*)/)
     const data = entryOf(state, key)
-    return data?.deleted ? { kind, id, ts: data.ts, deleted: true } : { kind, id, ts: data.ts, data }
+    if (!data) return []   // a mark with nothing behind it must not fail every sync after it
+    return [data.deleted ? { kind, id, ts: data.ts, deleted: true } : { kind, id, ts: data.ts, data }]
   })
 }
 
