@@ -3,6 +3,7 @@
 # the free Apple ID Xcode is signed in with, so the app runs 7 days: run this weekly.
 #   scripts/ios-install.sh            # the first iPhone devicectl finds
 #   DEVICE=<udid> scripts/ios-install.sh
+#   RENEW=1 scripts/ios-install.sh    # also a fresh signing profile: the weekly run
 # Once: Xcode › Settings › Accounts › add your Apple ID; on the phone, Settings › Privacy & Security
 # › Developer Mode on; after the first install, Settings › General › VPN & Device Management › trust.
 set -eu
@@ -22,15 +23,18 @@ if [ -z "${DEVICE:-}" ]; then
 fi
 [ -n "$DEVICE" ] || { echo "No iPhone found: connect it with a cable (the first time), unlock it, and trust this Mac."; exit 1; }
 
-# Xcode reuses a cached profile until it is nearly expired, so a weekly reinstall would keep the first
-# week's expiry. Move this app's profiles aside (not deleted) so -allowProvisioningUpdates gets fresh ones.
-PROFILES="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-for f in "$PROFILES"/*.mobileprovision; do
-  [ -e "$f" ] || continue
-  if security cms -D -i "$f" 2>/dev/null | grep -q "hu.szakos.mysleep"; then
-    mkdir -p "$PROFILES/old"; mv "$f" "$PROFILES/old/"
-  fi
-done
+# A plain run is a rebuild: Xcode reuses its cached profile, so the expiry does not move. RENEW=1 (the
+# weekly scheduled run) moves this app's profiles aside (not deleted) so -allowProvisioningUpdates gets
+# fresh ones and the 7 days start again.
+if [ "${RENEW:-}" = 1 ]; then
+  PROFILES="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+  for f in "$PROFILES"/*.mobileprovision; do
+    [ -e "$f" ] || continue
+    if security cms -D -i "$f" 2>/dev/null | grep -q "hu.szakos.mysleep"; then
+      mkdir -p "$PROFILES/old"; mv "$f" "$PROFILES/old/"
+    fi
+  done
+fi
 
 echo "== tests"; (cd NightKit && swift test --quiet)   # nothing goes on the phone with a failing test
 echo "== build for $DEVICE (team $TEAM)"
