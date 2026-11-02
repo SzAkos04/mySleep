@@ -239,7 +239,7 @@ import UIKit
     engine.stop()
     do {
       let s = AVAudioSession.sharedInstance(), ringing = AudioPlan.forRinging
-      try s.setCategory(AVAudioSession.Category(rawValue: ringing.category), mode: AVAudioSession.Mode(rawValue: ringing.mode))
+      try s.setCategory(AVAudioSession.Category(rawValue: ringing.category), mode: AVAudioSession.Mode(rawValue: ringing.mode), options: ringing.mixes ? [.mixWithOthers] : [])
       try s.setActive(true)
       logNow("audio", ["reason": "ring", "category": s.category.rawValue, "mode": s.mode.rawValue, "volume": s.outputVolume])
     } catch { logNow("ring-session-failed", ["error": "\(error)"]) }

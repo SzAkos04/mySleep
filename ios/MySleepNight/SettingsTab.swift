@@ -92,9 +92,9 @@ struct SettingsTab: View {
       .navigationTitle("Settings")
       .sheet(isPresented: $pickingBedtime) { TimeSheet(title: "Go to bed", time: Binding(get: { data.settings.bedtime }, set: { data.change(["bedtime": $0]) })).presentationDetents([.height(320)]) }
     }
-    .onAppear { volume.start() }
+    .onAppear { volume.start(night: engine.night != nil) }
     .onChange(of: phase) { _, p in
-      if p == .active { micOn = AVAudioApplication.shared.recordPermission == .granted; liveOn = ActivityAuthorizationInfo().areActivitiesEnabled; volume.start() }
+      if p == .active { micOn = AVAudioApplication.shared.recordPermission == .granted; liveOn = ActivityAuthorizationInfo().areActivitiesEnabled; volume.start(night: engine.night != nil) }
     }
   }
 }
@@ -144,10 +144,12 @@ private struct Allowed: View {
 @MainActor final class VolumeWatcher: ObservableObject {
   @Published var level: Float = AVAudioSession.sharedInstance().outputVolume
   private var watch: NSKeyValueObservation?
-  func start() {
+  /// `night`: the night's own session is running, leave it be.
+  func start(night: Bool) {
     let s = AVAudioSession.sharedInstance()
-    // outputVolume follows the buttons only while a session is active; ambient leaves other audio alone
-    if s.category != .playAndRecord { try? s.setCategory(.ambient, options: .mixWithOthers); try? s.setActive(true) }
+    // outputVolume follows the buttons only while a session is active (a night ends with it switched
+    // off, its category kept); ambient leaves other audio alone
+    if !night { try? s.setCategory(.ambient, options: .mixWithOthers); try? s.setActive(true) }
     level = s.outputVolume
     watch = s.observe(\.outputVolume) { [weak self] s, _ in
       let v = s.outputVolume

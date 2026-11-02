@@ -128,7 +128,15 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
   // .measurement), which iOS plays quietly through the speaker: medium even at full volume. Ringing
   // is played as playback, at the phone's full media volume; listening goes back to recording.
   @Test func ringingIsPlaybackListeningIsRecording() {
-    #expect(AudioPlan.forListening == AudioPlan(category: "AVAudioSessionCategoryPlayAndRecord", mode: "AVAudioSessionModeMeasurement"))
-    #expect(AudioPlan.forRinging == AudioPlan(category: "AVAudioSessionCategoryPlayback", mode: "AVAudioSessionModeDefault"))
+    #expect(AudioPlan.forListening == AudioPlan(category: "AVAudioSessionCategoryPlayAndRecord", mode: "AVAudioSessionModeMeasurement", mixes: true))
+    #expect(AudioPlan.forRinging == AudioPlan(category: "AVAudioSessionCategoryPlayback", mode: "AVAudioSessionModeDefault", mixes: true))
+  }
+
+  // 2 November, 05:55, 06:05, 06:14: the app rang from the background and setCategory failed with
+  // '!int' (CannotInterruptOthers): the listening session mixes, and a session that does not mix may
+  // not take over from the background. The piano then played in the recording session, quietly. Only
+  // a mixing playback session can be started with the phone locked.
+  @Test func ringingMixesSoItCanStartWithThePhoneLocked() {
+    #expect(AudioPlan.forListening.mixes && AudioPlan.forRinging.mixes)
   }
 }
