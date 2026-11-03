@@ -116,6 +116,15 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
     #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29)) == at(6, 22, day: 29))
   }
 
+  // 3 November: the app could not get the playback session with the phone locked, so the piano played
+  // quietly for two minutes before the system alarm cut in at full volume. A piano nobody can hear
+  // is no reason to wait: the system alarm comes sooner.
+  @Test func whenTheAppCouldNotGetThePlaybackSessionTheSystemAlarmComesSooner() {
+    #expect(AlarmPlan.quietBackupDelay == 40)
+    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29), quiet: true) == at(6, 20, day: 29).addingTimeInterval(40))
+    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29), quiet: false) == at(6, 22, day: 29))
+  }
+
   @Test func snoozeNineMinutesWithTheSystemAlarmBehindItAgain() {
     let s = AlarmPlan.snoozed(at: at(6, 45, day: 29))
     #expect(s == AlarmPlan(from: at(6, 54, day: 29), at: at(6, 54, day: 29)))

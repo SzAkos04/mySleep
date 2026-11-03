@@ -25,14 +25,18 @@ export function nightFromLog(log) {
   return { ...nightRecord({ tr: { nightId: log.night }, samples, end, ringing, diag: nativeSummary(log.events) }), source: 'native' }
 }
 
+// How long a log recorded: to its finish, or as far as it heard.
+const lengthOf = l => l.events?.find(e => e[1] === 'finish')?.[0] ?? (l.samples?.db.length ?? 0) * 1000
+
 // The app's finished nights not here yet. Never over a night of another source or one deleted
-// here; a later night from the app under the same date replaces the earlier one.
+// here; a later night from the app under the same date replaces the earlier one only when it is
+// longer (3 Nov: a 20 min restart after the alarm was stopped replaced a night of 3 h 43).
 export const toImport = (logs, nights) => logs.filter(l => {
   if (l.app !== 'native' || !l.final) return false
   const have = nights[l.night]
-  return !have || (!have.deleted && have.source === 'native' && have.bed !== l.start)
+  return !have || (!have.deleted && have.source === 'native' && have.bed !== l.start && lengthOf(l) > (have.wake - have.bed || 0))
 })
 
 // The night mySleep Night makes of one of its own finished logs (null: nothing to make), by the
 // same rule as toImport, so a log is not made into a night twice.
-export const takeIn = (log, nights) => toImport([{ app: 'native', final: !!log.final, night: log.night, start: log.start }], nights).length ? nightFromLog(log) : null
+export const takeIn = (log, nights) => toImport([{ ...log, app: 'native', final: !!log.final }], nights).length ? nightFromLog(log) : null

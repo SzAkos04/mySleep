@@ -53,8 +53,18 @@ describe('which logs to import', () => {
     expect(toImport(logs, nights)).toEqual([])
     expect(toImport(logs, { '2026-10-29': { id: '2026-10-29', bed: start - 5000 } })).toEqual([logs[3]])
   })
-  it('a later night the same date from the app replaces the earlier one', () => {
-    expect(toImport(logs, { '2026-10-29': { id: '2026-10-29', bed: start - 5000, source: 'native' } }).map(l => l.night)).toEqual(['2026-10-29', '2026-10-26'])
+  // 3 November: a night of 3 h 43 and, after its alarm was stopped, a 20 min restart the same evening;
+  // the restart took the night's place and its log on the server with it
+  const short = () => log({ from: start + 8 * 3600e3, events: [[0, 'start'], [20 * 60e3, 'finish']] })
+  it('a later night the same date from the app replaces the earlier one only when it is the longer', () => {
+    const have = { id: '2026-10-29', bed: start - 5000, wake: start - 5000 + 3600e3, source: 'native' }
+    expect(toImport([{ ...log(), app: 'native' }], { '2026-10-29': have }).map(l => l.night)).toEqual(['2026-10-29'])
+    expect(toImport([{ ...short(), app: 'native' }], { '2026-10-29': { ...have, bed: start, wake: start + 8 * 3600e3 } })).toEqual([])
+  })
+  it('the earlier, longer night comes back over the short restart that replaced it', () => {
+    const restart = { id: '2026-10-29', bed: start + 8 * 3600e3, wake: start + 8 * 3600e3 + 20 * 60e3, source: 'native' }
+    expect(takeIn(log(), { '2026-10-29': restart })).toMatchObject({ id: '2026-10-29', bed: start })
+    expect(takeIn(short(), { '2026-10-29': { ...restart, bed: start, wake: start + 8 * 3600e3 } })).toBeNull()
   })
 })
 

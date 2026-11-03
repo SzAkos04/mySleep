@@ -69,6 +69,15 @@ struct SettingsTab: View {
           }
           .disabled(engine.night != nil)
           .sensoryFeedback(.selection, trigger: engine.testing)
+          Button {
+            engine.startRingTest()
+          } label: {
+            VStack(alignment: .leading, spacing: 1) {
+              Label("Ring test, phone locked", systemImage: "lock.fill")
+              if let t = engine.ringTest { Text(t).font(.footnote).foregroundStyle(Theme.text2) }
+            }
+          }
+          .disabled(engine.night != nil)
           let advice = VolumeAdvice(volume: volume.level)
           HStack {
             VStack(alignment: .leading, spacing: 1) {

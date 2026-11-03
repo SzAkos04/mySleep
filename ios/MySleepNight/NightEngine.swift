@@ -195,8 +195,8 @@ import UIKit
         rangEarly = true
         if rangEarlyBy == nil { rangEarlyBy = early }   // the first ring, not a snooze's
         queue.async { n.log("wake", ["early": early], at: now) }
-        ringItself(early: early)
-        if alarm.phase != .none { Task { await alarm.set(at: AlarmPlan.backup(afterRingingAt: date)) } }
+        let loud = ringItself(early: early)
+        if alarm.phase != .none { Task { await alarm.set(at: AlarmPlan.backup(afterRingingAt: date, quiet: !loud)) } }
       }
     }
   }
@@ -230,29 +230,80 @@ import UIKit
   // MARK: the app's own alarm, first: the piano through the audio session kept all night, rising from
   // near silence. Stopped here (held), or snoozed here or on the lock screen card.
 
-  private func ringItself(early: Int) {
+  /// True: the piano plays in the playback session; false: it could not, or there is no piano.
+  @discardableResult
+  private func ringItself(early: Int) -> Bool {
+    guard let loud = playPiano() else { return false }
+    selfRinging = true
+    ringingEarly = early
+    logNow("ring", ["self": true, "early": early])
+    live.ringing(true)
+    return loud
+  }
+
+  /// The piano, rising from near silence. nil: no sound file; true/false: in the playback session or not.
+  private func playPiano() -> Bool? {
     guard let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"), let p = try? AVAudioPlayer(contentsOf: url) else {
-      logNow("ring-failed", ["reason": "no piano"]); return
+      logNow("ring-failed", ["reason": "no piano"]); return nil
     }
     // playback, not the recording session: through that iOS plays the speaker quietly (AudioPlan)
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
-    do {
-      let s = AVAudioSession.sharedInstance(), ringing = AudioPlan.forRinging
-      try s.setCategory(AVAudioSession.Category(rawValue: ringing.category), mode: AVAudioSession.Mode(rawValue: ringing.mode), options: ringing.mixes ? [.mixWithOthers] : [])
-      try s.setActive(true)
-      logNow("audio", ["reason": "ring", "category": s.category.rawValue, "mode": s.mode.rawValue, "volume": s.outputVolume])
-    } catch { logNow("ring-session-failed", ["error": "\(error)"]) }
+    let loud = enterRingSession()
     p.numberOfLoops = -1
     p.volume = Float(RiseCurve.gain(at: 0))
     p.play()
-    player = p; selfRinging = true; ringStart = Date()
+    player = p; ringStart = Date()
     ramp = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
       Task { @MainActor in guard let self, let p = self.player else { return }; p.volume = Float(RiseCurve.gain(at: Date().timeIntervalSince(self.ringStart))) }
     }
-    ringingEarly = early
-    logNow("ring", ["self": true, "early": early])
-    live.ringing(true)
+    return loud
+  }
+
+  /// The audio session the piano plays in. With the phone locked iOS refused the switch to playback
+  /// even for a mixing session ('!int', 2 and 3 November): each step is logged with its own error, and
+  /// the piano then plays in the recording session (default mode, the speaker), which is quiet.
+  private func enterRingSession() -> Bool {
+    let s = AVAudioSession.sharedInstance(), ringing = AudioPlan.forRinging
+    do {
+      try s.setCategory(AVAudioSession.Category(rawValue: ringing.category), mode: AVAudioSession.Mode(rawValue: ringing.mode), options: ringing.mixes ? [.mixWithOthers] : [])
+    } catch { return ringSessionFailed(s, step: "category", error) }
+    do { try s.setActive(true) } catch { return ringSessionFailed(s, step: "active", error) }
+    lastRingError = nil
+    logNow("audio", ["reason": "ring", "category": s.category.rawValue, "mode": s.mode.rawValue, "volume": s.outputVolume])
+    return true
+  }
+
+  private func ringSessionFailed(_ s: AVAudioSession, step: String, _ error: Error) -> Bool {
+    lastRingError = "\(step): \(error)"
+    logNow("ring-session-failed", ["step": step, "error": "\(error)"])
+    do { try s.setMode(.default) } catch { logNow("ring-fallback", ["step": "mode", "error": "\(error)"]) }
+    do { try s.overrideOutputAudioPort(.speaker) } catch { logNow("ring-fallback", ["step": "speaker", "error": "\(error)"]) }
+    try? s.setActive(true)
+    logNow("audio", ["reason": "ring-fallback", "category": s.category.rawValue, "mode": s.mode.rawValue, "volume": s.outputVolume])
+    return false
+  }
+  private var lastRingError: String?
+
+  /// Settings › Ring test: listens as a night does, rings after 20 s whatever the phone is doing (lock
+  /// it, put it down), 10 s, and says how the switch to the playback session went. Not during a night.
+  @Published private(set) var ringTest: String?
+  private var ringTesting = false
+  func startRingTest() {
+    guard night == nil, !testing, !ringTesting else { return }
+    do { try startAudio(reason: "ring-test") } catch { ringTest = "Could not start listening: \(error.localizedDescription)"; return }
+    ringTesting = true; ringTest = "Lock the phone now: it rings in 20 seconds."
+    Task { @MainActor in
+      try? await Task.sleep(for: .seconds(20))
+      let where_ = UIApplication.shared.applicationState == .active ? "in front" : "in the background"
+      let loud = self.playPiano()
+      self.ringTest = loud == true ? "Rang \(where_): the playback session worked." : "Rang \(where_): the playback session failed (\(self.lastRingError ?? "no piano")); the piano was quiet."
+      try? await Task.sleep(for: .seconds(10))
+      self.silence()
+      self.engine.inputNode.removeTap(onBus: 0); self.engine.stop()
+      try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+      self.ringTesting = false
+    }
   }
 
   private func silence() {

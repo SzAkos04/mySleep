@@ -388,16 +388,16 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			source: "native"
 		};
 	}
+	const lengthOf = (l) => l.events?.find((e) => e[1] === "finish")?.[0] ?? (l.samples?.db.length ?? 0) * 1e3;
 	const toImport = (logs, nights) => logs.filter((l) => {
 		if (l.app !== "native" || !l.final) return false;
 		const have = nights[l.night];
-		return !have || !have.deleted && have.source === "native" && have.bed !== l.start;
+		return !have || !have.deleted && have.source === "native" && have.bed !== l.start && lengthOf(l) > (have.wake - have.bed || 0);
 	});
 	const takeIn = (log, nights) => toImport([{
+		...log,
 		app: "native",
-		final: !!log.final,
-		night: log.night,
-		start: log.start
+		final: !!log.final
 	}], nights).length ? nightFromLog(log) : null;
 
 //#endregion

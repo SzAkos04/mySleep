@@ -20,7 +20,10 @@ public struct AlarmPlan: Equatable, Sendable {
   /// stopped it.
   public static let backupDelay: TimeInterval = 120
   public var backup: Date { at.addingTimeInterval(Self.backupDelay) }
-  public static func backup(afterRingingAt t: Date) -> Date { t.addingTimeInterval(backupDelay) }
+  /// When the app could not get the playback session (locked phone), its piano is quiet: the system
+  /// alarm does not wait the full delay behind it.
+  public static let quietBackupDelay: TimeInterval = 40
+  public static func backup(afterRingingAt t: Date, quiet: Bool = false) -> Date { t.addingTimeInterval(quiet ? quietBackupDelay : backupDelay) }
   public static func snoozed(at t: Date) -> AlarmPlan {
     let next = t.addingTimeInterval(Double(snoozeMinutes) * 60)
     return AlarmPlan(from: next, at: next)
