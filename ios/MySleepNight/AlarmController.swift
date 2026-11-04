@@ -10,6 +10,8 @@ import SwiftUI
   enum Phase: Equatable { case none, set, ringing, snoozed }
   @Published private(set) var phase: Phase = .none
   @Published private(set) var allowed: Bool?
+  /// Why the last set() did not schedule (nil: it did).
+  private(set) var lastError: String?
   /// Called when the alarm was stopped (not snoozed): the night is over.
   var onStopped: (() -> Void)?
   var log: (String, [String: Any]) -> Void = { _, _ in }
@@ -38,7 +40,8 @@ import SwiftUI
   }
 
   func set(at date: Date) async {
-    guard await ask() else { return }
+    lastError = nil
+    guard await ask() else { lastError = "not allowed"; return }
     try? manager.cancel(id: id)
     let attributes = AlarmAttributes<NightAlarm>(
       presentation: AlarmPresentation(alert: .init(
@@ -55,6 +58,7 @@ import SwiftUI
       phase = .set
       log("alarm-set", ["at": Int64(date.timeIntervalSince1970 * 1000)])
     } catch {
+      lastError = "\(error)"
       log("alarm-failed", ["error": "\(error)"])
     }
   }

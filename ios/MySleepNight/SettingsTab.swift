@@ -74,10 +74,14 @@ struct SettingsTab: View {
           } label: {
             VStack(alignment: .leading, spacing: 1) {
               Label("Alarm test in 20 seconds", systemImage: "alarm.fill")
-              Text("The night's alarm; lock the phone and listen").font(.footnote).foregroundStyle(Theme.text2)
+              Text(engine.alarmTest.text ?? "The night's alarm; lock the phone and listen")
+                .font(.footnote).foregroundStyle(engine.alarmTest.warns ? Theme.warn : Theme.text2)
+                .contentTransition(.numericText())
             }
+            .animation(.snappy(duration: 0.25), value: engine.alarmTest)
           }
-          .disabled(engine.night != nil)
+          .disabled(engine.night != nil || engine.alarmTest.busy)
+          .sensoryFeedback(.selection, trigger: engine.alarmTest.busy)
           let advice = VolumeAdvice(volume: volume.level)
           HStack {
             VStack(alignment: .leading, spacing: 1) {

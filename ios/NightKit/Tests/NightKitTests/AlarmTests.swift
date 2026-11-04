@@ -191,3 +191,29 @@ import AVFoundation
     #expect(try Self.peaks().last! > -3)
   }
 }
+
+/// Settings › Alarm test said nothing while it ran, and nothing when the system refused it
+/// (4 November): every state of it is in words.
+@Suite struct AlarmTestWords {
+  @Test func nothingToSayWhenIdle() { #expect(AlarmTest.idle.text == nil) }
+
+  @Test func countsDownAndTellsWhatToDo() {
+    #expect(AlarmTest.waiting(20).text == "Rings in 20 s. Lock the phone and listen.")
+    #expect(AlarmTest.waiting(1).text == "Rings in 1 s. Lock the phone and listen.")
+  }
+
+  @Test func saysItIsRingingAndWhenItWas() {
+    #expect(AlarmTest.ringing.text == "It is ringing: Stop or Snooze ends the test.")
+    #expect(AlarmTest.heard.text == "It rang and the test is over.")
+  }
+
+  @Test func saysWhyItDidNotRing() {
+    #expect(AlarmTest.denied.text == "Alarms are not allowed: turn them on for mySleep Night in iOS Settings.")
+    #expect(AlarmTest.failed("no sound").text == "The alarm did not ring: no sound")
+  }
+
+  @Test func isBusyWhileItWaitsOrRings() {
+    #expect(AlarmTest.waiting(5).busy && AlarmTest.ringing.busy)
+    #expect(![AlarmTest.idle, .heard, .denied, .failed("x")].contains { $0.busy })
+  }
+}

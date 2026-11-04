@@ -294,10 +294,26 @@ import UIKit
   private var lastRingError: String?
 
   /// Settings › Alarm test: the system alarm (the one that rings at night) in 20 s, to hear its rise
-  /// with the phone locked. Stop or Snooze ends it. Not during a night.
+  /// with the phone locked. Says where it stands; Stop ends it, and Snooze too (the test alarm is
+  /// cancelled then, not left to ring again in 9 minutes). Not during a night.
+  @Published private(set) var alarmTest = AlarmTest.idle
   func startAlarmTest() {
-    guard night == nil else { return }
-    Task { await alarm.set(at: Date().addingTimeInterval(20)) }
+    guard night == nil, !alarmTest.busy else { return }
+    alarmTest = .waiting(20)
+    Task { @MainActor in
+      let at = Date().addingTimeInterval(20)
+      guard await alarm.ask() else { alarmTest = .denied; return }
+      await alarm.set(at: at)
+      if let why = alarm.lastError { alarmTest = .failed(why); return }
+      while at.timeIntervalSinceNow > 0 { alarmTest = .waiting(max(1, Int(at.timeIntervalSinceNow.rounded(.up)))); try? await Task.sleep(for: .milliseconds(500)) }
+      // it should be ringing within a few seconds of its time
+      for _ in 0..<20 where alarm.phase != .ringing { try? await Task.sleep(for: .milliseconds(500)) }
+      guard alarm.phase == .ringing else { alarm.cancel(); alarmTest = .failed("the system did not ring it"); return }
+      alarmTest = .ringing
+      while alarm.phase == .ringing { try? await Task.sleep(for: .milliseconds(500)) }
+      alarm.cancel()   // snoozed: no second ring in 9 minutes
+      alarmTest = .heard
+    }
   }
 
   private func silence() {
