@@ -4,7 +4,8 @@ import SwiftUI
 /// The alarm is the system's (AlarmKit): it rings on the lock screen, through silent mode and Focus,
 /// with Stop and Snooze there, and it rings even if iOS has closed this app in the night. The app
 /// sets it for the wake time when the night starts; in the smart window it brings it forward to now.
-/// The sound is the app's piano (alarm-piano.wav, a resource of the app).
+/// The sound is the app's piano with its rise in the file (alarm-rise.wav, from scripts/make-alarm-rise.py):
+/// the system plays it at full volume from the first instant, so it starts near silence by itself.
 @MainActor final class AlarmController: ObservableObject {
   enum Phase: Equatable { case none, set, ringing, snoozed }
   @Published private(set) var phase: Phase = .none
@@ -48,7 +49,7 @@ import SwiftUI
       tintColor: Theme.accent)
     let config = AlarmManager.AlarmConfiguration(
       countdownDuration: Alarm.CountdownDuration(preAlert: nil, postAlert: Double(AlarmPlan.snoozeMinutes) * 60),
-      schedule: .fixed(date), attributes: attributes, sound: .named("alarm-piano.wav"))
+      schedule: .fixed(date), attributes: attributes, sound: .named("alarm-rise.wav"))
     do {
       _ = try await manager.schedule(id: id, configuration: config)
       phase = .set

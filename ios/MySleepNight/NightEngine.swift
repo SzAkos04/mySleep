@@ -233,7 +233,13 @@ import UIKit
   /// True: the piano plays in the playback session; false: it could not, or there is no piano.
   @discardableResult
   private func ringItself(early: Int) -> Bool {
-    guard let loud = playPiano() else { return false }
+    guard let loud = playPiano(quietToo: alarm.allowed != true) else { return false }
+    if !loud && alarm.allowed == true {
+      // no piano: the system alarm rings at once (its sound rises by itself); the listening goes on
+      logNow("ring", ["self": false, "early": early])
+      do { try startAudio(reason: "ring-quiet") } catch { logNow("restart-failed", ["error": "\(error)"]) }
+      return false
+    }
     selfRinging = true
     ringingEarly = early
     logNow("ring", ["self": true, "early": early])
@@ -242,7 +248,8 @@ import UIKit
   }
 
   /// The piano, rising from near silence. nil: no sound file; true/false: in the playback session or not.
-  private func playPiano() -> Bool? {
+  /// Not in the recording session unless `quietToo` (no system alarm to take over).
+  private func playPiano(quietToo: Bool) -> Bool? {
     guard let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"), let p = try? AVAudioPlayer(contentsOf: url) else {
       logNow("ring-failed", ["reason": "no piano"]); return nil
     }
@@ -250,6 +257,7 @@ import UIKit
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
     let loud = enterRingSession()
+    if !loud && !quietToo { return false }
     p.numberOfLoops = -1
     p.volume = Float(RiseCurve.gain(at: 0))
     p.play()
@@ -285,25 +293,11 @@ import UIKit
   }
   private var lastRingError: String?
 
-  /// Settings › Ring test: listens as a night does, rings after 20 s whatever the phone is doing (lock
-  /// it, put it down), 10 s, and says how the switch to the playback session went. Not during a night.
-  @Published private(set) var ringTest: String?
-  private var ringTesting = false
-  func startRingTest() {
-    guard night == nil, !testing, !ringTesting else { return }
-    do { try startAudio(reason: "ring-test") } catch { ringTest = "Could not start listening: \(error.localizedDescription)"; return }
-    ringTesting = true; ringTest = "Lock the phone now: it rings in 20 seconds."
-    Task { @MainActor in
-      try? await Task.sleep(for: .seconds(20))
-      let where_ = UIApplication.shared.applicationState == .active ? "in front" : "in the background"
-      let loud = self.playPiano()
-      self.ringTest = loud == true ? "Rang \(where_): the playback session worked." : "Rang \(where_): the playback session failed (\(self.lastRingError ?? "no piano")); the piano was quiet."
-      try? await Task.sleep(for: .seconds(10))
-      self.silence()
-      self.engine.inputNode.removeTap(onBus: 0); self.engine.stop()
-      try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-      self.ringTesting = false
-    }
+  /// Settings › Alarm test: the system alarm (the one that rings at night) in 20 s, to hear its rise
+  /// with the phone locked. Stop or Snooze ends it. Not during a night.
+  func startAlarmTest() {
+    guard night == nil else { return }
+    Task { await alarm.set(at: Date().addingTimeInterval(20)) }
   }
 
   private func silence() {

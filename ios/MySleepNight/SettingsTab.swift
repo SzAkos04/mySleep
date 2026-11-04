@@ -70,11 +70,11 @@ struct SettingsTab: View {
           .disabled(engine.night != nil)
           .sensoryFeedback(.selection, trigger: engine.testing)
           Button {
-            engine.startRingTest()
+            engine.startAlarmTest()
           } label: {
             VStack(alignment: .leading, spacing: 1) {
-              Label("Ring test, phone locked", systemImage: "lock.fill")
-              if let t = engine.ringTest { Text(t).font(.footnote).foregroundStyle(Theme.text2) }
+              Label("Alarm test in 20 seconds", systemImage: "alarm.fill")
+              Text("The night's alarm; lock the phone and listen").font(.footnote).foregroundStyle(Theme.text2)
             }
           }
           .disabled(engine.night != nil)

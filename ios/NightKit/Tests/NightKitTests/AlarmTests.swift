@@ -116,12 +116,12 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
     #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29)) == at(6, 22, day: 29))
   }
 
-  // 3 November: the app could not get the playback session with the phone locked, so the piano played
-  // quietly for two minutes before the system alarm cut in at full volume. A piano nobody can hear
-  // is no reason to wait: the system alarm comes sooner.
-  @Test func whenTheAppCouldNotGetThePlaybackSessionTheSystemAlarmComesSooner() {
-    #expect(AlarmPlan.quietBackupDelay == 40)
-    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29), quiet: true) == at(6, 20, day: 29).addingTimeInterval(40))
+  // 3 and 4 November: the app could not get the playback session with the phone locked, so the piano
+  // played quietly for two minutes before the system alarm cut in at full volume. A piano nobody can
+  // hear is no reason to wait: the system alarm rings at once, and its sound rises by itself.
+  @Test func whenTheAppCouldNotGetThePlaybackSessionTheSystemAlarmRingsAtOnce() {
+    #expect(AlarmPlan.quietBackupDelay == 2)
+    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29), quiet: true) == at(6, 20, day: 29).addingTimeInterval(2))
     #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29), quiet: false) == at(6, 22, day: 29))
   }
 
@@ -147,5 +147,47 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
   // a mixing playback session can be started with the phone locked.
   @Test func ringingMixesSoItCanStartWithThePhoneLocked() {
     #expect(AudioPlan.forListening.mixes && AudioPlan.forRinging.mixes)
+  }
+}
+
+import AVFoundation
+
+/// The system alarm (AlarmKit) plays a sound file at full volume from its first instant, and the app
+/// cannot rise it: 3 and 4 November it started at once, loud, after the app's own quiet piano had
+/// failed. So the rise is in the file: near silence, easing to full as RiseCurve does, and the
+/// alarm repeats it. AlarmKit takes at most 30 s.
+@Suite struct AlarmRiseSound {
+  /// Peak level in dBFS of each second of the file.
+  static func peaks() throws -> [Double] {
+    let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent().appendingPathComponent("MySleepNight/alarm-rise.wav")
+    let f = try AVAudioFile(forReading: url)
+    let rate = Int(f.processingFormat.sampleRate)
+    let buf = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: AVAudioFrameCount(f.length))!
+    try f.read(into: buf)
+    let ch = buf.floatChannelData![0]
+    return stride(from: 0, to: Int(buf.frameLength) - rate + 1, by: rate).map { s in
+      20 * log10(Double((0..<rate).map { abs(ch[s + $0]) }.max() ?? 0) + 1e-9)
+    }
+  }
+
+  @Test func isUnderThirtySecondsAndLongEnoughToRise() throws {
+    let n = try Self.peaks().count
+    #expect(n >= Int(RiseCurve.seconds) && n <= 30)
+  }
+
+  @Test func startsNearSilence() throws {
+    #expect(try Self.peaks()[0] < -35)
+  }
+
+  @Test func risesAsTheCurveDoes() throws {
+    let p = try Self.peaks()
+    // the piano peaks near -1 dBFS; at the middle of the rise the curve is about 10 dB down
+    #expect((-16 ... -6).contains(p[12]))
+    for k in 1..<20 { #expect(p[k] >= p[k - 1] - 1) }
+  }
+
+  @Test func holdsFullAtTheEnd() throws {
+    #expect(try Self.peaks().last! > -3)
   }
 }
