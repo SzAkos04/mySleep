@@ -7,6 +7,17 @@ reminders. This plan moves all of that into the native app, one step at a time, 
 frontend can be deleted. Each step is small, starts with a failing test, and ships on its own;
 the web app keeps working until the last phase.
 
+## Where it stands (reviewed 2026-11-09)
+
+Every step below is done on `dev`; the table is the order they were done in. Open, none of it code:
+- phone checks: that a local notification scheduled by an app whose signature has run out still arrives
+  (3.2, 3.3), and that `scripts/pair.sh` works against the deployed server (4.1, needs the deploy);
+- the merge of `dev` into `main` and the deploy, when the user says so (5.2 removes the web's routes there);
+- unmeasured: the whole state goes into JavaScriptCore on every view-model call. Measure it on the phone
+  (or with a seeded year of nights in the Simulator) before the history gets long; if a call takes over
+  ~50 ms, pass the one night or the month, not the state.
+The paths in 0.2 and 0.3 (`frontend/`) are history: the code is in `shared/`.
+
 ## Ground rules
 
 - **The server stays.** It is the backup and the history: a reinstall or a new phone pulls every

@@ -157,7 +157,10 @@ function json(res, code, obj, headers = {}) {
 async function readBody(req) {
   const chunks = []; let size = 0;
   for await (const d of req) { size += d.length; if (size > MAX_BODY) throw new HttpError(413, 'body too large'); chunks.push(d); }
-  try { return chunks.length ? JSON.parse(Buffer.concat(chunks)) : {}; } catch { throw new HttpError(400, 'invalid JSON'); }
+  let body;
+  try { body = chunks.length ? JSON.parse(Buffer.concat(chunks)) : {}; } catch { throw new HttpError(400, 'invalid JSON'); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'body must be a JSON object');
+  return body;
 }
 function needUser(req) { const u = readSession(req); if (!u) throw new HttpError(401, 'not signed in'); return u; }
 

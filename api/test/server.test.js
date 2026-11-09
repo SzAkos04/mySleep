@@ -370,3 +370,9 @@ test('every answer says the browser must not guess its type', async () => {
   assert.equal(put.status, 200);
   assert.equal(nosniff(await fetch(base + '/api/debug/2027-03-01', { headers: { cookie } })), 'nosniff', 'also a log read back from its file');
 });
+
+test('a body that is JSON but not an object is 400, not a crash', async () => {
+  for (const body of ['null', '3', '[]', '"x"']) {
+    assert.equal((await fetch(base + '/api/sync', { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' }, body })).status, 400, body);
+  }
+});
