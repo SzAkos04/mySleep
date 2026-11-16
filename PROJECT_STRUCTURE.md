@@ -42,7 +42,7 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `Alarm.swift`, `Correction.swift`, `Features.swift`, `Jerk.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Reminders.swift`, `Rules.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Views.swift`
 
 ## ios/NightKit/Tests/NightKitTests
-`AlarmTests.swift`, `CorrectionTests.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `ReminderTests.swift`, `RulesTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `ViewsTests.swift`
+`AlarmTests.swift`, `CorrectionTests.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `ReminderTests.swift`, `RulesTests.swift`, `ScaleTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `ViewsTests.swift`
 
 ## ios/NightKit/Tests/NightKitTests/Fixtures
 `fixture.js`, `golden.json`
@@ -51,7 +51,7 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `NightActivity.swift`
 
 ## scripts
-`dev-local.sh`, `fetch-debug.sh`, `ios-fetch-night.sh`, `ios-install.sh`, `pair.sh`, `server-update.sh`, `test.sh`
+`dev-local.sh`, `fetch-debug.sh`, `ios-fetch-night.sh`, `ios-install.sh`, `make-alarm-rise.py`, `pair.sh`, `server-update.sh`, `test.sh`
 
 ## scripts/hooks
 `pre-commit`

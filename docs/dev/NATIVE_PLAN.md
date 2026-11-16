@@ -7,15 +7,19 @@ reminders. This plan moves all of that into the native app, one step at a time, 
 frontend can be deleted. Each step is small, starts with a failing test, and ships on its own;
 the web app keeps working until the last phase.
 
-## Where it stands (reviewed 2026-11-09)
+## Where it stands (reviewed 2026-11-16)
 
 Every step below is done on `dev`; the table is the order they were done in. Open, none of it code:
 - phone checks: that a local notification scheduled by an app whose signature has run out still arrives
   (3.2, 3.3), and that `scripts/pair.sh` works against the deployed server (4.1, needs the deploy);
 - the merge of `dev` into `main` and the deploy, when the user says so (5.2 removes the web's routes there);
-- unmeasured: the whole state goes into JavaScriptCore on every view-model call. Measure it on the phone
-  (or with a seeded year of nights in the Simulator) before the history gets long; if a call takes over
-  ~50 ms, pass the one night or the month, not the state.
+- measured 2026-11-16 (`ScaleTests`): the whole state goes into JavaScriptCore on every view-model call, and
+  2 MB of state (about a year of 8 h nights) answers a report, a month or the trends in 8-13 ms on the Mac,
+  so about 25-40 ms on the phone: fine. The test fails above 100 ms. When it does (several years of
+  nights), pass the one night or the month, not the state; check on the phone then.
+- decisions for the user: opening a pairing link pairs at once, with no question (a link from anywhere
+  could point the app at another server); and a night whose times were corrected loses its `bed`, which
+  `toImport` uses to tell one log from another (see "Open questions" below).
 The paths in 0.2 and 0.3 (`frontend/`) are history: the code is in `shared/`.
 
 ## Ground rules
@@ -211,6 +215,18 @@ the server's, both reminders arriving, a reinstall keeping pairing and nights.
 ### 5.3 After
 `scripts/test.sh` runs shared, api and iOS tests; CLAUDE.md and MVP.md describe one native app
 and a server.
+
+## Open questions (2026-11-16)
+
+- **Pairing link confirms nothing.** `onOpenURL` pairs and syncs at once. A hostile link would send the
+  nights to another server, or replace a working pairing. Fix: an alert "Pair with <host>?" before
+  `server.pair`; show it only when the host differs from the current pairing's. (Tests: none for the
+  alert; `AppLink.parse` already refuses what is not a server and a token.)
+- **A corrected night is not the log's any more.** `toImport` takes a later log of a date only when
+  `have.bed !== l.start` and it is longer than the night here; correcting `bed` (and `wake`) makes the
+  same log look like another one. It is taken in again only if the log file is written again (a recovered
+  log). Fix: keep the log's `start` in the night record (`log`), compare with that. Needs the golden file
+  and a sync-compatible field, so it waits for a decision.
 
 ## Not ported
 
