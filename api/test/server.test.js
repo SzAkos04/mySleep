@@ -376,3 +376,15 @@ test('a body that is JSON but not an object is 400, not a crash', async () => {
     assert.equal((await fetch(base + '/api/sync', { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' }, body })).status, 400, body);
   }
 });
+
+// A request target `new URL` cannot parse ("//[") threw before the handler's try: an unhandled rejection
+// that ended the process. It is a 404 now, and the server answers the next request.
+test('a request target that is not a URL is 404, not a crash', async () => {
+  const { default: net } = await import('node:net');
+  const reply = await new Promise((resolve, reject) => {
+    const s = net.connect(PORT, '127.0.0.1', () => s.write('GET //[ HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'));
+    let out = ''; s.on('data', d => out += d); s.on('end', () => resolve(out)); s.on('error', reject);
+  });
+  assert.match(reply, /^HTTP\/1\.1 404 /);
+  assert.equal((await fetch(base + '/api/health')).status, 200);
+});

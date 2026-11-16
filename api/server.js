@@ -235,9 +235,11 @@ const routes = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const pathname = new URL(req.url, 'http://x').pathname, dbg = pathname.match(DEBUG_PATH);
-  const route = dbg ? (rq, rs) => debugRoute(rq, rs, dbg[1]) : routes[req.method + ' ' + pathname];
   try {
+    let pathname;
+    try { pathname = new URL(req.url, 'http://x').pathname; } catch { throw new HttpError(404, 'not found'); }   // "//[" is no URL
+    const dbg = pathname.match(DEBUG_PATH);
+    const route = dbg ? (rq, rs) => debugRoute(rq, rs, dbg[1]) : routes[req.method + ' ' + pathname];
     if (!route) throw new HttpError(404, 'not found');
     if (!csrfOk(req)) throw new HttpError(403, 'cross-origin request refused');
     await route(req, res);
