@@ -10,7 +10,7 @@ func sine(_ hz: Double, rms: Double, n: Int = 2048) -> [Float] {
   (0..<n).map { Float(rms * 2.0.squareRoot() * sin(2 * .pi * hz * Double($0) / rate)) }
 }
 
-@Suite struct Readings {
+@Suite struct FrameReadings {
   @Test func loudnessOnTheTrackerScale() throws {
     let r = try #require(Features.read(sine(440, rms: 0.01), sampleRate: rate))
     #expect(abs(r.db - 60) < 0.2)

@@ -6,7 +6,7 @@ import { summarize } from './analysis.js'
 // (fixtures/real-night.json; per-second numbers, no audio). The sleeper reports sleeping calmly
 // through the night and the morning, with only small awakenings. A very quiet room: the floor is
 // ~21 dB, close to the microphone's own noise. Tune the knobs in analysis.js from real nights like this.
-const real = JSON.parse(readFileSync(new URL('./fixtures/real-night.json', import.meta.url)))
+const real = JSON.parse(readFileSync(new URL('../../ios/NightKit/Tests/NightKitTests/Fixtures/real-night.json', import.meta.url)))
 const hour = k => ({ ...real[k], db: real[k].db.map(v => v ?? NaN) })
 
 describe('a real night in a very quiet room', () => {

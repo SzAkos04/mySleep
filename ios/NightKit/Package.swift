@@ -9,6 +9,6 @@ let package = Package(
   products: [.library(name: "NightKit", targets: ["NightKit"])],
   targets: [
     .target(name: "NightKit"),
-    .testTarget(name: "NightKitTests", dependencies: ["NightKit"])
+    .testTarget(name: "NightKitTests", dependencies: ["NightKit"], exclude: ["Fixtures"])
   ]
 )

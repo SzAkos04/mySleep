@@ -2,23 +2,23 @@ import Foundation
 
 /// The settings (settings:main, synced with the nights): tonight's
 /// alarm, the bedtime and its reminder. `ts` is the time of the last edit; 0 means never edited.
-public struct AppSettings: Decodable, Equatable, Sendable {
+public struct AppSettings: Codable, Equatable, Sendable {
   public var alarm = true, smart = true, remind = true
   public var wake = "06:45", bedtime = "23:00"
   public var tz = TimeZone.current.identifier
   public var ts: Int64 = 0
 
-  enum Keys: String, CodingKey { case alarm, smart, remind, wake, bedtime, tz, ts }
+  enum CodingKeys: String, CodingKey { case alarm, smart, remind, wake, bedtime, tz, ts }
   public init() {}
   public init(from d: Decoder) throws {
-    let c = try d.container(keyedBy: Keys.self), base = AppSettings()
+    let c = try d.container(keyedBy: CodingKeys.self), base = AppSettings()
     alarm = try c.decodeIfPresent(Bool.self, forKey: .alarm) ?? base.alarm
     smart = try c.decodeIfPresent(Bool.self, forKey: .smart) ?? base.smart
     remind = try c.decodeIfPresent(Bool.self, forKey: .remind) ?? base.remind
     wake = try c.decodeIfPresent(String.self, forKey: .wake) ?? base.wake
     bedtime = try c.decodeIfPresent(String.self, forKey: .bedtime) ?? base.bedtime
     tz = try c.decodeIfPresent(String.self, forKey: .tz) ?? base.tz
-    ts = try c.decodeIfPresent(Int64.self, forKey: .ts) ?? 0
+    ts = Int64((try? c.decodeIfPresent(Double.self, forKey: .ts)) ?? 0)
   }
 
   /// Tonight's alarm, for the night engine.
