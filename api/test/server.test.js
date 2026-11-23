@@ -388,3 +388,13 @@ test('a request target that is not a URL is 404, not a crash', async () => {
   assert.match(reply, /^HTTP\/1\.1 404 /);
   assert.equal((await fetch(base + '/api/health')).status, 200);
 });
+
+// A phone that synced up to rev 500 asks since=500. If the server's state is behind that (data/ put back
+// from a backup), nothing would ever be newer than 500 for it: it would never get a night again.
+test('a client ahead of the server (data put back from a backup) gets everything, not nothing', async () => {
+  const { rev } = await (await sync({ since: 0, changes: [] })).json();
+  assert.ok(rev > 0);
+  const r = await (await sync({ since: rev + 1000, changes: [] })).json();
+  assert.equal(r.rev, rev);
+  assert.ok(r.changes.length > 0, 'the whole state, so the phone can merge it in');
+});

@@ -227,8 +227,9 @@ const routes = {
     const body = await readBody(req);
     const changes = Array.isArray(body.changes) ? body.changes : [];
     if (changes.length > 1000 || !changes.every(validChange)) throw new HttpError(400, 'invalid changes');
-    const since = Number.isFinite(body.since) ? body.since : 0;
     const state = readState(user.id);
+    // ahead of the server (data/ put back from a backup): everything, or it would never get a night again
+    const since = Number.isFinite(body.since) && body.since <= state.rev ? body.since : 0;
     if (applyChanges(state, changes)) writeJSON(stateFile(user.id), state);
     json(res, 200, { rev: state.rev, changes: changesSince(state, since) });
   }
