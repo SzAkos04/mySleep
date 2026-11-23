@@ -15,7 +15,7 @@ struct JournalScreen: View {
           VStack(alignment: .leading, spacing: 12) {
             calendar(v).rise(0)
             if let s = v.selected {
-              Button { nav.journalPath.append(s.id) } label: { selected(s) }.buttonStyle(Pressable()).rise(1)
+              Button { nav.journalPath.append(s.id) } label: { selected(s) }.buttonStyle(Pressable()).accessibilityIdentifier("nightCard").rise(1)
             } else if let e = v.empty {
               Text(e).foregroundStyle(Theme.text2).frame(maxWidth: .infinity).padding(.top, 30)
             }

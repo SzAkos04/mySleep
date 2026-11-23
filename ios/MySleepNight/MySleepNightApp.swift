@@ -7,6 +7,7 @@ import SwiftUI
   @StateObject private var server = ServerLink()
   @StateObject private var data = NightData()
   @Environment(\.scenePhase) private var phase
+  init() { if Demo.on { UIView.setAnimationsEnabled(false) } }   // XCUITest stops waiting for each transition
   var body: some Scene {
     WindowGroup {
       RootView().environmentObject(engine).environmentObject(engine.alarm).environmentObject(server).environmentObject(data)
@@ -33,7 +34,7 @@ import SwiftUI
           }
         }
         // a changed bedtime or reminder switch: scheduled again
-        .onChange(of: data.settings) { _, s in Task { data.notify = await Notifier.apply(s, expires: server.expires) } }
+        .onChange(of: data.settings) { _, s in if !Demo.on { Task { data.notify = await Notifier.apply(s, expires: server.expires) } } }
     }
     .onChange(of: phase) { _, p in
       if p == .active { Task { await sync() } }
@@ -45,8 +46,19 @@ import SwiftUI
   private func sync() async {
     await server.refresh()
     await data.refresh(pairing: server.pairing)
-    data.notify = await Notifier.apply(data.settings, expires: server.expires)
+    if !Demo.on { data.notify = await Notifier.apply(data.settings, expires: server.expires) }
   }
+}
+
+/// The demo mode (MYSLEEP_DEMO=1, the UI tests; Debug builds only): a month of made-up nights
+/// (NightState.demo), nothing read from or written to the phone, no server, no permission asked,
+/// no animations.
+enum Demo {
+  #if DEBUG
+  static let on = ProcessInfo.processInfo.environment["MYSLEEP_DEMO"] != nil
+  #else
+  static let on = false
+  #endif
 }
 
 // The app's colours
@@ -118,7 +130,8 @@ struct Pressable: ButtonStyle {
 struct Rise: ViewModifier {
   let order: Int
   @State private var shown = false
-  @Environment(\.accessibilityReduceMotion) private var still
+  @Environment(\.accessibilityReduceMotion) private var reduce
+  private var still: Bool { reduce || Demo.on }   // the UI tests: nothing for the contrast audit to catch halfway
   func body(content: Content) -> some View {
     content.opacity(shown || still ? 1 : 0).offset(y: shown || still ? 0 : 16)
       .onAppear {

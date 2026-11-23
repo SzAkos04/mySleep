@@ -24,6 +24,7 @@ import Foundation
   private let writer = DispatchQueue(label: "nights.json")
 
   init() {
+    if Demo.on { store = NightStore(state: .demo(now: Date())); return }
     store = NightStore.load(from: file)
     adoptLegacyAlarm()
     settings = store.settings
@@ -56,7 +57,7 @@ import Foundation
   /// When the app opens, comes back, and after a night: the app's own logs into nights, then the
   /// sync (without a pairing, only the first).
   func refresh(pairing: Pairing?) async {
-    takeInLogs(store)
+    if !Demo.on { takeInLogs(store) }
     persist()
     guard let p = pairing else { return }
     let result = await store.sync(now: Date()) { body in
@@ -105,7 +106,7 @@ import Foundation
 
   private func persist() {
     let state = store.state, file = file
-    writer.async { try? NightStore(state: state).write(to: file) }
+    if !Demo.on { writer.async { try? NightStore(state: state).write(to: file) } }
     settings = store.settings
     version += 1
   }

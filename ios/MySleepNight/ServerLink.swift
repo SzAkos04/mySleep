@@ -5,7 +5,7 @@ import Security
 /// each night and whenever the app opens, and when the app's free signature runs out, so an uptime
 /// monitor can see it (api/status.js).
 @MainActor final class ServerLink: ObservableObject {
-  @Published private(set) var pairing: Pairing? = Keychain.load()
+  @Published private(set) var pairing: Pairing? = Demo.on ? nil : Keychain.load()
   @Published private(set) var lastUpload: Date?
   @Published private(set) var problem: String?
   /// When this install stops working (embedded.mobileprovision); nil in the Simulator.

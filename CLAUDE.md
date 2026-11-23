@@ -25,7 +25,7 @@ its nights on the phone and syncs them (`POST /api/sync`, with the device token)
 ## Commands
 
 ```bash
-scripts/test.sh                    # everything: API tests, ios/NightKit tests
+scripts/test.sh                    # everything: API tests, ios/NightKit tests, the UI tests (FAST=1: without them)
 scripts/ios-install.sh             # mySleep onto the iPhone (free Apple ID: weekly, 7 days)
 scripts/pair.sh                    # a link that pairs the app with the server (copied: paste it on the iPhone)
 scripts/ios-fetch-night.sh         # its night logs from the iPhone into debug/ios/, with the report
@@ -75,6 +75,10 @@ Where tests go:
   (`AnalysisTests`, `RecordTests`, `ScoreTests`, `SyncTests`, `ViewRulesTests`, `NightStoreTests` ...). `Views.swift`
   decides what each screen shows; the app draws it. Times are local: build them with `at(day, h, m)`
   (Helpers.swift) so a test holds in any time zone (`TZ=Asia/Tokyo swift test` to check).
+- Screens: `ios/MySleepNightUITests` (XCUITest) in demo mode (`MYSLEEP_DEMO=1`: a month of made-up nights from
+  `NightState.demo`, nothing read or written on the phone, no server, no permission asked, no animations). Give what
+  a test taps an `accessibilityIdentifier`. `testContrastInLightAndDarkMode` runs iOS's contrast audit on every tab
+  in light and dark mode: a new screen or tab goes into it.
 - API: `api/test/server.test.js`, a real server on a temp DATA_DIR. Every route and its refusals.
 - What only the iPhone can show (microphone, lock screen, sound, notifications): check it in the Simulator
   and say what was not verified. A failure found there gets a unit test when its cause is in code.

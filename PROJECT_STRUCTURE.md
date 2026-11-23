@@ -32,6 +32,9 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 ## ios/MySleepNight.xcodeproj/xcshareddata/xcschemes
 `MySleepNight.xcscheme`
 
+## ios/MySleepNightUITests
+`MySleepUITests.swift`
+
 ## ios/MySleepNightWidget
 `Info.plist`, `NightWidget.swift`
 
@@ -39,10 +42,10 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `Package.swift`
 
 ## ios/NightKit/Sources/NightKit
-`Alarm.swift`, `Analysis.swift`, `Clock.swift`, `Correction.swift`, `Features.swift`, `Jerk.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Record.swift`, `RecordRules.swift`, `Reminders.swift`, `Score.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Sync.swift`, `Views.swift`
+`Alarm.swift`, `Analysis.swift`, `Clock.swift`, `Correction.swift`, `Demo.swift`, `Features.swift`, `Jerk.swift`, `Live.swift`, `Night.swift`, `NightStore.swift`, `Record.swift`, `RecordRules.swift`, `Reminders.swift`, `Score.swift`, `Screens.swift`, `Server.swift`, `Settings.swift`, `Sync.swift`, `Views.swift`
 
 ## ios/NightKit/Tests/NightKitTests
-`AlarmTests.swift`, `AnalysisTests.swift`, `ClockTests.swift`, `CorrectionTests.swift`, `Helpers.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `RecordTests.swift`, `ReminderTests.swift`, `ScaleTests.swift`, `ScoreTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `SyncTests.swift`, `ViewRulesTests.swift`, `ViewsTests.swift`
+`AlarmTests.swift`, `AnalysisTests.swift`, `ClockTests.swift`, `CorrectionTests.swift`, `DemoTests.swift`, `Helpers.swift`, `LiveTests.swift`, `NightKitTests.swift`, `NightStoreTests.swift`, `RecordTests.swift`, `ReminderTests.swift`, `ScaleTests.swift`, `ScoreTests.swift`, `ScreenTests.swift`, `ServerTests.swift`, `SettingsTests.swift`, `SyncScheduleTests.swift`, `SyncTests.swift`, `ViewRulesTests.swift`, `ViewsTests.swift`
 
 ## ios/NightKit/Tests/NightKitTests/Fixtures
 `real-night.json`
