@@ -9,6 +9,7 @@ let package = Package(
   products: [.library(name: "NightKit", targets: ["NightKit"])],
   targets: [
     .target(name: "NightKit"),
+    .executableTarget(name: "night-tool", dependencies: ["NightKit"], path: "Tools"),
     .testTarget(name: "NightKitTests", dependencies: ["NightKit"], exclude: ["Fixtures"])
   ]
 )

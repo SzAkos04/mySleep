@@ -32,7 +32,7 @@ struct TrendsScreen: View {
       }
       .background(Theme.bg)
       .navigationTitle("Trends").navigationBarTitleDisplayMode(.large)
-      .task(id: "\(data.version)-\(days)") { v = data.store?.trends(days: days) }
+      .task(id: "\(data.version)-\(days)") { v = data.store.trends(days: days) }
     }
   }
 

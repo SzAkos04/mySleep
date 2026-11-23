@@ -29,25 +29,21 @@ public struct AppSettings: Codable, Equatable, Sendable {
 }
 
 extension NightStore {
-  public var settings: AppSettings { view("S.settings", AppSettings.self) ?? AppSettings() }
+  public var settings: AppSettings { state.settings }
 
-  /// A change to settings (the keys that changed); the time zone goes with it, the server's
-  /// reminders run on the phone's clock.
-  public func change(_ patch: [String: Any], now: Date) throws {
-    var p = patch
-    p["tz"] = TimeZone.current.identifier
-    try saveSettings(String(decoding: try JSONSerialization.data(withJSONObject: p), as: UTF8.self), now: now)
+  /// A change to the settings; the time zone goes with it, the server's reminders run on the
+  /// phone's clock.
+  public func change(now: Date, _ edit: (inout AppSettings) -> Void) {
+    state.editSettings(ts: Clock.ms(now)) { s in edit(&s); s.tz = TimeZone.current.identifier }
   }
 
   /// Tonight's alarm (the Sleep link, the Tonight tab).
-  public func saveAlarm(_ a: AlarmSettings, now: Date) throws { try change(Self.patch(a), now: now) }
+  public func saveAlarm(_ a: AlarmSettings, now: Date) { change(now: now) { $0.alarm = a.on; $0.smart = a.smart; $0.wake = a.time } }
 
   /// The alarm as the app kept it before settings were synced: taken in once, and as the oldest
   /// edit there is (time 1 ms), so anything the server has is newer and wins.
-  public func adopt(legacy a: AlarmSettings) throws {
+  public func adopt(legacy a: AlarmSettings) {
     guard settings.ts == 0 else { return }
-    try change(Self.patch(a), now: Date(timeIntervalSince1970: 0.001))
+    saveAlarm(a, now: Date(timeIntervalSince1970: 0.001))
   }
-
-  private static func patch(_ a: AlarmSettings) -> [String: Any] { ["alarm": a.on, "smart": a.smart, "wake": a.time] }
 }

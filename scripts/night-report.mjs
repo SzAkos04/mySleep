@@ -1,9 +1,9 @@
-// A night log (lib/diag.js) as something to read: the device, every event with its clock time,
-// where the readings have holes and why, and, when the raw readings are there, the analysis run
-// again on them (so a change to analysis.js can be tried on a real night).
-//   node shared/scripts/night-report.mjs debug/<uid>/<night>.json [--events all]
+// A night log (ios/NightKit Night.swift) as something to read: the device, every event with its
+// clock time, where the readings have holes and why, and, when the raw readings are there, the
+// analysis run again on them by NightKit (so a change to Analysis.swift can be tried on a real night).
+//   node scripts/night-report.mjs debug/<uid>/<night>.json [--events all]
 import { readFileSync } from 'node:fs'
-import { summarize, events as soundEvents } from '../lib/analysis.js'
+import { execFileSync } from 'node:child_process'
 
 const [file, ...rest] = process.argv.slice(2)
 const all = rest.includes('all')
@@ -65,11 +65,6 @@ if (log.samples) {
   }
   console.log(`\nreadings: ${db.length} s (${(db.length / 3600).toFixed(2)} h), missing ${db.filter(v => !Number.isFinite(v)).length} s`)
   for (const [i, j] of holes.slice(0, 40)) console.log(`  hole ${clock(s.start + i * 1000)} – ${clock(s.start + j * 1000)}  (${j - i} s)`)
-  const f = { db, low: s.low, mid: s.mid, vr: s.vr, at: s.at }
-  const r = summarize(f, s.start)
-  console.log('\nanalysis run again on the readings')
-  console.log(' ', brief({ on: r.on && clock(r.on), asleepMin: r.asleepMin, restfulMin: r.restfulMin, wakes: r.wakes, awakeMin: r.awakeMin, snoreMin: r.snoreMin, talks: r.talks, coughs: r.coughs }))
-  console.log('  states per 10 min:', r.timeline.states.match(/.{1,20}/g).map(x => [...new Set(x)].join('')).join(' '))
-  const ev = soundEvents(f, s.start)
-  console.log(`  sounds: ${ev.length}`, ev.slice(0, 30).map(e => `${e.kind}@${clock(e.t)}/${e.sec}s`).join('  '))
+  const pkg = new URL('../ios/NightKit', import.meta.url).pathname
+  console.log('\n' + execFileSync('swift', ['run', '--package-path', pkg, '-c', 'release', 'night-tool', 'analyse', file], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trimEnd())
 } else console.log('\n(no raw readings: only the final upload carries them)')

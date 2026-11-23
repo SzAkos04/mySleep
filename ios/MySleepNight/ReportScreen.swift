@@ -74,7 +74,7 @@ struct ReportScreen: View {
     .confirmationDialog("Delete \(v?.title ?? "this night")?", isPresented: $confirming, titleVisibility: .visible) {
       Button("Delete", role: .destructive) { data.delete(id); if !nav.journalPath.isEmpty { nav.journalPath.removeLast() }; sync() }
     } message: { Text("The night and its summary go from every device.") }
-    .task(id: data.version) { v = data.store?.report(id) }
+    .task(id: data.version) { v = data.store.report(id) }
   }
 
   private func sync() { Task { await data.refresh(pairing: server.pairing) } }

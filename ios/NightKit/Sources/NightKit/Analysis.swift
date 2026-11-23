@@ -45,7 +45,7 @@ public enum Analysis {
   static let snoreMaxLen = 4       // a snore lasts a few seconds at most
   static let snoreGap = (2, 9)     // seconds from one snore's start to the next (a breath)
   static let snoreRun = 3          // snores in a row before we call it snoring
-  // Measured with shared/scripts/replay.mjs on speech (macOS say), and rough synthetic snoring and
+  // Measured with replay (the JavaScript one, now night-tool replay) on speech (macOS say), and rough synthetic snoring and
   // coughing: every kind jumps; what differs is how sharply, where the energy sits, and length.
   static let snoreMaxJump = 22.0   // a snore swells (13–17 dB measured); speech and coughs snap on
   static let talkJump = 20.0       // syllables start sharply (30–37 dB measured)
@@ -63,9 +63,9 @@ public enum Analysis {
   static let stirSec = 3           // movement seconds in the last minute that ring the smart alarm
   static let epoch = 30
 
-  enum Kind: UInt8 {
+  public enum Kind: UInt8, Sendable {
     case quiet, move, snore, talk, cough, noise
-    var name: String { ["quiet", "move", "snore", "talk", "cough", "noise"][Int(rawValue)] }
+    public var name: String { ["quiet", "move", "snore", "talk", "cough", "noise"][Int(rawValue)] }
   }
   static let ck = [1.06, 0.54, 0.58, 0.76, 2.3, 0.74, 0.67]   // epochs -4 ... +2
   static let ckSum = ck.reduce(0, +)
@@ -90,10 +90,10 @@ public enum Analysis {
     return (floor, margin)
   }
 
-  struct Sound { var start: Int, end: Int, low: Double, mid: Double, vr: Double, at: Double, kind = Kind.move, snorish = false }
+  public struct Sound: Sendable { public internal(set) var start: Int, end: Int, low: Double, mid: Double, vr: Double, at: Double, kind = Kind.move, snorish = false }
 
   /// Every sound of the night, its traits averaged over its seconds (`at`: the largest).
-  static func sounds(_ f: Readings) -> [Sound] {
+  public static func sounds(_ f: Readings) -> [Sound] {
     let db = f.db, (floor, margin) = noiseFloors(db)
     var out: [Sound] = []
     for s in db.indices {
@@ -139,7 +139,7 @@ public enum Analysis {
 
   /// The night's events worth listing (not plain movement): sounds of one kind close together
   /// become one, so a snoring episode or a sentence is one line. `start`: the tracking start (ms).
-  static func events(_ f: Readings, start: Double) -> [NightRecord.SoundEvent] {
+  public static func events(_ f: Readings, start: Double) -> [NightRecord.SoundEvent] {
     var out: [(kind: Kind, start: Int, end: Int)] = []
     for b in sounds(f) where b.kind != .move {
       let gap = b.kind == .snore ? snoreGap.1 : mergeGap

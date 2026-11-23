@@ -48,41 +48,6 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
   }
 }
 
-@Suite struct SharedAnalysis {
-  // the night rules, bundled (ios/MySleepNight/rules.js), run by JavaScriptCore
-  static let source = Rules.bundleSource
-
-  func night(_ seconds: Int, moving: (Int) -> Bool) -> Night {
-    let n = Night(start: 0)
-    for s in 0..<seconds {
-      let m = moving(s)
-      n.append(db: m ? 45 : 30 + Double(s % 5) / 4, low: 0.3, mid: 0.3, vr: 1, at: m ? 2 : 1)
-    }
-    return n
-  }
-
-  @Test func aStillSleeperIsNotStirring() throws {
-    let a = try Rules(source: Self.source)
-    #expect(a.stirring(night(900) { _ in false }) == false)
-  }
-
-  @Test func turningOverInTheLastMinuteIsStirring() throws {
-    let a = try Rules(source: Self.source)
-    #expect(a.stirring(night(900) { $0 > 860 && $0 % 10 < 2 }) == true)
-  }
-
-  @Test func gapsAreNotMovement() throws {
-    let a = try Rules(source: Self.source)
-    let n = night(900) { _ in false }
-    for _ in 0..<60 { n.append(db: .nan, low: 0, mid: 0, vr: 0, at: 0) }
-    #expect(a.stirring(n) == false)
-  }
-
-  @Test func aBrokenSourceSaysSo() {
-    #expect(throws: (any Error).self) { try Rules(source: "this is not javascript (") }
-  }
-}
-
 @Suite struct Rise {
   // the alarm's curve: from -42 dB, easing into full at 25 s, held
   @Test func fromNearSilenceToFullInTwentyFiveSecondsSmoothly() {

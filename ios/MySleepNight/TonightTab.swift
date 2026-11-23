@@ -36,7 +36,7 @@ struct EveningView: View {
   private var on: Bool { data.settings.alarm }
   private var smart: Bool { data.settings.smart }
   private var settings: AlarmSettings { data.settings.alarmSettings }
-  private func flag(_ key: String) -> Binding<Bool> { Binding(get: { key == "alarm" ? data.settings.alarm : data.settings.smart }, set: { data.change([key: $0]) }) }
+  private func flag(_ key: WritableKeyPath<AppSettings, Bool>) -> Binding<Bool> { Binding(get: { data.settings[keyPath: key] }, set: { v in data.change { $0[keyPath: key] = v } }) }
 
   var body: some View {
     TimelineView(.everyMinute) { ctx in
@@ -68,7 +68,7 @@ struct EveningView: View {
             HStack {
               Eyebrow(text: "Wake up")
               Spacer()
-              Toggle("Alarm", isOn: flag("alarm")).labelsHidden()
+              Toggle("Alarm", isOn: flag(\.alarm)).labelsHidden()
             }
             if let plan {
               VStack(alignment: .leading, spacing: 0) {
@@ -92,7 +92,7 @@ struct EveningView: View {
                       .font(.footnote).foregroundStyle(Theme.text2).contentTransition(.opacity)
                   }
                   Spacer()
-                  Toggle("Smart alarm", isOn: flag("smart")).labelsHidden()
+                  Toggle("Smart alarm", isOn: flag(\.smart)).labelsHidden()
                 }
               }
               .transition(.opacity.combined(with: .offset(y: -8)))
@@ -164,7 +164,7 @@ struct EveningView: View {
       }
     }
     .background(Theme.bg)
-    .sheet(isPresented: $picking) { WakePicker(time: Binding(get: { data.settings.wake }, set: { data.change(["wake": $0]) })).presentationDetents([.height(320)]) }
+    .sheet(isPresented: $picking) { WakePicker(time: Binding(get: { data.settings.wake }, set: { v in data.change { $0.wake = v } })).presentationDetents([.height(320)]) }
   }
 }
 

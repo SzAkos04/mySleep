@@ -11,4 +11,4 @@ ssh szakos@csodabogar2 'cd ~/mySleep && docker compose exec -T api tar -C /data 
 night="${1:-}"
 if [ -z "$night" ]; then file=$(ls -t debug/*/*.json | head -1); else file=$(ls debug/*/"$night".json | head -1); fi
 echo "== $file"
-node shared/scripts/night-report.mjs "$file"
+node scripts/night-report.mjs "$file"

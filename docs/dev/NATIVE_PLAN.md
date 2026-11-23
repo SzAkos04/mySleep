@@ -13,17 +13,19 @@ Every step below is done on `dev`; the table is the order they were done in. Ope
 - phone checks: that a local notification scheduled by an app whose signature has run out still arrives
   (3.2, 3.3), and that `scripts/pair.sh` works against the deployed server (4.1, needs the deploy);
 - the merge of `dev` into `main` and the deploy, when the user says so (5.2 removes the web's routes there);
-- measured 2026-11-16 (`ScaleTests`): the whole state goes into JavaScriptCore on every view-model call, and
-  2 MB of state (about a year of 8 h nights) answers a report, a month or the trends in 8-13 ms on the Mac,
-  so about 25-40 ms on the phone: fine. The test fails above 100 ms. When it does (several years of
-  nights), pass the one night or the month, not the state; check on the phone then.
+- done 2026-11-23 (the user's decision: the app was slow): the night rules are Swift in NightKit, the state is a
+  typed `NightState`; JavaScriptCore, `shared/`, `rules.js` and `golden.json` are gone, and the iPhone build
+  needs no Node. Before, the whole 2 MB state crossed into JavaScriptCore on every call (6-13 ms a screen on the
+  Mac with JIT; an app's JavaScriptCore on the iPhone has none). Now a screen is about 1-2.5 ms on the Mac,
+  optimised (`ScaleTests`). A JS-to-Swift parity test compared every module, five time zones and the Mac's 31
+  real night logs, all equal, before the JS was deleted. Below, `shared/lib/*.js` names the Swift that replaced it.
 - decisions for the user: opening a pairing link pairs at once, with no question (a link from anywhere
   could point the app at another server); and a night whose times were corrected loses its `bed`, which
   `toImport` uses to tell one log from another (see "Open questions" below).
 - done 2026-11-23: a server put back from an older backup (its `rev` behind the phone's) sends the phone
-  everything, and the phone sends every night back (`server.test.js`, `sync.test.js`).
-The paths in 0.2 and 0.3 (`frontend/`) and `api/reminders.js` in 3.3 are history: the code is in `shared/`
-and NightKit's `Reminders`.
+  everything, and the phone sends every night back (`server.test.js`, NightKit `SyncTests`, `NightStoreTests`).
+The paths in 0.2 and 0.3 (`frontend/`) and `api/reminders.js` in 3.3 are history: the code is in NightKit
+(`Analysis`, `RecordRules`, `Score`, `Sync`, `Views`, `Reminders`).
 
 ## Ground rules
 

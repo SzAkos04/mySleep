@@ -16,4 +16,4 @@ xcrun devicectl device copy from --device "$DEVICE" --domain-type appDataContain
   --source Documents --destination debug/ios >/dev/null
 file=$(ls -t debug/ios/*.json debug/ios/Documents/*.json 2>/dev/null | head -1)
 echo "== $file"
-node shared/scripts/night-report.mjs "$file"
+node scripts/night-report.mjs "$file"

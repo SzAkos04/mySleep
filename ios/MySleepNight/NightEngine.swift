@@ -26,9 +26,6 @@ import UIKit
   @Published private(set) var selfRinging = false   // no system alarm: the app rings itself
   private var smart = false, rangEarly = false, lastCheck: Int64 = 0
   private var player: AVAudioPlayer?, ramp: Timer?, ringStart = Date()
-  // the night rules (rules.js, built from shared/lib/rules.js): the smart alarm's judge, the night's id
-  private let rules: Rules? = Bundle.main.url(forResource: "rules", withExtension: "js")
-    .flatMap { try? String(contentsOf: $0, encoding: .utf8) }.flatMap { try? Rules(source: $0) }
 
   private let live = LiveCardController()
   private var wasHearing = true
@@ -73,10 +70,9 @@ import UIKit
 
   func start(_ settings: AlarmSettings) async throws {
     guard await AVAudioApplication.requestRecordPermission() else { throw NSError(domain: "mySleep", code: 1, userInfo: [NSLocalizedDescriptionKey: "mySleep needs the microphone: allow it in Settings."]) }
-    guard let rules else { throw NSError(domain: "mySleep", code: 2, userInfo: [NSLocalizedDescriptionKey: "mySleep is missing its night rules (rules.js): reinstall the app."]) }
     let start = Self.nowMs, device = UIDevice.current
     device.isBatteryMonitoringEnabled = true
-    let n = Night(start: start, night: rules.nightId(start), env: [
+    let n = Night(start: start, night: Clock.nightId(Double(start)), env: [
       "app": "native", "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?",
       "system": "\(device.systemName) \(device.systemVersion)", "model": device.model
     ])
@@ -190,7 +186,7 @@ import UIKit
     if let p = plan, !rangEarly, !selfRinging, now - lastCheck >= 10_000 {
       lastCheck = now
       let date = Date(), early = max(0, Int(p.at.timeIntervalSince(date) / 60))
-      if alarm.phase != .ringing, p.shouldRing(at: date, smart: smart, isStirring: { [queue, rules] in queue.sync { rules?.stirring(n) ?? false } }) {
+      if alarm.phase != .ringing, p.shouldRing(at: date, smart: smart, isStirring: { [queue] in queue.sync { Analysis.stirring(Readings(n)) } }) {
         // the app rings first, rising from near silence; the system alarm moves behind it
         rangEarly = true
         if rangEarlyBy == nil { rangEarlyBy = early }   // the first ring, not a snooze's

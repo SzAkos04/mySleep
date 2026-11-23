@@ -37,7 +37,7 @@ struct JournalScreen: View {
   }
 
   private func load() {
-    guard let store = data.store else { return }
+    let store = data.store
     let m = month ?? store.startMonth(now: Date())
     if month == nil { month = m }
     v = store.journal(m, selected: sel, now: Date())
@@ -48,7 +48,7 @@ struct JournalScreen: View {
     m.month += d
     if m.month < 0 { m.month = 11; m.year -= 1 } else if m.month > 11 { m.month = 0; m.year += 1 }
     month = m
-    withAnimation(.snappy(duration: 0.3)) { v = data.store?.journal(m, selected: sel, now: Date()) }
+    withAnimation(.snappy(duration: 0.3)) { v = data.store.journal(m, selected: sel, now: Date()) }
   }
 
   private func calendar(_ v: JournalView) -> some View {

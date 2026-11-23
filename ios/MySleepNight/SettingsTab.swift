@@ -34,7 +34,7 @@ struct SettingsTab: View {
           Button { pickingBedtime = true } label: {
             HStack { Label("Go to bed", systemImage: "moon.fill"); Spacer(); Text(data.settings.bedtime).foregroundStyle(Theme.accent).monospacedDigit() }
           }
-          Toggle(isOn: Binding(get: { data.settings.remind }, set: { data.change(["remind": $0]) })) {
+          Toggle(isOn: Binding(get: { data.settings.remind }, set: { v in data.change { $0.remind = v } })) {
             VStack(alignment: .leading, spacing: 1) { Text("Reminder"); Text("30 min before").font(.footnote).foregroundStyle(Theme.text2) }
           }
         } header: { Text("Bedtime") } footer: {
@@ -103,7 +103,7 @@ struct SettingsTab: View {
       .contentMargins(.bottom, 28, for: .scrollContent)
       .background(Theme.bg)
       .navigationTitle("Settings")
-      .sheet(isPresented: $pickingBedtime) { TimeSheet(title: "Go to bed", time: Binding(get: { data.settings.bedtime }, set: { data.change(["bedtime": $0]) })).presentationDetents([.height(320)]) }
+      .sheet(isPresented: $pickingBedtime) { TimeSheet(title: "Go to bed", time: Binding(get: { data.settings.bedtime }, set: { v in data.change { $0.bedtime = v } })).presentationDetents([.height(320)]) }
     }
     .onAppear { volume.start(night: engine.night != nil) }
     .onChange(of: phase) { _, p in

@@ -35,7 +35,10 @@ import SwiftUI
         // a changed bedtime or reminder switch: scheduled again
         .onChange(of: data.settings) { _, s in Task { data.notify = await Notifier.apply(s, expires: server.expires) } }
     }
-    .onChange(of: phase) { _, p in if p == .active { Task { await sync() } } }
+    .onChange(of: phase) { _, p in
+      if p == .active { Task { await sync() } }
+      if p == .background { data.flush() }   // the nights saved before iOS may end the app
+    }
   }
 
   /// The night into the nights here, then everything to and from the server.

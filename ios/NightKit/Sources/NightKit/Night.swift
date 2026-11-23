@@ -2,7 +2,7 @@ import Foundation
 
 /// A night as the tracker keeps it: one value per second from the start (NaN where nothing was
 /// heard), and the flight-recorder log, saved as JSON that the rules turn into the night
-/// (lib/native.js nightFromLog) and shared/scripts/night-report.mjs reads.
+/// (NightRecord(log:)) and scripts/night-report.mjs reads.
 /// Not Sendable by itself: the app calls it from one serial queue only (NightEngine's `night` queue).
 public final class Night: @unchecked Sendable {
   public struct Event {

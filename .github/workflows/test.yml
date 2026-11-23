@@ -12,20 +12,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  shared:
-    runs-on: ubuntu-latest
+  # the night rules, the store and the sync (Swift Testing)
+  nightkit:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      # node:22-alpine in both Dockerfiles: tests run on what production runs
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: shared/package-lock.json
-      - run: npm ci
-        working-directory: shared
-      - run: npm test
-        working-directory: shared
+      - run: swift test --package-path ios/NightKit
 
   api:
     runs-on: ubuntu-latest

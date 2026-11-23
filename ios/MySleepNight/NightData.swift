@@ -10,7 +10,7 @@ import Foundation
   @Published private(set) var settings = AppSettings()
   /// What came of scheduling the reminders (Notifier): shown in Settings.
   @Published var notify: NotifyStatus = .unknown
-  private(set) var store: NightStore?
+  let store: NightStore
   /// The pairing, for the sync that follows an edit (set by the app).
   var pairing: () -> Pairing? = { nil }
   private var pending: Task<Void, Never>?
@@ -20,32 +20,33 @@ import Foundation
     return dir.appendingPathComponent("nights.json")
   }()
 
+  /// Saves in order, off the main thread: a year of nights is 2 MB of JSON.
+  private let writer = DispatchQueue(label: "nights.json")
+
   init() {
-    guard let url = Bundle.main.url(forResource: "rules", withExtension: "js"), let source = try? String(contentsOf: url, encoding: .utf8),
-          let rules = try? Rules(source: source) else { return }
-    store = try? NightStore(rules: rules, json: try? String(contentsOf: file, encoding: .utf8))
+    store = NightStore.load(from: file)
     adoptLegacyAlarm()
-    settings = store?.settings ?? AppSettings()
+    settings = store.settings
   }
 
   /// The alarm as the app kept it before the settings were synced (UserDefaults): taken in once.
   private func adoptLegacyAlarm() {
     let d = UserDefaults.standard
-    guard d.object(forKey: "wakeHour") != nil, let store else { return }
+    guard d.object(forKey: "wakeHour") != nil else { return }
     let a = AlarmSettings(on: d.object(forKey: "alarmOn") as? Bool ?? true, smart: d.object(forKey: "smart") as? Bool ?? true,
                           hour: d.integer(forKey: "wakeHour"), minute: d.object(forKey: "wakeMinute") as? Int ?? 45)
-    try? store.adopt(legacy: a)
+    store.adopt(legacy: a)
     try? store.write(to: file)
     ["alarmOn", "smart", "wakeHour", "wakeMinute"].forEach(d.removeObject(forKey:))
   }
 
   /// A change to the settings, sent up a moment later (a run of edits is one sync).
-  func change(_ patch: [String: Any]) {
-    try? store?.change(patch, now: Date())
+  func change(_ edit: (inout AppSettings) -> Void) {
+    store.change(now: Date(), edit)
     persist(); syncSoon()
   }
 
-  func saveAlarm(_ a: AlarmSettings) { try? store?.saveAlarm(a, now: Date()); persist(); syncSoon() }
+  func saveAlarm(_ a: AlarmSettings) { store.saveAlarm(a, now: Date()); persist(); syncSoon() }
 
   private func syncSoon() {
     pending?.cancel()
@@ -55,7 +56,6 @@ import Foundation
   /// When the app opens, comes back, and after a night: the app's own logs into nights, then the
   /// sync (without a pairing, only the first).
   func refresh(pairing: Pairing?) async {
-    guard let store else { return }
     takeInLogs(store)
     persist()
     guard let p = pairing else { return }
@@ -82,7 +82,7 @@ import Foundation
       let key = "\(name)@\(Int64(m.timeIntervalSince1970 * 1000))"
       now.insert(key)
       if seen.contains(key) { continue }
-      if let log = try? String(contentsOf: url, encoding: .utf8) { _ = try? store.takeIn(log: log, now: Date()) }
+      if let log = try? Data(contentsOf: url) { store.takeIn(log: log, now: Date()) }
     }
     UserDefaults.standard.set(Array(now), forKey: "takenIn")   // only what is there: the list does not grow
     version += 1
@@ -90,19 +90,23 @@ import Foundation
 
   /// A night's times put right (HH:MM): nil when saved, else the words to show. Goes up on the next sync.
   func correct(_ id: String, bed: String, on: String, wake: String) -> String? {
-    let error = (try? store?.correct(id, bed: bed, on: on, wake: wake, now: Date())) ?? nil
+    let error = store.correct(id, bed: bed, on: on, wake: wake, now: Date())
     persist(); syncSoon()
     return error
   }
 
   func delete(_ id: String) {
-    try? store?.deleteNight(id, now: Date())
+    store.deleteNight(id, now: Date())
     persist(); syncSoon()
   }
 
+  /// Waits for the saves still on their way.
+  func flush() { writer.sync {} }
+
   private func persist() {
-    try? store?.write(to: file)
-    settings = store?.settings ?? AppSettings()
+    let state = store.state, file = file
+    writer.async { try? NightStore(state: state).write(to: file) }
+    settings = store.settings
     version += 1
   }
 }
