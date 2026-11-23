@@ -1,6 +1,6 @@
 // A fixed night and what the rules make of it, run by node (shared/scripts/golden.mjs writes
 // golden.json) and by NightKit's RulesTests in JavaScriptCore, after ios/MySleepNight/rules.js.
-// Both must print the same: that is what "both apps judge a night the same way" means.
+// Both must print the same: that is what "the app judges a night as the tests here say" means.
 // The rules read the clock in local time (clockOf, fromNoon, atClock ...). The process's time zone
 // is fixed by whichever test touches it first, so here local time is made UTC, the same way in
 // node and in JavaScriptCore: the golden file does not depend on the machine.

@@ -12,7 +12,7 @@ import { appStatus } from './status.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
-const ORIGIN = process.env.ORIGIN || 'http://localhost:5173';
+const ORIGIN = process.env.ORIGIN || 'http://localhost:' + PORT;   // scripts/dev-local.sh's
 const MAX_BODY = 4 * 1024 * 1024;
 const COOKIE = cookieName(ORIGIN);
 const KINDS = new Set(['night', 'settings']);
