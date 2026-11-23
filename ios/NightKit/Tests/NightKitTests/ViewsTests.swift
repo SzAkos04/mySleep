@@ -27,7 +27,7 @@ import Foundation
     #expect(r.timeline?.states.isEmpty == false && r.timeline?.db.isEmpty == false)
     #expect(r.sounds.first?.label == "Snoring")
     #expect(r.alarm?.hasPrefix("The alarm rang at") == true)
-    #expect(r.diag.first == ReportView.Diag(label: "Recorded by", value: "mySleep Night", bad: false))
+    #expect(r.diag.first == ReportView.Diag(label: "Recorded by", value: "mySleep", bad: false))
     #expect(try store().report("2026-01-01") == nil)
   }
 

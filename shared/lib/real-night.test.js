@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { summarize } from './analysis.js'
 
-// Real data, not a simulation: two hours of the night of 2026-10-29 as mySleep Night heard it
+// Real data, not a simulation: two hours of the night of 2026-10-29 as mySleep heard it
 // (fixtures/real-night.json; per-second numbers, no audio). The sleeper reports sleeping calmly
 // through the night and the morning, with only small awakenings. A very quiet room: the floor is
 // ~21 dB, close to the microphone's own noise. Tune the knobs in analysis.js from real nights like this.

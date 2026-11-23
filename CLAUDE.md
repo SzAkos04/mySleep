@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-mySleep: a self-hosted sleep tracker and smart alarm for one iPhone: the native app mySleep Night and a
+mySleep: a self-hosted sleep tracker and smart alarm for one iPhone: the native app mySleep and a
 small server on the user's own machine. Built like myGym (`~/Projects/myGym`). The plan and the reasons
 are in `docs/dev/MVP.md` (the first version, now partly history) and `docs/dev/NATIVE_PLAN.md` (how the
 web app was retired for the native app). The file layout is in `PROJECT_STRUCTURE.md`.
@@ -8,7 +8,7 @@ web app was retired for the native app). The file layout is in `PROJECT_STRUCTUR
 ## Layout
 
 ```
-ios/       mySleep Night: the app (SwiftUI): Tonight (the alarm, Sleep), the night itself (record with the
+ios/       mySleep: the app (SwiftUI): Tonight (the alarm, Sleep), the night itself (record with the
            phone locked, alarm, Live Activity), the Journal, Trends, the night's report, Settings.
            NightKit/: its logic as a Swift package with tests (swift test on the Mac); MySleepNight/: the
            app; rules.js there is GENERATED from shared/ (below). Logs go up as JSON, nights sync.
@@ -28,7 +28,7 @@ its nights on the phone and syncs them (`POST /api/sync`, with the device token)
 
 ```bash
 scripts/test.sh                    # everything: shared tests, API tests, ios/NightKit tests
-scripts/ios-install.sh             # mySleep Night onto the iPhone (free Apple ID: weekly, 7 days)
+scripts/ios-install.sh             # mySleep onto the iPhone (free Apple ID: weekly, 7 days)
 scripts/pair.sh                    # a link that pairs the app with the server (copied: paste it on the iPhone)
 scripts/ios-fetch-night.sh         # its night logs from the iPhone into debug/ios/, with the report
 scripts/dev-local.sh               # the API on http://localhost:3000 (data/), prints the Simulator's pairing link

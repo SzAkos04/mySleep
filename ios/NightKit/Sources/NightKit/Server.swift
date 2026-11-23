@@ -1,6 +1,6 @@
 import Foundation
 
-/// How mySleep Night reaches its server: the address and the device token that scripts/pair.sh
+/// How mySleep reaches its server: the address and the device token that scripts/pair.sh
 /// got for it (api/server.js POST /api/devices), opened in the app as a link. Kept in the Keychain.
 public struct Pairing: Codable, Equatable, Sendable {
   public let server: URL
@@ -8,7 +8,7 @@ public struct Pairing: Codable, Equatable, Sendable {
   public init(server: URL, token: String) { self.server = server; self.token = token }
 }
 
-/// The links that open mySleep Night: mysleepnight://pair?server&token (scripts/pair.sh), and Sleep,
+/// The links that open mySleep: mysleepnight://pair?server&token (scripts/pair.sh), and Sleep,
 /// mysleepnight://sleep?alarm&smart&wake. Anything else is ignored.
 public enum AppLink: Equatable, Sendable {
   case pair(Pairing)

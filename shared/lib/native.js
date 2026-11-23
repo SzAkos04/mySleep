@@ -1,8 +1,8 @@
-// mySleep Night (ios/) records the night and keeps its log; this turns a finished log into the night
+// mySleep (ios/) records the night and keeps its log; this turns a finished log into the night
 // it holds (the analysis is nightRecord's).
 import { nightRecord } from './night.js'
 
-// What went wrong in the night, as mySleep Night logs it (ios/MySleepNight/NightEngine.swift).
+// What went wrong in the night, as mySleep logs it (ios/MySleepNight/NightEngine.swift).
 export function nativeSummary(events) {
   const c = t => events.filter(e => e[1] === t).length
   return {
@@ -37,6 +37,6 @@ export const toImport = (logs, nights) => logs.filter(l => {
   return !have || (!have.deleted && have.source === 'native' && have.bed !== l.start && lengthOf(l) > (have.wake - have.bed || 0))
 })
 
-// The night mySleep Night makes of one of its own finished logs (null: nothing to make), by the
+// The night mySleep makes of one of its own finished logs (null: nothing to make), by the
 // same rule as toImport, so a log is not made into a night twice.
 export const takeIn = (log, nights) => toImport([{ ...log, app: 'native', final: !!log.final }], nights).length ? nightFromLog(log) : null

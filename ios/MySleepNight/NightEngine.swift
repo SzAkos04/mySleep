@@ -72,8 +72,8 @@ import UIKit
   nonisolated static var nowMs: Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
 
   func start(_ settings: AlarmSettings) async throws {
-    guard await AVAudioApplication.requestRecordPermission() else { throw NSError(domain: "mySleep", code: 1, userInfo: [NSLocalizedDescriptionKey: "mySleep Night needs the microphone: allow it in Settings."]) }
-    guard let rules else { throw NSError(domain: "mySleep", code: 2, userInfo: [NSLocalizedDescriptionKey: "mySleep Night is missing its night rules (rules.js): reinstall the app."]) }
+    guard await AVAudioApplication.requestRecordPermission() else { throw NSError(domain: "mySleep", code: 1, userInfo: [NSLocalizedDescriptionKey: "mySleep needs the microphone: allow it in Settings."]) }
+    guard let rules else { throw NSError(domain: "mySleep", code: 2, userInfo: [NSLocalizedDescriptionKey: "mySleep is missing its night rules (rules.js): reinstall the app."]) }
     let start = Self.nowMs, device = UIDevice.current
     device.isBatteryMonitoringEnabled = true
     let n = Night(start: start, night: rules.nightId(start), env: [

@@ -1,4 +1,4 @@
-// What mySleep Night (ios/) runs of this app's night logic, as one script: scripts/build-rules.mjs
+// What mySleep (ios/) runs of this app's night logic, as one script: scripts/build-rules.mjs
 // bundles this file into ios/MySleepNight/rules.js (global `MySleepRules`), which the app runs in
 // JavaScriptCore. So the app judges, scores and summarises a night by these rules, and the tests
 // here cover it. Add what a native screen needs here, then `npm run build:rules` (rules.test.js

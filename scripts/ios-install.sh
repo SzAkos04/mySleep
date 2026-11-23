@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build mySleep Night (ios/) and put it on the iPhone, by cable or over the same Wi-Fi. Signed with
+# Build mySleep (ios/) and put it on the iPhone, by cable or over the same Wi-Fi. Signed with
 # the free Apple ID Xcode is signed in with, so the app runs 7 days: run this weekly.
 #   scripts/ios-install.sh            # the first iPhone devicectl finds
 #   DEVICE=<udid> scripts/ios-install.sh

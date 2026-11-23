@@ -285,8 +285,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MySleepNight/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "mySleep Night";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "mySleep Night listens through the night to tell how you slept. The sound stays on your phone and your own server.";
+				INFOPLIST_KEY_CFBundleDisplayName = "mySleep";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "mySleep listens through the night to tell how you slept. The sound stays on your phone and your own server.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -308,8 +308,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MySleepNight/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "mySleep Night";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "mySleep Night listens through the night to tell how you slept. The sound stays on your phone and your own server.";
+				INFOPLIST_KEY_CFBundleDisplayName = "mySleep";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "mySleep listens through the night to tell how you slept. The sound stays on your phone and your own server.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -330,7 +330,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MySleepNightWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "mySleep Night";
+				INFOPLIST_KEY_CFBundleDisplayName = "mySleep";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = hu.szakos.mysleep.night.widget;
@@ -349,7 +349,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MySleepNightWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "mySleep Night";
+				INFOPLIST_KEY_CFBundleDisplayName = "mySleep";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = hu.szakos.mysleep.night.widget;

@@ -37,7 +37,7 @@ it('keeps an entry dirty when it was edited again during the push', () => {
   expect(stillDirty(s, pushed)).toEqual({ 'night:a': true })
 })
 
-// The store's edits and the end of a sync as plain functions of the state, so mySleep Night runs
+// The store's edits and the end of a sync as plain functions of the state, so mySleep runs
 // the very same ones (lib/rules.js) on a state it keeps as JSON.
 it('saving a night stamps it and marks it to send; deleting leaves a stamped tombstone', () => {
   const s = { nights: {}, dirty: {} }

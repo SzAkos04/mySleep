@@ -31,11 +31,11 @@ import Foundation
     let r = Reminders.expiry(expires: expires, now: at(2, 12), calendar: cal)
     #expect(r.map(\.id) == ["reinstall-soon", "reinstall-today", "reinstall-expired"])
     #expect(r.map(\.when) == [.once(at(3, 9)), .once(at(5, 9)), .once(at(6, 9))])
-    #expect(r[0].title == "mySleep Night stops on Thursday")
+    #expect(r[0].title == "mySleep stops on Thursday")
     #expect(r[0].body == "Reinstall it from the Mac before then: connect the iPhone and run the install.")
-    #expect(r[1].title == "mySleep Night stops tonight")
+    #expect(r[1].title == "mySleep stops tonight")
     #expect(r[1].body == "Reinstall it from the Mac today, or tonight will not be recorded.")
-    #expect(r[2].title == "mySleep Night has stopped")
+    #expect(r[2].title == "mySleep has stopped")
     #expect(r[2].body == "It cannot record a night until it is reinstalled from the Mac.")
   }
 

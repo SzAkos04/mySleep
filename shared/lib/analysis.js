@@ -1,7 +1,7 @@
 // Turns a night of per-second sound readings into what happened: asleep/awake, a rough
 // restful/light estimate, and sounds (snoring, talking, coughing, movement, room noise).
 //
-// Input `f`: arrays with one value per second from the start of the night (mySleep Night's log,
+// Input `f`: arrays with one value per second from the start of the night (mySleep's log,
 // ios/NightKit Features.swift):
 //   db   loudest reading of the second (relative dB; NaN = not recorded)
 //   low  share of the sound's energy under 500 Hz

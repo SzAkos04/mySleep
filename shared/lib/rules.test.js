@@ -6,7 +6,7 @@ import { bundle, OUT } from '../scripts/build-rules.mjs'
 import { FIXTURES } from '../scripts/golden.mjs'
 import * as direct from './rules.js'
 
-// mySleep Night runs ios/MySleepNight/rules.js, a bundle of rules.js: it has to be the bundle of
+// mySleep runs ios/MySleepNight/rules.js, a bundle of rules.js: it has to be the bundle of
 // what is here now, and give what the modules give.
 describe('the rules bundle for the app', () => {
   it('is current: rebuild it with `node scripts/build-rules.mjs`', async () => {

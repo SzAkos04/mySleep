@@ -1,4 +1,4 @@
-// The night record made from the samples (native.js turns mySleep Night's logs into nights with it),
+// The night record made from the samples (native.js turns mySleep's logs into nights with it),
 // and a night's times put right by hand.
 import { summarize } from './analysis.js'
 import { atClock } from './time.js'

@@ -38,7 +38,7 @@ struct SettingsTab: View {
             VStack(alignment: .leading, spacing: 1) { Text("Reminder"); Text("30 min before").font(.footnote).foregroundStyle(Theme.text2) }
           }
         } header: { Text("Bedtime") } footer: {
-          if data.notify == .denied, data.settings.remind { Text("Notifications are off for mySleep Night: allow them in iOS Settings.").foregroundStyle(Theme.warn) }
+          if data.notify == .denied, data.settings.remind { Text("Notifications are off for mySleep: allow them in iOS Settings.").foregroundStyle(Theme.warn) }
           else if let r = Reminders.bedtime(data.settings), case .daily(let h, let m) = r.when { Text(String(format: "A reminder every evening at %02d:%02d.", h, m)) }
         }
 
@@ -95,7 +95,7 @@ struct SettingsTab: View {
         } header: { Text("Alarm sound") } footer: { Text("A soft piano that rises from near silence; set the volume with the side buttons.") }
 
         Section {
-          HStack { Text("mySleep Night"); Spacer(); Text("\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")").foregroundStyle(Theme.text2) }
+          HStack { Text("mySleep"); Spacer(); Text("\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")").foregroundStyle(Theme.text2) }
         }
       }
       .scrollContentBackground(.hidden)

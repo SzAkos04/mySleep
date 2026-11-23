@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { toImport, nightFromLog, nativeSummary, takeIn } from './native.js'
 
-// mySleep Night (ios/) records the night and keeps its log; the rules turn a finished log into the
+// mySleep (ios/) records the night and keeps its log; the rules turn a finished log into the
 // night it holds, once.
 
-// a night as mySleep Night logs it: 23:00 to 07:00, quiet, 15 min tossing first; the alarm rang early
+// a night as mySleep logs it: 23:00 to 07:00, quiet, 15 min tossing first; the alarm rang early
 const start = new Date(2026, 9, 29, 23, 0).getTime()
 function log({ night = '2026-10-29', from = start, final = true, events } = {}) {
   const n = 8 * 3600, s = { start: from, db: [], low: [], mid: [], vr: [], at: [] }
@@ -68,7 +68,7 @@ describe('which logs to import', () => {
   })
 })
 
-describe('takeIn: the night to make of a log, if there is one (mySleep Night does it itself)', () => {
+describe('takeIn: the night to make of a log, if there is one (mySleep does it itself)', () => {
   it('a finished log of a night not here yet becomes the night', () => {
     expect(takeIn(log(), {})).toMatchObject({ id: '2026-10-29', source: 'native', bed: start })
   })

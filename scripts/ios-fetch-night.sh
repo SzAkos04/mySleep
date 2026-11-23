@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copy mySleep Night's night logs from the iPhone to debug/ios/ (gitignored) and print the report of
+# Copy mySleep's night logs from the iPhone to debug/ios/ (gitignored) and print the report of
 # the newest. night-report.mjs reads them.
 #   scripts/ios-fetch-night.sh
 set -eu

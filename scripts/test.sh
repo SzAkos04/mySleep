@@ -1,5 +1,5 @@
 #!/bin/sh
-# Everything that can be checked without the iPhone: the shared rules' tests (what mySleep Night's
+# Everything that can be checked without the iPhone: the shared rules' tests (what mySleep's
 # screens and scores are made of, and that its bundle is current), the API's tests (a real server on
 # a temp DATA_DIR) and the native app's logic (ios/NightKit, on a Mac with Swift). The pre-commit
 # hook runs this; so do the Docker builds on the server, so a failing change is never deployed.

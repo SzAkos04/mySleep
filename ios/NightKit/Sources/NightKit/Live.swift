@@ -23,7 +23,7 @@ public struct LiveCard: Codable, Hashable, Sendable {
       case .notHearing: "Not hearing anything"
       case .handedOver: "Still listening · live status in the app"
       case .ringing: "Good morning"
-      case .stale(let since): "Not heard from since \(since) · open mySleep Night"
+      case .stale(let since): "Not heard from since \(since) · open mySleep"
       }
     }
     /// A second, small line, where one is needed.
@@ -84,9 +84,9 @@ public enum AlarmCard {
   }
   public static func text(_ p: Phase) -> Text {
     switch p {
-    case .ringing: Text(title: "Good morning", subtitle: "mySleep Night is ringing", showsTime: false)
-    case .snoozing: Text(title: "Snoozing", subtitle: "mySleep Night rings again at", showsTime: true)
-    case .paused: Text(title: "Alarm paused", subtitle: "Open mySleep Night", showsTime: false)
+    case .ringing: Text(title: "Good morning", subtitle: "mySleep is ringing", showsTime: false)
+    case .snoozing: Text(title: "Snoozing", subtitle: "mySleep rings again at", showsTime: true)
+    case .paused: Text(title: "Alarm paused", subtitle: "Open mySleep", showsTime: false)
     }
   }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// mySleep Night: the one app on the iPhone: Tonight, the Journal, Trends and Settings. The night
+// mySleep: the one app on the iPhone: Tonight, the Journal, Trends and Settings. The night
 // itself (NightViews) covers everything while it runs; the alarm covers the night.
 @main struct MySleepNightApp: App {
   @StateObject private var engine = NightEngine()

@@ -709,7 +709,7 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 		const diag = n.diag?.app === "native" ? [
 			[
 				"Recorded by",
-				"mySleep Night",
+				"mySleep",
 				false
 			],
 			[

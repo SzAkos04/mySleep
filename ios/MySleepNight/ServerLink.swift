@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// mySleep Night and the server: the pairing (kept in the Keychain), the nights' logs going up after
+/// mySleep and the server: the pairing (kept in the Keychain), the nights' logs going up after
 /// each night and whenever the app opens, and when the app's free signature runs out, so an uptime
 /// monitor can see it (api/status.js).
 @MainActor final class ServerLink: ObservableObject {

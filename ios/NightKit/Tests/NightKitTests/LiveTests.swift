@@ -37,7 +37,7 @@ import Foundation
     #expect(late.status(stale: true, calendar: cal) == .stale(since: "03:12"))
     #expect(LiveCard.Status.listening.text == "Listening")
     #expect(LiveCard.Status.notHearing.text == "Not hearing anything")
-    #expect(LiveCard.Status.stale(since: "03:12").text == "Not heard from since 03:12 · open mySleep Night")
+    #expect(LiveCard.Status.stale(since: "03:12").text == "Not heard from since 03:12 · open mySleep")
   }
 
   @Test func handedOverItSaysTheAppStillListensButTheCardNoLongerFollows() {
@@ -81,8 +81,8 @@ import Foundation
 @Suite struct AlarmCardTests {
   // the alarm's own card (AlarmKit): what it says in each state, never "Snoozing" while it rings
   @Test func saysWhatTheAlarmIsDoing() {
-    #expect(AlarmCard.text(.ringing) == AlarmCard.Text(title: "Good morning", subtitle: "mySleep Night is ringing", showsTime: false))
-    #expect(AlarmCard.text(.snoozing) == AlarmCard.Text(title: "Snoozing", subtitle: "mySleep Night rings again at", showsTime: true))
-    #expect(AlarmCard.text(.paused) == AlarmCard.Text(title: "Alarm paused", subtitle: "Open mySleep Night", showsTime: false))
+    #expect(AlarmCard.text(.ringing) == AlarmCard.Text(title: "Good morning", subtitle: "mySleep is ringing", showsTime: false))
+    #expect(AlarmCard.text(.snoozing) == AlarmCard.Text(title: "Snoozing", subtitle: "mySleep rings again at", showsTime: true))
+    #expect(AlarmCard.text(.paused) == AlarmCard.Text(title: "Alarm paused", subtitle: "Open mySleep", showsTime: false))
   }
 }

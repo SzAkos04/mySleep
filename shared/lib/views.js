@@ -1,4 +1,4 @@
-// What mySleep Night's screens show of the nights, as plain data: the night's report, the
+// What mySleep's screens show of the nights, as plain data: the night's report, the
 // journal's month, the trends. The app draws it (bundled in rules.js, read by Swift as JSON), so
 // the wording and the numbers are decided here, once, and tested here. `state` is the store's:
 // { nights, settings }.
@@ -27,7 +27,7 @@ export function reportView(state, id) {
   const avg = (w => w.length >= 3 ? meanScore(w, settings) : null)(list(state.nights).filter(x => x.id !== n.id && !unrecorded(x)).slice(0, 7))
   const latency = n.on ? Math.round((n.on - n.bed) / 60000) : null
   const diag = n.diag?.app === 'native' ? [
-    ['Recorded by', 'mySleep Night', false], ['Interruptions', n.diag.interruptions, n.diag.interruptions > 0], ['Audio restarted', n.diag.restarts, n.diag.restarts > 0],
+    ['Recorded by', 'mySleep', false], ['Interruptions', n.diag.interruptions, n.diag.interruptions > 0], ['Audio restarted', n.diag.restarts, n.diag.restarts > 0],
     ['Microphone sent nothing', n.diag.micSilent, n.diag.micSilent > 0], ['Phone locked', n.diag.locked, false]
   ].map(([label, v, bad]) => ({ label, value: String(v), bad })) : []
   return {

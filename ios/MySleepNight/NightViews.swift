@@ -31,7 +31,7 @@ struct NightScreen: View {
               Text("Alarm \(plan.label())").font(.title3).foregroundStyle(.white.opacity(lit ? 0.75 : 0.18)).padding(.top, 14)
               if lit { Text("Up to \(duration(max(0, plan.at.timeIntervalSince(ctx.date) / 60))) of sleep").font(.subheadline).foregroundStyle(Theme.text2).padding(.top, 4) }
               if lit && alarm.phase == .none {
-                Text("No loud backup: Alarms are off for mySleep Night. Keep it running, or set one in Clock.")
+                Text("No loud backup: Alarms are off for mySleep. Keep it running, or set one in Clock.")
                   .font(.footnote).foregroundStyle(Theme.warn).multilineTextAlignment(.center).padding(.horizontal, 36).padding(.top, 10)
               }
             } else if lit {

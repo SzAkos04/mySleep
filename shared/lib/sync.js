@@ -1,4 +1,4 @@
-// Client side of POST /api/sync, run by mySleep Night in JavaScriptCore (ios/NightKit NightStore).
+// Client side of POST /api/sync, run by mySleep in JavaScriptCore (ios/NightKit NightStore).
 // Every night (and the one settings record) carries `ts`, the time of its last edit; the newer
 // edit wins per entry, on the server and here. `dirty` lists the entries edited on this device
 // that the server has not confirmed yet ("night:<id>", "settings:main").

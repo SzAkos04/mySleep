@@ -34,9 +34,9 @@ public enum Reminders {
     // an install that runs out before 9:00 has no "tonight": it has stopped by then
     let stoppedAt = todayAt < expires ? nine(days(1)) : todayAt
     let all: [(Reminder, Date)] = [
-      (Reminder(id: "reinstall-soon", title: "mySleep Night stops on \(weekday)", body: "Reinstall it from the Mac before then: connect the iPhone and run the install.", when: .once(nine(days(-2)))), nine(days(-2))),
-      (Reminder(id: "reinstall-today", title: "mySleep Night stops tonight", body: "Reinstall it from the Mac today, or tonight will not be recorded.", when: .once(todayAt)), todayAt < expires ? todayAt : .distantPast),
-      (Reminder(id: "reinstall-expired", title: "mySleep Night has stopped", body: "It cannot record a night until it is reinstalled from the Mac.", when: .once(stoppedAt)), stoppedAt)
+      (Reminder(id: "reinstall-soon", title: "mySleep stops on \(weekday)", body: "Reinstall it from the Mac before then: connect the iPhone and run the install.", when: .once(nine(days(-2)))), nine(days(-2))),
+      (Reminder(id: "reinstall-today", title: "mySleep stops tonight", body: "Reinstall it from the Mac today, or tonight will not be recorded.", when: .once(todayAt)), todayAt < expires ? todayAt : .distantPast),
+      (Reminder(id: "reinstall-expired", title: "mySleep has stopped", body: "It cannot record a night until it is reinstalled from the Mac.", when: .once(stoppedAt)), stoppedAt)
     ]
     return all.filter { $0.1 > now }.map(\.0)
   }

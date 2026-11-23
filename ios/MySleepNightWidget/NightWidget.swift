@@ -3,7 +3,7 @@ import AlarmKit
 import SwiftUI
 import WidgetKit
 
-// The lock screen during the night: what mySleep Night is doing, since when, and when it wakes you.
+// The lock screen during the night: what mySleep is doing, since when, and when it wakes you.
 // Clock times, not running counters: no seconds at night, and nothing to go wrong between the app's
 // minute updates or after it hands the card over (NightKit's LivePlan: iOS's 8-hour limit).
 @main struct NightWidgets: WidgetBundle {
@@ -52,7 +52,7 @@ private struct NightCard: View {
       if !compact {
         HStack(spacing: 6) {
           Image(systemName: "moon.fill").foregroundStyle(accent)
-          Text("mySleep Night").font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.6))
+          Text("mySleep").font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.6))
         }
       }
       HStack(alignment: .firstTextBaseline) {

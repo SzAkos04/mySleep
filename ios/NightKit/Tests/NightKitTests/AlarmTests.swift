@@ -208,7 +208,7 @@ import AVFoundation
   }
 
   @Test func saysWhyItDidNotRing() {
-    #expect(AlarmTest.denied.text == "Alarms are not allowed: turn them on for mySleep Night in iOS Settings.")
+    #expect(AlarmTest.denied.text == "Alarms are not allowed: turn them on for mySleep in iOS Settings.")
     #expect(AlarmTest.failed("no sound").text == "The alarm did not ring: no sound")
   }
 

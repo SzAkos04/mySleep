@@ -84,7 +84,7 @@ public enum AlarmTest: Equatable, Sendable {
     case .waiting(let s): "Rings in \(s) s. Lock the phone and listen."
     case .ringing: "It is ringing: Stop or Snooze ends the test."
     case .heard: "It rang and the test is over."
-    case .denied: "Alarms are not allowed: turn them on for mySleep Night in iOS Settings."
+    case .denied: "Alarms are not allowed: turn them on for mySleep in iOS Settings."
     case .failed(let why): "The alarm did not ring: \(why)"
     }
   }

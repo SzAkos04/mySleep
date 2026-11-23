@@ -3,7 +3,7 @@ import { reportView, journalView, trendsView, verdict, startMonth } from './view
 import { sleepScore } from './score.js'
 import { atClock } from './time.js'
 
-// What mySleep Night's screens show, as plain data (the app draws it): the night's report, the
+// What mySleep's screens show, as plain data (the app draws it): the night's report, the
 // journal's month, the trends. The wording and the numbers are decided here.
 const settings = { bedtime: '23:00', wake: '06:45', alarm: true, smart: true }
 const night = (id, asleepMin = 450, extra = {}) => {
@@ -59,7 +59,7 @@ describe('reportView: a night at a glance', () => {
     expect(v.sounds).toEqual([{ label: 'Snoring', time: '02:10', length: '5 min' }, { label: 'Talking', time: '03:00', length: '20 s' }])
     expect(v.alarm).toBe('The alarm rang at 06:33, 12 min early.')
     expect(v.diag).toEqual([
-      { label: 'Recorded by', value: 'mySleep Night', bad: false }, { label: 'Interruptions', value: '1', bad: true },
+      { label: 'Recorded by', value: 'mySleep', bad: false }, { label: 'Interruptions', value: '1', bad: true },
       { label: 'Audio restarted', value: '0', bad: false }, { label: 'Microphone sent nothing', value: '0', bad: false }, { label: 'Phone locked', value: '2', bad: false }
     ])
   })
