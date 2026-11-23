@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reportView, journalView, trendsView, verdict } from './views.js'
+import { reportView, journalView, trendsView, verdict, startMonth } from './views.js'
 import { sleepScore } from './score.js'
 import { atClock } from './time.js'
 
@@ -130,5 +130,13 @@ describe('trendsView', () => {
     const v = trendsView(state(...many), 30)
     expect(v.label).toBe('This month')
     expect(v.scores.filter(s => s.label).map(s => s.label)).toEqual(['19', '26'])   // the Mondays
+  })
+})
+
+describe('startMonth: the month the Journal opens on', () => {
+  it('the newest night\'s, a deleted one not counted; with no nights, this month', () => {
+    const s = state(night('2026-08-31'), night('2026-07-02'), { id: '2026-09-05', deleted: true, ts: 1 })
+    expect(startMonth(s, NOW)).toEqual({ year: 2026, month: 7 })
+    expect(startMonth(state(), NOW)).toEqual({ year: 2026, month: 9 })
   })
 })
