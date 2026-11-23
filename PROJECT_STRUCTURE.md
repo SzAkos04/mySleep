@@ -21,7 +21,7 @@ Generated from `git ls-files` (build output, lock files, binaries, assets and da
 `server.test.js`, `status.test.js`
 
 ## docs/dev
-`MVP.md`, `NATIVE_PLAN.md`, `SERVER_MASTER_PROMPT.md`, `SOUND_ANALYSIS.md`
+`MVP.md`, `NATIVE_PLAN.md`, `SERVER_MASTER_PROMPT.md`, `SOUND_ANALYSIS.md`, `design-draft.html`, `design-draft-v2.html`, `structure-options.html`
 
 ## ios/MySleepNight
 `AlarmController.swift`, `Info.plist`, `JournalScreen.swift`, `LiveCardController.swift`, `MySleepNightApp.swift`, `NightData.swift`, `NightEngine.swift`, `NightPictures.swift`, `NightViews.swift`, `Notifier.swift`, `ReportScreen.swift`, `ServerLink.swift`, `SettingsTab.swift`, `TonightTab.swift`, `TrendsScreen.swift`, `rules.js`

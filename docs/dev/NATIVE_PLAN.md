@@ -7,7 +7,7 @@ reminders. This plan moves all of that into the native app, one step at a time, 
 frontend can be deleted. Each step is small, starts with a failing test, and ships on its own;
 the web app keeps working until the last phase.
 
-## Where it stands (reviewed 2026-11-16)
+## Where it stands (reviewed 2026-11-23)
 
 Every step below is done on `dev`; the table is the order they were done in. Open, none of it code:
 - phone checks: that a local notification scheduled by an app whose signature has run out still arrives
@@ -20,7 +20,10 @@ Every step below is done on `dev`; the table is the order they were done in. Ope
 - decisions for the user: opening a pairing link pairs at once, with no question (a link from anywhere
   could point the app at another server); and a night whose times were corrected loses its `bed`, which
   `toImport` uses to tell one log from another (see "Open questions" below).
-The paths in 0.2 and 0.3 (`frontend/`) are history: the code is in `shared/`.
+- done 2026-11-23: a server put back from an older backup (its `rev` behind the phone's) sends the phone
+  everything, and the phone sends every night back (`server.test.js`, `sync.test.js`).
+The paths in 0.2 and 0.3 (`frontend/`) and `api/reminders.js` in 3.3 are history: the code is in `shared/`
+and NightKit's `Reminders`.
 
 ## Ground rules
 
@@ -216,7 +219,7 @@ the server's, both reminders arriving, a reinstall keeping pairing and nights.
 `scripts/test.sh` runs shared, api and iOS tests; CLAUDE.md and MVP.md describe one native app
 and a server.
 
-## Open questions (2026-11-16)
+## Open questions (2026-11-23)
 
 - **Pairing link confirms nothing.** `onOpenURL` pairs and syncs at once. A hostile link would send the
   nights to another server, or replace a working pairing. Fix: an alert "Pair with <host>?" before
@@ -227,6 +230,15 @@ and a server.
   same log look like another one. It is taken in again only if the log file is written again (a recovered
   log). Fix: keep the log's `start` in the night record (`log`), compare with that. Needs the golden file
   and a sync-compatible field, so it waits for a decision.
+
+- **A state file it cannot read is written over.** `NightData` starts empty when `nights.json` will not
+  read (an app woken before the phone's first unlock, a broken file) and the next `persist()` replaces it:
+  edits not yet synced are lost (the server gives the rest back). Fix: when the file is there but does not
+  read, keep it and do not write. (Tests: the decision as a NightKit function, `NightStore.load`.)
+- **Reduce Motion is not honoured everywhere.** `Rise`, the score ring and the sunrise are; the night and
+  alarm screens' transitions, `Pressable`, `PrimaryButton`, the numbers rolling are not (CLAUDE.md: none of
+  it with Reduce Motion). Fix: one `.transaction { if still { $0.animation = nil } }` on `RootView`; check it
+  in the Simulator with Reduce Motion on.
 
 ## Not ported
 
