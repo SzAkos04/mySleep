@@ -44,7 +44,15 @@ export const withoutNight = (state, id, ts) => ({ nights: { ...state.nights, [id
 export const withSettings = (state, patch, ts) => ({ settings: { ...state.settings, ...patch, ts }, dirty: { ...state.dirty, 'settings:main': true } })
 
 // The state after a sync: what the server sent merged in, its revision, and what was pushed clean.
-export const afterSync = (state, reply, pushed, now) => ({ ...mergeRemote(state, reply.changes), rev: reply.rev, dirty: stillDirty(state, pushed), lastSynced: now })
+// A server behind this phone's revision was put back from a backup: everything here goes up again.
+export function afterSync(state, reply, pushed, now) {
+  const merged = mergeRemote(state, reply.changes)
+  const dirty = reply.rev < (state.rev || 0) ? everything(merged) : stillDirty(state, pushed)
+  return { ...merged, rev: reply.rev, dirty, lastSynced: now }
+}
+const everything = ({ nights, settings }) => Object.fromEntries([
+  ...Object.keys(nights).map(id => 'night:' + id), ...(settings?.ts > 0 ? ['settings:main'] : [])
+].map(k => [k, true]))
 
 export const defaultSettings = () => ({
   bedtime: '23:00', wake: '06:45',

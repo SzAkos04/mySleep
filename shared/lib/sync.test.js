@@ -59,3 +59,15 @@ it('the end of a sync: what came is merged, the revision kept, what was pushed i
   expect(r.nights.c).toEqual({ id: 'c', q: 5, ts: 100 })
   expect(r.dirty).toEqual({})
 })
+
+// data/ put back from an older backup: the server's revision is behind this phone's, and the nights it
+// lost are clean here, so nothing would ever send them again. All of them go up once more (the newer
+// edit still wins on the server, so nothing it has is overwritten by an older one).
+it('a server behind this phone (restored from a backup) gets every night here once more', () => {
+  const s = { nights: { a: { id: 'a', q: 1, ts: 5 }, b: { id: 'b', deleted: true, ts: 6 } }, settings: { wake: '07:00', ts: 7 }, rev: 40, dirty: {} }
+  const r = afterSync(s, { rev: 12, changes: [] }, [], 999)
+  expect(r.rev).toBe(12)
+  expect(r.dirty).toEqual({ 'night:a': true, 'night:b': true, 'settings:main': true })
+  expect(afterSync({ ...s, settings: { ts: 0 } }, { rev: 12, changes: [] }, [], 999).dirty).toEqual({ 'night:a': true, 'night:b': true })   // defaults never edited: nothing to send
+  expect(afterSync(s, { rev: 41, changes: [] }, [], 999).dirty).toEqual({})
+})

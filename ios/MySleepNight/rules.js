@@ -489,12 +489,17 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 			"settings:main": true
 		}
 	});
-	const afterSync = (state, reply, pushed, now) => ({
-		...mergeRemote(state, reply.changes),
-		rev: reply.rev,
-		dirty: stillDirty(state, pushed),
-		lastSynced: now
-	});
+	function afterSync(state, reply, pushed, now) {
+		const merged = mergeRemote(state, reply.changes);
+		const dirty = reply.rev < (state.rev || 0) ? everything(merged) : stillDirty(state, pushed);
+		return {
+			...merged,
+			rev: reply.rev,
+			dirty,
+			lastSynced: now
+		};
+	}
+	const everything = ({ nights, settings }) => Object.fromEntries([...Object.keys(nights).map((id) => "night:" + id), ...settings?.ts > 0 ? ["settings:main"] : []].map((k) => [k, true]));
 	const defaultSettings = () => ({
 		bedtime: "23:00",
 		wake: "06:45",
