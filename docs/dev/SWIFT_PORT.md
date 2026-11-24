@@ -1,7 +1,7 @@
 # The night rules from JavaScript to Swift (2026-11-23/24)
 
 What was done, why, and what is left: the record of a session started from firka-ios, so the
-conversation itself can go. The brief it worked from: `~/Projects/firka-ios/MYSLEEP_PLAYBOOK.md`.
+conversation itself can go. The brief it worked from: `docs/dev/FIRKA_PLAYBOOK.md`.
 
 ## Why
 
