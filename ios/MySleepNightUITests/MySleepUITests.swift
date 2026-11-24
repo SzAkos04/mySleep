@@ -39,6 +39,27 @@ final class MySleepUITests: XCTestCase {
     XCTAssertTrue(shows(app.buttons["nightCard"]))
   }
 
+  /// Deleting a night asks first, in the middle of the screen (24 November: the question was tied to
+  /// the whole page and showed up in an odd place); Cancel leaves the night be.
+  func testDeletingANightAsksInTheMiddleOfTheScreen() {
+    tab("Journal")
+    XCTAssertTrue(shows(app.buttons["nightCard"]))
+    app.buttons["nightCard"].tap()
+    XCTAssertTrue(shows(app.buttons["More"]))
+    app.buttons["More"].tap()
+    XCTAssertTrue(shows(app.buttons["Delete night"]))
+    app.buttons["Delete night"].tap()
+    let ask = app.alerts.firstMatch
+    XCTAssertTrue(shows(ask))
+    XCTAssertTrue(ask.buttons["Delete"].exists && ask.buttons["Cancel"].exists)
+    let screen = app.windows.firstMatch.frame
+    XCTAssertEqual(ask.frame.midX, screen.midX, accuracy: 20)
+    XCTAssertEqual(ask.frame.midY, screen.midY, accuracy: screen.height / 6)
+    ask.buttons["Cancel"].tap()
+    XCTAssertFalse(ask.exists)
+    XCTAssertTrue(app.buttons["How the score adds up"].exists)
+  }
+
   func testTheJournalGoesBackAMonthAndForward() {
     tab("Journal")
     XCTAssertTrue(shows(app.buttons["Previous month"]))

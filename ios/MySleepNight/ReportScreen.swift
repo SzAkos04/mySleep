@@ -71,7 +71,9 @@ struct ReportScreen: View {
       }
     }
     .sheet(isPresented: $editing) { if let v { CorrectSheet(report: v) { sync() }.presentationDetents([.height(380)]) } }
-    .confirmationDialog("Delete \(v?.title ?? "this night")?", isPresented: $confirming, titleVisibility: .visible) {
+    // an alert, in the middle of the screen: a dialog tied to the page showed up in an odd place
+    .alert("Delete \(v?.title ?? "this night")?", isPresented: $confirming) {
+      Button("Cancel", role: .cancel) {}
       Button("Delete", role: .destructive) { data.delete(id); if !nav.journalPath.isEmpty { nav.journalPath.removeLast() }; sync() }
     } message: { Text("The night and its summary go from every device.") }
     .task(id: data.version) { v = data.store.report(id) }
