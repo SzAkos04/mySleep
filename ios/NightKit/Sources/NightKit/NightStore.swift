@@ -13,8 +13,9 @@ public final class NightStore {
   /// (nights.unreadable-<ms>.json), never written over: the store starts empty and the next sync
   /// brings the server's nights back.
   public static func load(from url: URL, now: Date = Date()) -> NightStore {
-    guard let data = try? Data(contentsOf: url) else { return NightStore() }
-    if let state = try? JSONDecoder().decode(NightState.self, from: data) { return NightStore(state: state) }
+    guard FileManager.default.fileExists(atPath: url.path) else { return NightStore() }
+    // there but not readable (before the first unlock, say) is moved aside like a broken one
+    if let data = try? Data(contentsOf: url), let state = try? JSONDecoder().decode(NightState.self, from: data) { return NightStore(state: state) }
     let aside = url.deletingLastPathComponent().appendingPathComponent("nights.unreadable-\(Int64(Clock.ms(now))).json")
     try? FileManager.default.moveItem(at: url, to: aside)
     return NightStore()
@@ -49,22 +50,35 @@ public final class NightStore {
     }
   }
 
-  /// Push what was edited here, take what the server has that this has not. Edits made while the
-  /// request is out stay to send. `send` does the HTTP: the status (0: no answer) and the body.
+  /// Changes per request: the server takes 1000 at most and 4 MB (api/server.js).
+  public static let batch = 400
+
+  /// Push what was edited here, take what the server has that this has not, `batch` changes at a
+  /// time until nothing is left. Edits made while a request is out stay to send. `send` does the
+  /// HTTP: the status (0: no answer) and the body.
   public func sync(now: Date, send: (Data) async -> (status: Int, body: Data)) async -> SyncResult {
-    let pushed = state.pendingChanges()
-    guard let request = try? JSONEncoder().encode(SyncBody(since: state.rev, changes: pushed)) else { return .failed(-1) }
+    while true {
+      let before = state.dirty.count
+      let (result, full) = await syncOnce(now: now, send: send)
+      // a full batch: more may be waiting; none went clean: stop, not an endless loop
+      guard result == .synced, full, !state.dirty.isEmpty, state.dirty.count < before else { return result }
+    }
+  }
+
+  private func syncOnce(now: Date, send: (Data) async -> (status: Int, body: Data)) async -> (SyncResult, full: Bool) {
+    let pushed = Array(state.pendingChanges().prefix(Self.batch))
+    guard let request = try? JSONEncoder().encode(SyncBody(since: state.rev, changes: pushed)) else { return (.failed(-1), false) }
     let (status, body) = await send(request)
     switch status {
     case 200..<300: break
-    case 0, 502...504: return .offline          // no answer, or Tailscale up with the API behind it not
-    case 401: return .unauthorized
-    default: return .failed(status)
+    case 0, 502...504: return (.offline, false)          // no answer, or Tailscale up with the API behind it not
+    case 401: return (.unauthorized, false)
+    default: return (.failed(status), false)
     }
-    guard let reply = try? JSONDecoder().decode(SyncAnswer.self, from: body) else { return .failed(-1) }
+    guard let reply = try? JSONDecoder().decode(SyncAnswer.self, from: body) else { return (.failed(-1), false) }
     // the state as it is now, not as it was: it may have been edited while the request was out
     state.afterSync(rev: reply.rev, changes: reply.changes, pushed: pushed, now: Clock.ms(now))
-    return .synced
+    return (.synced, pushed.count == Self.batch)
   }
 
   // What the screens show (Views.swift).

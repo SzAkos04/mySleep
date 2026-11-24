@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""ios/MySleepNight/alarm-rise.wav from alarm-piano.wav: the piano looped to 28 s (AlarmKit takes at
-most 30), its loudness following RiseCurve (NightKit/Alarm.swift): -42 dB easing to full over 25 s, then
+"""ios/MySleepNight/alarm-rise.wav from scripts/alarm-piano.wav: the piano looped to 28 s (AlarmKit takes at
+most 30), its loudness smooth in decibels: -42 dB easing (quadratically) to full over 25 s, then
 held. The system alarm cannot rise a sound, so the rise is in the file. Run after changing either."""
 import array, math, wave
 
-SRC, DST = 'ios/MySleepNight/alarm-piano.wav', 'ios/MySleepNight/alarm-rise.wav'
+SRC, DST = 'scripts/alarm-piano.wav', 'ios/MySleepNight/alarm-rise.wav'
 FROM_DB, RISE, LENGTH = -42.0, 25.0, 28.0
 
 w = wave.open(SRC)

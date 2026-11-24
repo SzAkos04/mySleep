@@ -100,13 +100,13 @@ struct RootView: View {
       }
       // the night fades in slowly, as lights going out; the alarm comes up from a little larger
       if engine.night != nil { NightScreen().transition(.opacity) }
-      if alarm.phase == .ringing || engine.selfRinging { RingingView().transition(.opacity.combined(with: .scale(scale: 1.06))) }
+      if alarm.phase == .ringing { RingingView().transition(.opacity.combined(with: .scale(scale: 1.06))) }
     }
     .environmentObject(nav)
     // a night ends on Tonight, where its morning summary is
     .onChange(of: engine.night == nil) { _, ended in if ended { nav.tab = .tonight } }
     .animation(.easeInOut(duration: 0.6), value: engine.night == nil)
-    .animation(.spring(duration: 0.6, bounce: 0.1), value: alarm.phase == .ringing || engine.selfRinging)
+    .animation(.spring(duration: 0.6, bounce: 0.1), value: alarm.phase == .ringing)
   }
 }
 

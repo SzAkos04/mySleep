@@ -24,18 +24,25 @@ public enum Reminders {
   }
 
   /// The free signature runs out on `expires` (7 days after the install): a heads-up two days before,
-  /// one on the last day, one when it has stopped; each at 9:00, and only what is still to come.
+  /// one on the last day (the evening before, when it stops in the morning), one when it has stopped;
+  /// at 9:00 but that evening one, and only what is still to come.
   public static func expiry(expires: Date?, now: Date, calendar: Calendar) -> [Reminder] {
     guard let expires else { return [] }
     func nine(_ d: Date) -> Date { calendar.date(bySettingHour: 9, minute: 0, second: 0, of: d) ?? d }
     func days(_ n: Int) -> Date { calendar.date(byAdding: .day, value: n, to: expires) ?? expires }
     let weekday = { () -> String in let f = DateFormatter(); f.calendar = calendar; f.timeZone = calendar.timeZone; f.locale = Locale(identifier: "en_US"); f.dateFormat = "EEEE"; return f.string(from: expires) }()
-    let todayAt = nine(expires)
-    // an install that runs out before 9:00 has no "tonight": it has stopped by then
-    let stoppedAt = todayAt < expires ? nine(days(1)) : todayAt
+    func clock(_ d: Date) -> String { InstallStatus.clock(d, calendar) }
+    // stopping in the morning (installed in the morning a week before): before the alarm, so the
+    // day's reminder is the evening before, when there is still time to reinstall
+    let morning = calendar.component(.hour, from: expires) < 12
+    let todayAt = morning ? (calendar.date(bySettingHour: 20, minute: 0, second: 0, of: days(-1)) ?? expires) : nine(expires)
+    let today = morning
+      ? Reminder(id: "reinstall-today", title: "mySleep stops tomorrow at \(clock(expires))", body: "Reinstall it from the Mac tonight: it stops before the morning's alarm.", when: .once(todayAt))
+      : Reminder(id: "reinstall-today", title: "mySleep stops tonight", body: "Reinstall it from the Mac today, or tonight will not be recorded.", when: .once(todayAt))
+    let stoppedAt = nine(expires) < expires ? nine(days(1)) : nine(expires)
     let all: [(Reminder, Date)] = [
       (Reminder(id: "reinstall-soon", title: "mySleep stops on \(weekday)", body: "Reinstall it from the Mac before then: connect the iPhone and run the install.", when: .once(nine(days(-2)))), nine(days(-2))),
-      (Reminder(id: "reinstall-today", title: "mySleep stops tonight", body: "Reinstall it from the Mac today, or tonight will not be recorded.", when: .once(todayAt)), todayAt < expires ? todayAt : .distantPast),
+      (today, todayAt < expires ? todayAt : .distantPast),
       (Reminder(id: "reinstall-expired", title: "mySleep has stopped", body: "It cannot record a night until it is reinstalled from the Mac.", when: .once(stoppedAt)), stoppedAt)
     ]
     return all.filter { $0.1 > now }.map(\.0)

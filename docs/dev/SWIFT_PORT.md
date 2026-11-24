@@ -82,9 +82,22 @@ morning, the report and `scripts/ios-fetch-night.sh`.
 
 ## Open
 
-- The pre-commit hook runs the tests on the working tree, not on what is staged: a commit missing files
-  passed once (it was amended before the push).
-- The API refuses more than 1000 changes in one sync; after a backup is restored the phone sends every
-  night again, so over 1000 nights that sync would keep failing.
 - From the brief, not done: a Live Activity demo hook and its own colour test (UI tests cannot reach it),
   a coverage run, a `ColorTests` for the Theme's own colour pairs.
+
+## Review of 2026-11-24, fixed
+
+- The alarm is AlarmKit's only, set for the wake time at the start (before the microphone, so a
+  microphone that fails cannot leave the night without one); the smart window brings it forward
+  (`AlarmPlan.ringsEarly`), and a move that fails puts the old one back (`AlarmMove`). The app's own
+  piano (it never rang with the phone locked: '!int'), its lock-screen Snooze, the media-volume row,
+  the test sound and the 2-minute "backup" delay are gone; `scripts/alarm-piano.wav` is only the
+  source of `alarm-rise.wav`.
+- The morning counts the system alarm's snoozes (`WakeTally`); the alarm test no longer cancels a
+  night started while it runs; Tonight warns when the install stops before the alarm, and the last
+  reinstall reminder is the evening before such a morning.
+- The accelerometer is gone (the analysis never used it); one FFT per night (`Spectrum`), not per frame.
+- An unreadable `nights.json` is moved aside, not written over; a sync goes up `NightStore.batch`
+  (400) changes at a time; the log uploads stop at the first request without an answer; the server
+  keeps the longer of two logs of one date.
+- The pre-commit hook refuses a commit whose working tree is not what is staged.

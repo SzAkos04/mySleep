@@ -69,8 +69,11 @@ test('a night log is stored (gzipped too), read back, and kept over a later part
   const got = await (await fetch(url, { headers: { cookie } })).json()
   assert.equal(got.final, true)
   assert.deepEqual(got.samples.db, [30])
-  // a new night under the same date (another start) replaces it
-  assert.equal((await put({ night: '2026-10-28', start: 2, events: [], final: false })).status, 200)
+  // another start under the same date replaces it only when longer (3 Nov: a 20 min restart after
+  // the alarm was stopped replaced the log of a night of 3 h 43)
+  assert.equal((await put({ night: '2026-10-28', start: 2, events: [], final: true, samples: { db: [] } })).status, 200)
+  assert.equal((await (await fetch(url, { headers: { cookie } })).json()).start, 1)
+  assert.equal((await put({ night: '2026-10-28', start: 2, events: [], final: false, samples: { db: [30, 31] } })).status, 200)
   assert.equal((await (await fetch(url, { headers: { cookie } })).json()).start, 2)
   // refused: signed out, cross-site, broken bodies, a bad date, a gzip bomb
   assert.equal((await fetch(url, { method: 'PUT', headers: { 'sec-fetch-site': 'same-origin' }, body: '{}' })).status, 401)

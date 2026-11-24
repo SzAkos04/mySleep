@@ -1,12 +1,12 @@
 import AVFoundation
-import CoreMotion
 import UIKit
 
 /// The microphone all night, with the phone locked: an audio session for recording, kept alive by
 /// the `audio` background mode, an engine whose input is read in frames into a `Night` (NightKit).
 /// Everything iOS does to it is logged: interruptions, route changes, media services resets, the
 /// screen locking, the app going to the background, battery and heat, once a minute a heartbeat.
-/// The log is saved every minute to Documents/<night>.json.
+/// The log is saved every minute to Documents/<night>.json. The alarm is the system's (AlarmController):
+/// set for the wake time at the start, brought forward in the smart window when the sleeper stirs.
 @MainActor final class NightEngine: ObservableObject {
   @Published private(set) var night: Night?
   @Published private(set) var level: Double?       // the last second's loudness, nil = nothing heard
@@ -18,14 +18,12 @@ import UIKit
     let early: Int?, snoozes: Int   // early: minutes before the wake time it rang; nil: it did not ring
   }
   @Published private(set) var lastNight: Finished?
-  private var rangEarlyBy: Int?, snoozes = 0
-  @Published private(set) var ringingEarly = 0   // the alarm screen: how early it rang
+  @Published private(set) var ringingEarly = 0   // the alarm screen: how early it rang (0: at the wake time)
 
   let alarm = AlarmController()
   var onFinished: (() -> Void)?   // the night saved: send it up
-  @Published private(set) var selfRinging = false   // no system alarm: the app rings itself
   private var smart = false, rangEarly = false, lastCheck: Int64 = 0
-  private var player: AVAudioPlayer?, ramp: Timer?, ringStart = Date()
+  private var tally = WakeTally()
 
   private let live = LiveCardController()
   private var wasHearing = true
@@ -33,12 +31,7 @@ import UIKit
   init() {
     alarm.log = { [weak self] type, data in self?.logNow(type, data) }
     live.log = { [weak self] type, data in self?.logNow(type, data) }
-    // Snooze on the lock screen card (SnoozeIntent)
-    NotificationCenter.default.addObserver(forName: .mySleepSnooze, object: nil, queue: .main) { [weak self] _ in
-      MainActor.assumeIsolated { self?.logNow("snooze-card", [:]); self?.snoozeAlarm() }
-    }
-    // Stop on the lock screen ends the night: nothing to do on waking but get up
-    alarm.onStopped = { [weak self] in self?.stop() }
+    alarm.onPhase = { [weak self] from, to in self?.alarmChanged(from: from, to: to) }
   }
 
   private func logNow(_ type: String, _ data: [String: Any]) {
@@ -78,17 +71,23 @@ import UIKit
     ])
     night = n; nightForQueue = n; lastBeat = start
     n.log("start", ["battery": device.batteryLevel, "charging": device.batteryState == .charging || device.batteryState == .full])
-    try startAudio(reason: "start")
-    startMotion(n)
-    watch()
-    smart = settings.smart; rangEarly = false; rangEarlyBy = nil; snoozes = 0; lastNight = nil
+    smart = settings.smart; rangEarly = false; tally = WakeTally(); ringingEarly = 0; lastNight = nil
+    restarts = 0; lastRestart = 0; lastCheck = 0
+    alarmTest = .idle   // a test still running gives way: its alarm is replaced by tonight's
     plan = AlarmPlan.make(settings, from: Date())
+    // the alarm first: whatever happens to the microphone, it rings at the wake time
     if let p = plan {
       n.log("night", ["ringFrom": Int64(p.from.timeIntervalSince1970 * 1000), "ringAt": Int64(p.at.timeIntervalSince1970 * 1000), "smart": smart])
-      // the system alarm rings at full volume at once (29 October: it frightened): it waits behind
-      // the app's own, gentle one, ringing only if the app could not, or nobody stopped it
-      await alarm.set(at: p.backup)
+      await alarm.set(at: p.at)
     }
+    do { try startAudio(reason: "start") } catch {
+      // no night without the microphone (a call, say): back to the evening, which says why; the
+      // alarm stays set
+      night = nil; nightForQueue = nil; plan = nil
+      let set = alarm.phase == .set ? " The alarm is still set." : ""
+      throw NSError(domain: "mySleep", code: 2, userInfo: [NSLocalizedDescriptionKey: "The microphone could not start (\(error.localizedDescription)).\(set) Try again in a moment."])
+    }
+    watch()
     // the lock screen card: only now, while the app is in front, may it be started
     await live.start(night: n.night, started: Date(timeIntervalSince1970: Double(start) / 1000), plan: plan)
     wasHearing = true
@@ -101,50 +100,24 @@ import UIKit
     observers.forEach(NotificationCenter.default.removeObserver); observers = []
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
-    motion.stopAccelerometerUpdates()
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     alarm.cancel()
-    silence()
     live.end()
     queue.sync { n.tick(at: Self.nowMs); n.log("finish") }
     save(final: true)
     let heard = queue.sync { n.db.filter { !$0.isNaN }.count }
     lastNight = Finished(id: n.night, file: fileURL(n), bed: Date(timeIntervalSince1970: Double(n.start) / 1000), end: Date(),
-                         heardMinutes: heard / 60, early: rangEarlyBy, snoozes: snoozes)
+                         heardMinutes: heard / 60, early: tally.early, snoozes: tally.snoozes)
     night = nil; nightForQueue = nil; level = nil; plan = nil
     onFinished?()
-  }
-
-  // MARK: motion
-
-  // The phone on the bed (under the pillow, on the mattress) feels the sleeper move: the body's own
-  // movement, the signal actigraphy's algorithms are made for. It only goes in the log for now.
-  private let motion = CMMotionManager()
-  nonisolated(unsafe) private var jerk = Jerk()   // on `queue` only
-
-  private func startMotion(_ n: Night) {
-    n.log("motion", ["available": motion.isAccelerometerAvailable])
-    guard motion.isAccelerometerAvailable else { return }
-    motion.accelerometerUpdateInterval = 0.1
-    jerk.reset()
-    let updates = OperationQueue(); updates.maxConcurrentOperationCount = 1   // not the main thread: a locked phone may starve it
-    motion.startAccelerometerUpdates(to: updates) { [queue, weak self] data, _ in
-      guard let a = data?.acceleration else { return }
-      let now = NightEngine.nowMs
-      queue.async {
-        guard let self, let night = self.nightForQueue else { return }
-        if let j = self.jerk.step(a.x, a.y, a.z) { night.motion(j, at: now) }
-      }
-    }
   }
 
   // MARK: audio
 
   private func startAudio(reason: String) throws {
     let session = AVAudioSession.sharedInstance()
-    // .measurement: no automatic gain or noise suppression
-    let listening = AudioPlan.forListening
-    try session.setCategory(AVAudioSession.Category(rawValue: listening.category), mode: AVAudioSession.Mode(rawValue: listening.mode), options: [.defaultToSpeaker, .mixWithOthers])
+    // .measurement: no automatic gain or noise suppression; mixing, so other audio and the alarm are left be
+    try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .mixWithOthers])
     try session.setActive(true)
     let input = engine.inputNode, format = input.outputFormat(forBus: 0), rate = format.sampleRate
     input.removeTap(onBus: 0)
@@ -170,31 +143,38 @@ import UIKit
     let now = Self.nowMs
     let (lvl, silent): (Double?, Bool) = queue.sync { n.tick(at: now); let v = n.db.last ?? .nan; return (n.hearing && v.isFinite ? v : nil, n.silent) }
     level = lvl
-    // the card follows the microphone at once; the alarm's own screen replaces it when it rings
+    // the card follows the microphone at once
     if !silent != wasHearing { wasHearing = !silent; live.update(hearing: wasHearing) }
-    // the system alarm took over (nobody stopped the gentle one, or the app was not running): its own
-    // screen and sound; the piano and the night card make way
-    if alarm.phase == .ringing { if selfRinging { silence(); logNow("escalated", [:]) }; live.end() }
-    // nothing arriving for 10 s: restart the audio, at most once a minute, logged
-    if silent && !selfRinging && now - lastRestart > 60_000 {   // ringing: the microphone is off on purpose
+    // nothing arriving for 10 s: restart the audio, at most once a minute, logged (not while the
+    // alarm rings: it has the sound then)
+    if silent && alarm.phase != .ringing && now - lastRestart > 60_000 {
       lastRestart = now; restarts += 1
       engine.stop()
       do { try startAudio(reason: "silent") } catch { queue.async { n.log("restart-failed", ["error": "\(error)"]) } }
     }
     if now - lastBeat >= 60_000 { lastBeat = now; minute(now); live.update(hearing: wasHearing) }
-    // every 10 s: the wake time, or the smart window once the sleeper stirs
-    if let p = plan, !rangEarly, !selfRinging, now - lastCheck >= 10_000 {
+    // every 10 s in the smart window: the sleeper stirring brings the alarm forward to now. Only while
+    // it waits: rung, snoozed or not set, it is left as it is
+    if let p = plan, smart, !rangEarly, alarm.phase == .set, now - lastCheck >= 10_000 {
       lastCheck = now
-      let date = Date(), early = max(0, Int(p.at.timeIntervalSince(date) / 60))
-      if alarm.phase != .ringing, p.shouldRing(at: date, smart: smart, isStirring: { [queue] in queue.sync { Analysis.stirring(Readings(n)) } }) {
-        // the app rings first, rising from near silence; the system alarm moves behind it
+      let date = Date()
+      if p.ringsEarly(at: date, smart: smart, isStirring: { [queue] in queue.sync { Analysis.stirring(Readings(n)) } }) {
         rangEarly = true
-        if rangEarlyBy == nil { rangEarlyBy = early }   // the first ring, not a snooze's
+        let early = max(1, Int(p.at.timeIntervalSince(date) / 60))
+        ringingEarly = early
         queue.async { n.log("wake", ["early": early], at: now) }
-        let loud = ringItself(early: early)
-        if alarm.phase != .none { Task { await alarm.set(at: AlarmPlan.backup(afterRingingAt: date, quiet: !loud)) } }
+        // not moved (AlarmKit refused): the wake-time alarm stays, and the next check tries again
+        Task { if await !alarm.ringNow() { rangEarly = false; ringingEarly = 0 } }
       }
     }
+  }
+
+  /// AlarmKit's alarm changed: ringing (the night card makes way for the alarm's own), snoozed, or
+  /// stopped, on the lock screen or here: then the night is over.
+  private func alarmChanged(from: AlarmPhase, to: AlarmPhase) {
+    if to == .ringing { live.end() }
+    if from == .ringing && to == .snoozed { logNow("snooze", [:]) }
+    if tally.step(from: from, to: to, early: rangEarly ? ringingEarly : 0), night != nil { stop() }
   }
 
   private func minute(_ now: Int64) {
@@ -223,135 +203,38 @@ import UIKit
     saved = Date()
   }
 
-  // MARK: the app's own alarm, first: the piano through the audio session kept all night, rising from
-  // near silence. Stopped here (held), or snoozed here or on the lock screen card.
-
-  /// True: the piano plays in the playback session; false: it could not, or there is no piano.
-  @discardableResult
-  private func ringItself(early: Int) -> Bool {
-    guard let loud = playPiano(quietToo: alarm.allowed != true) else { return false }
-    if !loud && alarm.allowed == true {
-      // no piano: the system alarm rings at once (its sound rises by itself); the listening goes on
-      logNow("ring", ["self": false, "early": early])
-      do { try startAudio(reason: "ring-quiet") } catch { logNow("restart-failed", ["error": "\(error)"]) }
-      return false
-    }
-    selfRinging = true
-    ringingEarly = early
-    logNow("ring", ["self": true, "early": early])
-    live.ringing(true)
-    return loud
-  }
-
-  /// The piano, rising from near silence. nil: no sound file; true/false: in the playback session or not.
-  /// Not in the recording session unless `quietToo` (no system alarm to take over).
-  private func playPiano(quietToo: Bool) -> Bool? {
-    guard let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"), let p = try? AVAudioPlayer(contentsOf: url) else {
-      logNow("ring-failed", ["reason": "no piano"]); return nil
-    }
-    // playback, not the recording session: through that iOS plays the speaker quietly (AudioPlan)
-    engine.inputNode.removeTap(onBus: 0)
-    engine.stop()
-    let loud = enterRingSession()
-    if !loud && !quietToo { return false }
-    p.numberOfLoops = -1
-    p.volume = Float(RiseCurve.gain(at: 0))
-    p.play()
-    player = p; ringStart = Date()
-    ramp = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
-      Task { @MainActor in guard let self, let p = self.player else { return }; p.volume = Float(RiseCurve.gain(at: Date().timeIntervalSince(self.ringStart))) }
-    }
-    return loud
-  }
-
-  /// The audio session the piano plays in. With the phone locked iOS refused the switch to playback
-  /// even for a mixing session ('!int', 2 and 3 November): each step is logged with its own error, and
-  /// the piano then plays in the recording session (default mode, the speaker), which is quiet.
-  private func enterRingSession() -> Bool {
-    let s = AVAudioSession.sharedInstance(), ringing = AudioPlan.forRinging
-    do {
-      try s.setCategory(AVAudioSession.Category(rawValue: ringing.category), mode: AVAudioSession.Mode(rawValue: ringing.mode), options: ringing.mixes ? [.mixWithOthers] : [])
-    } catch { return ringSessionFailed(s, step: "category", error) }
-    do { try s.setActive(true) } catch { return ringSessionFailed(s, step: "active", error) }
-    lastRingError = nil
-    logNow("audio", ["reason": "ring", "category": s.category.rawValue, "mode": s.mode.rawValue, "volume": s.outputVolume])
-    return true
-  }
-
-  private func ringSessionFailed(_ s: AVAudioSession, step: String, _ error: Error) -> Bool {
-    lastRingError = "\(step): \(error)"
-    logNow("ring-session-failed", ["step": step, "error": "\(error)"])
-    do { try s.setMode(.default) } catch { logNow("ring-fallback", ["step": "mode", "error": "\(error)"]) }
-    do { try s.overrideOutputAudioPort(.speaker) } catch { logNow("ring-fallback", ["step": "speaker", "error": "\(error)"]) }
-    try? s.setActive(true)
-    logNow("audio", ["reason": "ring-fallback", "category": s.category.rawValue, "mode": s.mode.rawValue, "volume": s.outputVolume])
-    return false
-  }
-  private var lastRingError: String?
-
   /// Settings › Alarm test: the system alarm (the one that rings at night) in 20 s, to hear its rise
   /// with the phone locked. Says where it stands; Stop ends it, and Snooze too (the test alarm is
-  /// cancelled then, not left to ring again in 9 minutes). Not during a night.
+  /// cancelled then, not left to ring again in 9 minutes). Not during a night; a night started while
+  /// it runs ends it, and the test then leaves the alarm alone: it is tonight's.
   @Published private(set) var alarmTest = AlarmTest.idle
   func startAlarmTest() {
     guard night == nil, !alarmTest.busy else { return }
     alarmTest = .waiting(20)
     Task { @MainActor in
+      // a night started meanwhile has replaced the test's alarm with its own: hands off
+      var mine: Bool { night == nil && alarmTest != .idle }
       let at = Date().addingTimeInterval(20)
       guard await alarm.ask() else { alarmTest = .denied; return }
       await alarm.set(at: at)
+      guard mine else { return }
       if let why = alarm.lastError { alarmTest = .failed(why); return }
-      while at.timeIntervalSinceNow > 0 { alarmTest = .waiting(max(1, Int(at.timeIntervalSinceNow.rounded(.up)))); try? await Task.sleep(for: .milliseconds(500)) }
+      while mine, at.timeIntervalSinceNow > 0 { alarmTest = .waiting(max(1, Int(at.timeIntervalSinceNow.rounded(.up)))); try? await Task.sleep(for: .milliseconds(500)) }
       // it should be ringing within a few seconds of its time
-      for _ in 0..<20 where alarm.phase != .ringing { try? await Task.sleep(for: .milliseconds(500)) }
+      for _ in 0..<20 where mine && alarm.phase != .ringing { try? await Task.sleep(for: .milliseconds(500)) }
+      guard mine else { return }
       guard alarm.phase == .ringing else { alarm.cancel(); alarmTest = .failed("the system did not ring it"); return }
       alarmTest = .ringing
-      while alarm.phase == .ringing { try? await Task.sleep(for: .milliseconds(500)) }
+      while mine, alarm.phase == .ringing { try? await Task.sleep(for: .milliseconds(500)) }
+      guard mine else { return }
       alarm.cancel()   // snoozed: no second ring in 9 minutes
       alarmTest = .heard
     }
   }
 
-  private func silence() {
-    ramp?.invalidate(); ramp = nil
-    player?.stop(); player = nil
-    selfRinging = false
-  }
-
-  /// Stop, from the alarm screen: the night is over (stop() cancels the system alarm behind it).
-  func stopAlarm() {
-    if selfRinging { silence(); logNow("silence", [:]); stop() } else { alarm.stop() }
-  }
-
-  /// Snooze, from the alarm screen or the lock screen card: quiet for 9 minutes, then gently again,
-  /// the system alarm behind that.
-  func snoozeAlarm() {
-    guard selfRinging else { return alarm.snooze() }
-    silence()
-    // back to listening until it rings again
-    do { try startAudio(reason: "snooze") } catch { logNow("restart-failed", ["error": "\(error)"]) }
-    let next = AlarmPlan.snoozed(at: Date())
-    plan = next; smart = false; lastCheck = 0; rangEarly = false
-    live.snoozed(until: next.at)
-    if alarm.phase != .none { Task { await alarm.set(at: next.backup) } }
-    snoozes += 1
-    logNow("snooze", [:])
-  }
-
-  /// Settings › Play it for 10 seconds: how loud the alarm gets at the phone's media volume (risen in
-  /// 3 s, not 25, so it is heard to the full in the test). Not during a night.
-  @Published private(set) var testing = false
-  private var testPlayer: AVAudioPlayer?
-  func playTestSound() {
-    guard night == nil, !testing, let url = Bundle.main.url(forResource: "alarm-piano", withExtension: "wav"),
-          let p = try? AVAudioPlayer(contentsOf: url) else { return }
-    try? AVAudioSession.sharedInstance().setCategory(.playback)
-    try? AVAudioSession.sharedInstance().setActive(true)
-    p.volume = 0.15; p.numberOfLoops = -1; p.play(); p.setVolume(1, fadeDuration: 3)
-    testPlayer = p; testing = true
-    Task { try? await Task.sleep(for: .seconds(10)); self.stopTestSound() }
-  }
-  func stopTestSound() { testPlayer?.stop(); testPlayer = nil; testing = false }
+  /// Stop and Snooze on the alarm screen: the system alarm's own (Stop ends the night, alarmChanged).
+  func stopAlarm() { alarm.stop() }
+  func snoozeAlarm() { alarm.snooze() }
 
   private func fileURL(_ n: Night) -> URL { Self.documents.appendingPathComponent("\(n.night)_\(n.start).json") }
 

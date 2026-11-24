@@ -10,24 +10,11 @@ public struct AlarmSettings: Codable, Equatable, Sendable {
   public var time: String { String(format: "%02d:%02d", hour, minute) }
 }
 
-/// When tonight's alarm rings: at the next wake time, or, when smart, from `smartMinutes` before it
-/// once the sleeper stirs.
+/// When tonight's alarm rings: the system alarm (AlarmKit) at the wake time, or, when smart, from
+/// `smartMinutes` before it, as soon as the sleeper stirs (the app then brings the alarm forward).
 public struct AlarmPlan: Equatable, Sendable {
   public static let smartMinutes = 30
   public static let snoozeMinutes = 9
-  /// The system alarm (AlarmKit) rings at full volume at once, so it waits this long behind the
-  /// app's own alarm, which rises from near silence: it rings only if the app could not, or nobody
-  /// stopped it.
-  public static let backupDelay: TimeInterval = 120
-  public var backup: Date { at.addingTimeInterval(Self.backupDelay) }
-  /// When the app could not get the playback session (locked phone) it does not play its piano: the
-  /// system alarm rings at once, and its sound rises by itself (alarm-rise.wav).
-  public static let quietBackupDelay: TimeInterval = 2
-  public static func backup(afterRingingAt t: Date, quiet: Bool = false) -> Date { t.addingTimeInterval(quiet ? quietBackupDelay : backupDelay) }
-  public static func snoozed(at t: Date) -> AlarmPlan {
-    let next = t.addingTimeInterval(Double(snoozeMinutes) * 60)
-    return AlarmPlan(from: next, at: next)
-  }
   public let from: Date
   public let at: Date
   public init(from: Date, at: Date) { self.from = from; self.at = at }
@@ -39,10 +26,10 @@ public struct AlarmPlan: Equatable, Sendable {
     return AlarmPlan(from: open, at: at)
   }
 
-  /// Checked every few seconds; `isStirring` (the sound analysis) is only asked inside the window.
-  public func shouldRing(at now: Date, smart: Bool, isStirring: () -> Bool) -> Bool {
-    if now >= at { return true }
-    return smart && now >= from && isStirring()
+  /// Checked every few seconds: ring now, before the wake time? `isStirring` (the sound analysis)
+  /// is only asked inside the window. At the wake time the system alarm rings by itself.
+  public func ringsEarly(at now: Date, smart: Bool, isStirring: () -> Bool) -> Bool {
+    smart && now >= from && now < at && isStirring()
   }
 
   public func label(calendar: Calendar = .current) -> String {
@@ -51,25 +38,32 @@ public struct AlarmPlan: Equatable, Sendable {
   }
 }
 
-/// The alarm's loudness while the app rings by itself (no system alarm): smooth in decibels from
-/// -42 dB, easing into full at `seconds`, then held.
-public enum RiseCurve {
-  public static let fromDb = -42.0, seconds = 25.0
-  public static func gain(at t: Double) -> Double {
-    let x = min(max(t / seconds, 0), 1)
-    return pow(10, fromDb * (1 - x) * (1 - x) / 20)
+/// AlarmKit's alarm as the app sees it.
+public enum AlarmPhase: Sendable { case none, set, ringing, snoozed }
+
+/// Moving the alarm: `schedule` cancels it and sets it for a date. When that fails, the alarm it had
+/// (`old`, if still to come) is set again: a move that fails must not leave no alarm at all.
+public enum AlarmMove {
+  public static func run(from old: Date?, to new: Date, now: Date, schedule: (Date) async throws -> Void) async -> (at: Date?, error: Error?) {
+    do { try await schedule(new); return (new, nil) } catch {
+      guard let old, old > now, (try? await schedule(old)) != nil else { return (nil, error) }
+      return (old, error)
+    }
   }
 }
 
-/// Which audio session the app runs in (AVAudioSession's names, so this stays testable on the Mac).
-/// Listening needs recording with no signal processing; ringing needs playback: through the
-/// recording session iOS plays the speaker quietly (29 October: medium even at full volume).
-/// Both mix with other audio: a session that does not mix cannot be started with the phone locked
-/// (2 November: '!int', and the piano played quietly in the recording session).
-public struct AudioPlan: Equatable, Sendable {
-  public let category: String, mode: String, mixes: Bool
-  public static let forListening = AudioPlan(category: "AVAudioSessionCategoryPlayAndRecord", mode: "AVAudioSessionModeMeasurement", mixes: true)
-  public static let forRinging = AudioPlan(category: "AVAudioSessionCategoryPlayback", mode: "AVAudioSessionModeDefault", mixes: true)
+/// What the alarm did in the morning, followed through AlarmKit's states: the minutes early it first
+/// rang, the snoozes, and when it was stopped (`step` true: the night is over).
+public struct WakeTally: Equatable, Sendable {
+  public private(set) var early: Int?
+  public private(set) var snoozes = 0
+  public init() {}
+  /// `early`: how many minutes before the wake time, if this is a ring.
+  public mutating func step(from: AlarmPhase, to: AlarmPhase, early e: Int) -> Bool {
+    if to == .ringing && early == nil { early = e }
+    if from == .ringing && to == .snoozed { snoozes += 1 }
+    return to == .none && (from == .ringing || from == .snoozed)
+  }
 }
 
 /// Settings › Alarm test: where the system alarm's test stands, in words.

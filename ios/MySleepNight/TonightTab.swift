@@ -131,7 +131,10 @@ struct EveningView: View {
                 Button { nav.tab = .settings } label: { Chip(text: install.title, warn: install.level != .fine) }
               }
               if alarm.allowed == false && on {
-                Button { nav.tab = .settings } label: { Chip(text: "Alarms off · no loud backup", warn: true) }
+                Button { nav.tab = .settings } label: { Chip(text: "Alarms not allowed · nothing wakes you", warn: true) }
+              }
+              if let stops = InstallStatus.stopsBeforeAlarm(expires: server.expires, alarm: plan?.at) {
+                Button { nav.tab = .settings } label: { Chip(text: stops, warn: true) }
               }
             }
             .buttonStyle(Pressable())
@@ -153,6 +156,7 @@ struct EveningView: View {
           }
           PrimaryButton(title: "Sleep", systemImage: "moon.fill") {
             guard !starting else { return }
+            error = nil
             starting = true
             Task { defer { starting = false }
               do { try await engine.start(settings) } catch { withAnimation(.snappy) { self.error = error.localizedDescription } } }

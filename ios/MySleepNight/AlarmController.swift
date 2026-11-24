@@ -7,13 +7,15 @@ import SwiftUI
 /// The sound is the app's piano with its rise in the file (alarm-rise.wav, from scripts/make-alarm-rise.py):
 /// the system plays it at full volume from the first instant, so it starts near silence by itself.
 @MainActor final class AlarmController: ObservableObject {
-  enum Phase: Equatable { case none, set, ringing, snoozed }
+  typealias Phase = AlarmPhase
   @Published private(set) var phase: Phase = .none
   @Published private(set) var allowed: Bool?
   /// Why the last set() did not schedule (nil: it did).
   private(set) var lastError: String?
-  /// Called when the alarm was stopped (not snoozed): the night is over.
-  var onStopped: (() -> Void)?
+  /// When ours is set for (nil: none), so a move that fails can put it back (AlarmMove).
+  private(set) var setFor: Date?
+  /// Each change of phase, as AlarmKit reports it (the engine follows the morning with it).
+  var onPhase: ((Phase, Phase) -> Void)?
   var log: (String, [String: Any]) -> Void = { _, _ in }
 
   // one alarm of ours at a time, so a reschedule replaces it
@@ -39,10 +41,12 @@ import SwiftUI
     return allowed == true
   }
 
-  func set(at date: Date) async {
+  /// Ours set for `date`, replacing the one there was; if that fails, the one there was stays.
+  /// True: set for `date`.
+  @discardableResult
+  func set(at date: Date) async -> Bool {
     lastError = nil
-    guard await ask() else { lastError = "not allowed"; return }
-    try? manager.cancel(id: id)
+    guard await ask() else { lastError = "not allowed"; return false }
     let attributes = AlarmAttributes<NightAlarm>(
       presentation: AlarmPresentation(alert: .init(
         title: "Good morning",
@@ -50,26 +54,33 @@ import SwiftUI
         secondaryButton: AlarmButton(text: "Snooze", textColor: .white, systemImageName: "zzz"),
         secondaryButtonBehavior: .countdown)),
       tintColor: Theme.accent)
-    let config = AlarmManager.AlarmConfiguration(
-      countdownDuration: Alarm.CountdownDuration(preAlert: nil, postAlert: Double(AlarmPlan.snoozeMinutes) * 60),
-      schedule: .fixed(date), attributes: attributes, sound: .named("alarm-rise.wav"))
-    do {
+    let (manager, id) = (manager, id)
+    let r = await AlarmMove.run(from: setFor, to: date, now: Date()) { at in
+      try? manager.cancel(id: id)
+      let config = AlarmManager.AlarmConfiguration(
+        countdownDuration: Alarm.CountdownDuration(preAlert: nil, postAlert: Double(AlarmPlan.snoozeMinutes) * 60),
+        schedule: .fixed(at), attributes: attributes, sound: .named("alarm-rise.wav"))
       _ = try await manager.schedule(id: id, configuration: config)
-      phase = .set
-      log("alarm-set", ["at": Int64(date.timeIntervalSince1970 * 1000)])
-    } catch {
-      lastError = "\(error)"
-      log("alarm-failed", ["error": "\(error)"])
     }
+    setFor = r.at
+    if let e = r.error {
+      lastError = "\(e)"
+      log("alarm-failed", ["error": "\(e)", "kept": r.at.map { Int64($0.timeIntervalSince1970 * 1000) } as Any? ?? NSNull()])
+      return false
+    }
+    phase = .set
+    log("alarm-set", ["at": Int64(date.timeIntervalSince1970 * 1000)])
+    return true
   }
 
   /// The smart window, the sleeper stirring: ring now.
-  func ringNow() async { await set(at: Date().addingTimeInterval(2)) }
+  @discardableResult
+  func ringNow() async -> Bool { await set(at: Date().addingTimeInterval(2)) }
 
   func cancel() {
     try? manager.cancel(id: id)
     if phase != .none { log("alarm-cancelled", [:]) }
-    phase = .none
+    phase = .none; setFor = nil
   }
 
   func stop() { try? manager.stop(id: id) }
@@ -89,9 +100,7 @@ import SwiftUI
         case nil: self.phase = .none
         @unknown default: break
         }
-        if self.phase != was { self.log("alarm-" + "\(self.phase)", [:]) }
-        // gone after ringing: Stop on the lock screen or here; the night is over
-        if self.phase == .none && (was == .ringing || was == .snoozed) { self.onStopped?() }
+        if self.phase != was { self.log("alarm-" + "\(self.phase)", [:]); self.onPhase?(was, self.phase) }
       }
     }
   }

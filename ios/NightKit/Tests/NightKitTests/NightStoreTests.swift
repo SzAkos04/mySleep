@@ -159,6 +159,31 @@ import Foundation
     #expect(try String(contentsOf: dir.appendingPathComponent("nights.unreadable-1000000.json"), encoding: .utf8) == "{ broken")
   }
 
+  // a file that is there but cannot be read (no permission; on the iPhone, before the first unlock)
+  // is not taken for no file: moved aside, never written over
+  @Test func aFileThatCannotBeReadIsMovedAsideToo() throws {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("store-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let url = dir.appendingPathComponent("nights.json")
+    try Data("{\"nights\":{},\"dirty\":{}}".utf8).write(to: url)
+    try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: url.path)
+    _ = NightStore.load(from: url, now: t0)
+    #expect(!FileManager.default.fileExists(atPath: url.path))
+    #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("nights.unreadable-1000000.json").path))
+  }
+
+  // the server takes 1000 changes at most (api/server.js): after a restored backup the phone sends
+  // every night again, so a phone with more nights than that sends them a few hundred at a time
+  @Test func manyChangesGoUpInBatchesTheServerTakes() async {
+    let s = NightStore(), server = Server()
+    for i in 0..<1200 { s.saveNight(night("n\(i)"), now: t0) }
+    #expect(await s.sync(now: t0, send: server.send) == .synced)
+    #expect(server.got.count == 3)
+    #expect(server.got.allSatisfy { ($0["changes"] as? [Any])?.count ?? 0 <= NightStore.batch })
+    #expect(s.dirtyCount == 0)
+  }
+
   /// The state file the JavaScript store wrote (user, the nights with nulls): read as it is.
   @Test func aStateFileWrittenByTheJavaScriptStoreIsRead() throws {
     let old = #"{"user":null,"nights":{"2026-10-29":{"id":"2026-10-29","bed":1793311200000,"on":null,"wake":1793322000000,"asleepMin":0,"ts":5,"source":"native","timeline":{"start":1793311200000,"states":"ww","events":"..","db":[30,null]}},"2026-10-28":{"id":"2026-10-28","deleted":true,"ts":4}},"settings":{"bedtime":"23:00","wake":"06:45","alarm":true,"smart":false,"remind":true,"tz":"Europe/Budapest","ts":3},"rev":7,"dirty":{"night:2026-10-29":true},"lastSynced":99}"#

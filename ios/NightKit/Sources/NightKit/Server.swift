@@ -70,7 +70,7 @@ public enum ServerAPI {
 /// night, and whenever it opens. A log is saved every minute under one name, so what is remembered
 /// is each name *with its version* (when it was written): a log written again goes up again.
 /// `done` keeps the versions taken, and those refused for good (4xx but 401, which pairing again
-/// cures); the rest are tried next time. Versions of files no longer there are forgotten.
+/// cures); the rest are tried next time, and all of them once one gets no answer. Versions of files no longer there are forgotten.
 public enum Uploader {
   public static func run(files: [(name: String, version: String)], done: inout Set<String>, send: (String) async -> Int) async -> Int {
     var ok = 0
@@ -78,6 +78,7 @@ public enum Uploader {
     done.formIntersection(keys.values)
     for (name, key) in keys.sorted(by: { $0.key < $1.key }) where name.hasSuffix(".json") && !done.contains(key) {
       let code = await send(name)
+      if code == 0 { break }   // no answer: the server is not there, the rest wait for next time
       if (200..<300).contains(code) { done.insert(key); ok += 1 }
       else if (400..<500).contains(code) && code != 401 { done.insert(key) }
     }

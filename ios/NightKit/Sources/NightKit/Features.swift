@@ -13,17 +13,35 @@ public struct Reading: Equatable, Sendable {
 public enum Features {
   /// nil for exact digital silence: a real room never is, so nothing reached the microphone.
   public static func read(_ frame: [Float], sampleRate: Double) -> Reading? {
+    Spectrum(count: frame.count)?.read(frame, sampleRate: sampleRate)
+  }
+}
+
+/// The FFT and window for frames of one size (a power of two, 64 and up), set up once and used for
+/// every frame of a night. Not thread-safe: one per Night, on its queue.
+public final class Spectrum {
+  public let count: Int
+  private let fft: vDSP.FFT<DSPSplitComplex>
+  private let window: [Float]
+
+  public init?(count n: Int) {
+    guard n >= 64, n & (n - 1) == 0, let fft = vDSP.FFT(log2n: vDSP_Length(log2(Double(n))), radix: .radix2, ofType: DSPSplitComplex.self) else { return nil }
+    count = n; self.fft = fft
+    window = vDSP.window(ofType: Float.self, usingSequence: .blackman, count: n, isHalfWindow: false)
+  }
+
+  /// nil for exact digital silence, or a frame of another size.
+  public func read(_ frame: [Float], sampleRate: Double) -> Reading? {
     let n = frame.count
+    guard n == count else { return nil }
     var sum: Float = 0
     vDSP_svesq(frame, 1, &sum, vDSP_Length(n))
-    guard sum > 0, n >= 64, n & (n - 1) == 0 else { return nil }
+    guard sum > 0 else { return nil }
     let db = 20 * log10(Double((sum / Float(n)).squareRoot())) + 100
 
-    let window = vDSP.window(ofType: Float.self, usingSequence: .blackman, count: n, isHalfWindow: false)
     let windowed = vDSP.multiply(frame, window)
     let half = n / 2
     var re = [Float](repeating: 0, count: half), im = [Float](repeating: 0, count: half)
-    guard let fft = vDSP.FFT(log2n: vDSP_Length(log2(Double(n))), radix: .radix2, ofType: DSPSplitComplex.self) else { return nil }
     re.withUnsafeMutableBufferPointer { rp in
       im.withUnsafeMutableBufferPointer { ip in
         var split = DSPSplitComplex(realp: rp.baseAddress!, imagp: ip.baseAddress!)

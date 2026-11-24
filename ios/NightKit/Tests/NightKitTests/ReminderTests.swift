@@ -47,10 +47,16 @@ import Foundation
     #expect(Reminders.expiry(expires: nil, now: at(2, 12), calendar: cal).isEmpty)
   }
 
-  @Test func anInstallThatStopsBeforeNineHasNoTonight() {
+  // installed in the morning, it stops the morning a week later, before the alarm: the last
+  // reminder is the evening before, when there is still time
+  @Test func anInstallThatStopsInTheMorningIsRemindedTheEveningBefore() {
     let r = Reminders.expiry(expires: at(5, 8), now: at(2, 12), calendar: cal)
-    #expect(r.map(\.id) == ["reinstall-soon", "reinstall-expired"])
-    #expect(r[1].when == .once(at(5, 9)))   // it has stopped by then: said the same day
+    #expect(r.map(\.id) == ["reinstall-soon", "reinstall-today", "reinstall-expired"])
+    #expect(r[1].when == .once(at(4, 20)))
+    #expect(r[1].title == "mySleep stops tomorrow at 08:00")
+    #expect(r[1].body == "Reinstall it from the Mac tonight: it stops before the morning's alarm.")
+    #expect(r[2].when == .once(at(5, 9)))   // it has stopped by then: said the same day
+    #expect(Reminders.expiry(expires: at(5, 8), now: at(4, 21), calendar: cal).map(\.id) == ["reinstall-expired"])
   }
 
   @Test func everythingTheAppShouldHaveScheduled() {

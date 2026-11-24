@@ -100,6 +100,14 @@ import Foundation
     #expect(done == ["2026-10-27_1.json@5", "2026-10-28_2.json@6"])
   }
 
+  // the server not answering at all: the rest are not tried one by one (60 s each), they go next time
+  @Test func noAnswerStopsTheRunTheRestGoNextTime() async {
+    var sent: [String] = []
+    var done: Set<String> = []
+    let ok = await Uploader.run(files: [("2026-10-28_2.json", "1"), ("2026-10-29_3.json", "1")], done: &done) { sent.append($0); return 0 }
+    #expect(sent == ["2026-10-28_2.json"] && ok == 0 && done.isEmpty)
+  }
+
   @Test func aRefusalIsNotRetriedForeverButASignOutIs() async {
     var done: Set<String> = []
     _ = await Uploader.run(files: [("2026-10-28_2.json", "1"), ("2026-10-29_3.json", "1")], done: &done) { name in

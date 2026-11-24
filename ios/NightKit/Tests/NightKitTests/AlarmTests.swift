@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import NightKit
 
-// The alarm's decisions: when it rings, the smart window, snoozing.
+// The alarm's decisions: when it rings, the smart window, moving it, what it did in the morning.
 let cal: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(identifier: "Europe/Budapest")!; return c }()
 func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponents(year: 2026, month: 10, day: day, hour: h, minute: m))! }
 
@@ -28,16 +28,20 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
     #expect(AlarmPlan.make(AlarmSettings(on: false, smart: true, hour: 6, minute: 45), from: at(23, 0), calendar: cal) == nil)
   }
 
-  @Test func ringsAtTheWakeTimeOrInTheWindowWhenStirringAndOnlyLooksInsideIt() {
+  // The system alarm is set for the wake time and rings then by itself; the app only brings it
+  // forward, in the smart window, when the sleeper stirs.
+  @Test func ringsEarlyOnlyInTheSmartWindowWhenStirringAndOnlyLooksInsideIt() {
     let p = AlarmPlan(from: at(6, 15, day: 29), at: at(6, 45, day: 29))
     var asked = 0
     let stirring = { asked += 1; return true }
-    #expect(p.shouldRing(at: at(5, 0, day: 29), smart: true, isStirring: stirring) == false)
+    #expect(p.ringsEarly(at: at(5, 0, day: 29), smart: true, isStirring: stirring) == false)
     #expect(asked == 0)   // checked every few seconds: no analysis outside the window
-    #expect(p.shouldRing(at: at(6, 20, day: 29), smart: true, isStirring: stirring) == true)
-    #expect(p.shouldRing(at: at(6, 20, day: 29), smart: true, isStirring: { false }) == false)
-    #expect(p.shouldRing(at: at(6, 20, day: 29), smart: false, isStirring: stirring) == false)
-    #expect(p.shouldRing(at: at(6, 45, day: 29), smart: true, isStirring: { false }) == true)
+    #expect(p.ringsEarly(at: at(6, 20, day: 29), smart: true, isStirring: stirring) == true)
+    #expect(p.ringsEarly(at: at(6, 20, day: 29), smart: true, isStirring: { false }) == false)
+    #expect(p.ringsEarly(at: at(6, 20, day: 29), smart: false, isStirring: stirring) == false)
+    asked = 0
+    #expect(p.ringsEarly(at: at(6, 45, day: 29), smart: true, isStirring: stirring) == false)   // the wake time: the system alarm's own
+    #expect(asked == 0)
   }
 
   @Test func saysTheWindowAndHowLongIsLeft() {
@@ -48,79 +52,64 @@ func at(_ h: Int, _ m: Int, day: Int = 28) -> Date { cal.date(from: DateComponen
   }
 }
 
-@Suite struct Rise {
-  // the alarm's curve: from -42 dB, easing into full at 25 s, held
-  @Test func fromNearSilenceToFullInTwentyFiveSecondsSmoothly() {
-    #expect(abs(RiseCurve.gain(at: 0) - pow(10, -42.0 / 20)) < 1e-6)
-    #expect(RiseCurve.gain(at: 25) == 1)
-    #expect(RiseCurve.gain(at: 90) == 1)
-    #expect(RiseCurve.gain(at: -3) == RiseCurve.gain(at: 0))
-    var last = 0.0
-    for t in stride(from: 0.0, through: 25, by: 0.25) {
-      let g = RiseCurve.gain(at: t)
-      #expect(g >= last)
-      // never a step a person hears as one: at most 1 dB per quarter second
-      if last > 0 { #expect(20 * log10(g / last) <= 1.0) }
-      last = g
+/// Moving the alarm (the smart window brings it forward): AlarmKit's alarm is cancelled and set
+/// again; when setting it fails, the one it had is put back, never none.
+@Suite struct Moving {
+  struct Refused: Error {}
+  @Test func aMoveThatWorksIsTheNewTime() async {
+    var set: [Date] = []
+    let r = await AlarmMove.run(from: at(6, 45, day: 29), to: at(6, 20, day: 29), now: at(6, 19, day: 29)) { set.append($0) }
+    #expect(set == [at(6, 20, day: 29)] && r.at == at(6, 20, day: 29) && r.error == nil)
+  }
+
+  @Test func aMoveThatFailsPutsTheAlarmBackWhereItWas() async {
+    var set: [Date] = []
+    let r = await AlarmMove.run(from: at(6, 45, day: 29), to: at(6, 20, day: 29), now: at(6, 19, day: 29)) { d in
+      set.append(d); if d == at(6, 20, day: 29) { throw Refused() }
     }
+    #expect(set == [at(6, 20, day: 29), at(6, 45, day: 29)])
+    #expect(r.at == at(6, 45, day: 29) && r.error != nil)
+  }
+
+  @Test func nothingIsPutBackThatIsPastOrWasNotThere() async {
+    var set: [Date] = []
+    let past = await AlarmMove.run(from: at(6, 45, day: 29), to: at(6, 50, day: 29), now: at(6, 48, day: 29)) { set.append($0); throw Refused() }
+    let none = await AlarmMove.run(from: nil, to: at(6, 50, day: 29), now: at(6, 48, day: 29)) { set.append($0); throw Refused() }
+    #expect(set == [at(6, 50, day: 29), at(6, 50, day: 29)] && past.at == nil && none.at == nil)
   }
 }
 
-@Suite struct GentleFirst {
-  // The system alarm (AlarmKit) rings at full volume at once (29 October: it frightened). So the
-  // app rings first, rising from near silence, and the system alarm waits behind it: it rings only
-  // if the app could not, or nobody stopped it.
-  let p = AlarmPlan(from: at(6, 15, day: 29), at: at(6, 45, day: 29))
-
-  @Test func theSystemAlarmIsSetTwoMinutesBehindTheWakeTime() {
-    #expect(AlarmPlan.backupDelay == 120)
-    #expect(p.backup == at(6, 47, day: 29))
+/// What the alarm did in the morning, from AlarmKit's states: when it first rang, each snooze, and
+/// that it was stopped (the night is over). 24 November: only the app's own piano's snoozes were
+/// counted, so the morning said "No snooze" after the system alarm was snoozed.
+@Suite struct Waking {
+  @Test func countsTheSystemAlarmsSnoozesAndEndsWhenItIsStopped() {
+    var t = WakeTally()
+    let steps: [(AlarmPhase, AlarmPhase, Int)] = [
+      (.none, .set, 0), (.set, .none, 0), (.none, .set, 0),   // moved by the smart window: not stopped
+      (.set, .ringing, 12), (.ringing, .snoozed, 0), (.snoozed, .ringing, 0), (.ringing, .snoozed, 0),
+      (.snoozed, .none, 0)                                    // stopped while snoozed
+    ]
+    let ended = steps.map { t.step(from: $0.0, to: $0.1, early: $0.2) }
+    #expect(ended == [false, false, false, false, false, false, false, true])
+    #expect(t.early == 12 && t.snoozes == 2)                  // the first ring's, not a snooze's
   }
 
-  @Test func whenTheAppRingsTheSystemAlarmMovesTwoMinutesBehindIt() {
-    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29)) == at(6, 22, day: 29))
-  }
-
-  // 3 and 4 November: the app could not get the playback session with the phone locked, so the piano
-  // played quietly for two minutes before the system alarm cut in at full volume. A piano nobody can
-  // hear is no reason to wait: the system alarm rings at once, and its sound rises by itself.
-  @Test func whenTheAppCouldNotGetThePlaybackSessionTheSystemAlarmRingsAtOnce() {
-    #expect(AlarmPlan.quietBackupDelay == 2)
-    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29), quiet: true) == at(6, 20, day: 29).addingTimeInterval(2))
-    #expect(AlarmPlan.backup(afterRingingAt: at(6, 20, day: 29), quiet: false) == at(6, 22, day: 29))
-  }
-
-  @Test func snoozeNineMinutesWithTheSystemAlarmBehindItAgain() {
-    let s = AlarmPlan.snoozed(at: at(6, 45, day: 29))
-    #expect(s == AlarmPlan(from: at(6, 54, day: 29), at: at(6, 54, day: 29)))
-    #expect(s.backup == at(6, 56, day: 29))
-  }
-}
-
-@Suite struct AudioSessionChoice {
-  // 29 October evening: the alarm played through the recording session (.playAndRecord,
-  // .measurement), which iOS plays quietly through the speaker: medium even at full volume. Ringing
-  // is played as playback, at the phone's full media volume; listening goes back to recording.
-  @Test func ringingIsPlaybackListeningIsRecording() {
-    #expect(AudioPlan.forListening == AudioPlan(category: "AVAudioSessionCategoryPlayAndRecord", mode: "AVAudioSessionModeMeasurement", mixes: true))
-    #expect(AudioPlan.forRinging == AudioPlan(category: "AVAudioSessionCategoryPlayback", mode: "AVAudioSessionModeDefault", mixes: true))
-  }
-
-  // 2 November, 05:55, 06:05, 06:14: the app rang from the background and setCategory failed with
-  // '!int' (CannotInterruptOthers): the listening session mixes, and a session that does not mix may
-  // not take over from the background. The piano then played in the recording session, quietly. Only
-  // a mixing playback session can be started with the phone locked.
-  @Test func ringingMixesSoItCanStartWithThePhoneLocked() {
-    #expect(AudioPlan.forListening.mixes && AudioPlan.forRinging.mixes)
+  @Test func stoppedWhileRingingAndNothingWhenItNeverRang() {
+    var t = WakeTally()
+    #expect(t.early == nil && t.snoozes == 0)
+    _ = t.step(from: .set, to: .ringing, early: 0)
+    let ended = t.step(from: .ringing, to: .none, early: 0)
+    #expect(ended && t.early == 0)
   }
 }
 
 import AVFoundation
 
 /// The system alarm (AlarmKit) plays a sound file at full volume from its first instant, and the app
-/// cannot rise it: 3 and 4 November it started at once, loud, after the app's own quiet piano had
-/// failed. So the rise is in the file: near silence, easing to full as RiseCurve does, and the
-/// alarm repeats it. AlarmKit takes at most 30 s.
+/// cannot rise it (3 and 4 November it started at once, loud). So the rise is in the file
+/// (scripts/make-alarm-rise.py): near silence, easing to full in 25 s, and the alarm repeats it.
+/// AlarmKit takes at most 30 s.
 @Suite struct AlarmRiseSound {
   /// Peak level in dBFS of each second of the file.
   static func peaks() throws -> [Double] {
@@ -138,7 +127,7 @@ import AVFoundation
 
   @Test func isUnderThirtySecondsAndLongEnoughToRise() throws {
     let n = try Self.peaks().count
-    #expect(n >= Int(RiseCurve.seconds) && n <= 30)
+    #expect(n >= 25 && n <= 30)
   }
 
   @Test func startsNearSilence() throws {

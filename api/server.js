@@ -80,11 +80,14 @@ async function debugRoute(req, res, night) {
   let body;
   try { body = JSON.parse(raw); } catch { throw new HttpError(400, 'invalid JSON'); }
   if (!body || body.night !== night || !Array.isArray(body.events)) throw new HttpError(400, 'not a night log');
-  // a periodic upload must not replace a finished log that already has the readings
-  if (!body.final && fs.existsSync(file)) {
+  // a periodic upload must not replace a finished log that already has the readings, nor another
+  // start of the same date one that is longer (a short restart after the alarm, 3 Nov)
+  if (fs.existsSync(file)) {
     let kept = null;
     try { kept = readJSON(file, null); } catch {}   // a broken file is simply replaced
-    if (kept?.final && kept.start === body.start) return json(res, 200, { ok: true, kept: 'final' });
+    const length = l => (Array.isArray(l?.samples?.db) ? l.samples.db.length : 0);
+    if (!body.final && kept?.final && kept.start === body.start) return json(res, 200, { ok: true, kept: 'final' });
+    if (kept && kept.start !== body.start && length(kept) >= length(body)) return json(res, 200, { ok: true, kept: 'longer' });
   }
   fs.mkdirSync(debugDir(user.id), { recursive: true });
   const saved = { ...body, receivedAt: Date.now() };

@@ -31,7 +31,7 @@ struct NightScreen: View {
               Text("Alarm \(plan.label())").font(.title3).foregroundStyle(.white.opacity(lit ? 0.75 : 0.18)).padding(.top, 14)
               if lit { Text("Up to \(duration(max(0, plan.at.timeIntervalSince(ctx.date) / 60))) of sleep").font(.subheadline).foregroundStyle(Theme.text2).padding(.top, 4) }
               if lit && alarm.phase == .none {
-                Text("No loud backup: Alarms are off for mySleep. Keep it running, or set one in Clock.")
+                Text("Alarms are not allowed for mySleep, so nothing will wake you. Allow them in iOS Settings, or set one in Clock.")
                   .font(.footnote).foregroundStyle(Theme.warn).multilineTextAlignment(.center).padding(.horizontal, 36).padding(.top, 10)
               }
             } else if lit {
@@ -121,11 +121,12 @@ struct HoldButton: View {
 
 // MARK: the alarm
 
-/// A sunrise behind the clock; stopping is held, snoozing is one tap.
+/// The system alarm ringing with the app open: a sunrise behind the clock; stopping is held,
+/// snoozing is one tap (both the system alarm's own).
 struct RingingView: View {
   @EnvironmentObject var engine: NightEngine
   @Environment(\.accessibilityReduceMotion) private var still
-  /// The sun comes up with the sound (RiseCurve: 25 s to full), once, then stays.
+  /// The sun comes up with the sound (alarm-rise.wav: 25 s to full), once, then stays.
   @State private var risen = false
   @State private var snoozes = 0
 

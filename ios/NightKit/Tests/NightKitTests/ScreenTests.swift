@@ -71,11 +71,15 @@ import Foundation
   }
 }
 
-@Suite struct VolumeTests {
-  @Test func saysToTurnItUpBelowHalf() {
-    #expect(VolumeAdvice(volume: 0.4).text == "40% · turn it up")
-    #expect(VolumeAdvice(volume: 0.4).low)
-    #expect(VolumeAdvice(volume: 0.8).text == "80%")
-    #expect(!VolumeAdvice(volume: 0.8).low)
+/// The free signature runs out a week after the install, at the hour it was made: installed in the
+/// morning, it stops before the alarm a week later (24 November: until Tue 1 Dec 05:20, the alarm at
+/// 06:45). The evening says so, while there is still time to reinstall.
+@Suite struct StopsBeforeTheAlarm {
+  @Test func warnsWhenTheInstallStopsBeforeTonightsAlarm() {
+    let expires = at(5, 20, day: 29)
+    #expect(InstallStatus.stopsBeforeAlarm(expires: expires, alarm: at(6, 45, day: 29), calendar: cal) == "Stops at 05:20, before the alarm · reinstall now")
+    #expect(InstallStatus.stopsBeforeAlarm(expires: expires, alarm: at(5, 0, day: 29), calendar: cal) == nil)
+    #expect(InstallStatus.stopsBeforeAlarm(expires: nil, alarm: at(6, 45, day: 29), calendar: cal) == nil)
+    #expect(InstallStatus.stopsBeforeAlarm(expires: expires, alarm: nil, calendar: cal) == nil)
   }
 }

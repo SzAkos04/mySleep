@@ -19,6 +19,13 @@ public struct InstallStatus: Equatable, Sendable {
     else { level = .fine; title = "Runs until \(day)"; detail = "Reinstall it from the Mac before then" }
   }
 
+  /// Tonight's alarm comes after the install stops (installed in the morning, a week later it stops
+  /// in the morning): the evening must say so while there is time to reinstall.
+  public static func stopsBeforeAlarm(expires: Date?, alarm: Date?, calendar: Calendar = .current) -> String? {
+    guard let expires, let alarm, expires < alarm else { return nil }
+    return "Stops at \(clock(expires, calendar)), before the alarm · reinstall now"
+  }
+
   static func clock(_ d: Date, _ c: Calendar) -> String {
     let f = DateFormatter(); f.calendar = c; f.timeZone = c.timeZone; f.dateFormat = "HH:mm"; return f.string(from: d)
   }
@@ -51,14 +58,4 @@ public struct Morning: Sendable {
   }
 
   public static func duration(_ m: Int) -> String { m < 60 ? "\(m) min" : "\(m / 60)h \(String(format: "%02d", m % 60))m" }
-}
-
-/// The alarm plays at the phone's media volume: say so when it is low.
-public struct VolumeAdvice: Sendable {
-  public let low: Bool, text: String
-  public init(volume: Float) {
-    let pct = Int((volume * 100).rounded())
-    low = volume < 0.5
-    text = low ? "\(pct)% · turn it up" : "\(pct)%"
-  }
 }

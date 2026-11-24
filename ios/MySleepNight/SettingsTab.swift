@@ -2,14 +2,13 @@ import ActivityKit
 import AVFoundation
 import SwiftUI
 
-/// The app's own settings: how long this install runs, the server, what iOS allows, the alarm sound.
+/// The app's own settings: how long this install runs, the server, what iOS allows, the alarm test.
 struct SettingsTab: View {
   @EnvironmentObject var engine: NightEngine
   @EnvironmentObject var alarm: AlarmController
   @EnvironmentObject var server: ServerLink
   @EnvironmentObject var data: NightData
   @State private var pickingBedtime = false
-  @StateObject private var volume = VolumeWatcher()
   @State private var micOn = AVAudioApplication.shared.recordPermission == .granted
   @State private var liveOn = ActivityAuthorizationInfo().areActivitiesEnabled
   @Environment(\.scenePhase) private var phase
@@ -44,37 +43,17 @@ struct SettingsTab: View {
 
         Section("Allowed") {
           Allowed(title: "Microphone", on: micOn)
-          Allowed(title: "Alarms", detail: "The loud backup, 2 min behind the gentle one", on: alarm.allowed == true)
+          Allowed(title: "Alarms", detail: "Without them nothing wakes you", on: alarm.allowed == true)
           Allowed(title: "Live Activities", detail: "The card on the lock screen at night", on: liveOn)
         }
 
         Section {
           Button {
-            engine.testing ? engine.stopTestSound() : engine.playTestSound()
-          } label: {
-            HStack {
-              Label {
-                Text(engine.testing ? "Stop" : "Play it for 10 seconds").contentTransition(.opacity)
-              } icon: {
-                Image(systemName: engine.testing ? "stop.fill" : "play.fill").contentTransition(.symbolEffect(.replace))
-              }
-              Spacer()
-              if engine.testing {
-                Image(systemName: "speaker.wave.3.fill").foregroundStyle(Theme.accent)
-                  .symbolEffect(.variableColor.iterative, options: .repeating)
-                  .transition(.opacity.combined(with: .scale(scale: 0.6)))
-              }
-            }
-            .animation(.snappy(duration: 0.3), value: engine.testing)
-          }
-          .disabled(engine.night != nil)
-          .sensoryFeedback(.selection, trigger: engine.testing)
-          Button {
             engine.startAlarmTest()
           } label: {
             VStack(alignment: .leading, spacing: 1) {
               Label("Alarm test in 20 seconds", systemImage: "alarm.fill")
-              Text(engine.alarmTest.text ?? "The night's alarm; lock the phone and listen")
+              Text(engine.alarmTest.text ?? "The same alarm as at night; lock the phone and listen")
                 .font(.footnote).foregroundStyle(engine.alarmTest.warns ? Theme.warn : Theme.text2)
                 .contentTransition(.numericText())
             }
@@ -82,17 +61,7 @@ struct SettingsTab: View {
           }
           .disabled(engine.night != nil || engine.alarmTest.busy)
           .sensoryFeedback(.selection, trigger: engine.alarmTest.busy)
-          let advice = VolumeAdvice(volume: volume.level)
-          HStack {
-            VStack(alignment: .leading, spacing: 1) {
-              Text("Media volume")
-              Text("The alarm rings at this volume").font(.footnote).foregroundStyle(Theme.text2)
-            }
-            Spacer()
-            Text(advice.text).foregroundStyle(advice.low ? Theme.warn : Theme.good)
-              .contentTransition(.numericText()).animation(.snappy(duration: 0.25), value: advice.text)
-          }
-        } header: { Text("Alarm sound") } footer: { Text("A soft piano that rises from near silence; set the volume with the side buttons.") }
+        } header: { Text("Alarm") } footer: { Text("A soft piano rising from near silence in 25 s; it rings with the phone locked, silent or in Focus, even if iOS has closed mySleep.") }
 
         Section {
           HStack { Text("mySleep"); Spacer(); Text("\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")").foregroundStyle(Theme.text2) }
@@ -105,9 +74,8 @@ struct SettingsTab: View {
       .navigationTitle("Settings")
       .sheet(isPresented: $pickingBedtime) { TimeSheet(title: "Go to bed", time: Binding(get: { data.settings.bedtime }, set: { v in data.change { $0.bedtime = v } })).presentationDetents([.height(320)]) }
     }
-    .onAppear { volume.start(night: engine.night != nil) }
     .onChange(of: phase) { _, p in
-      if p == .active { micOn = AVAudioApplication.shared.recordPermission == .granted; liveOn = ActivityAuthorizationInfo().areActivitiesEnabled; volume.start(night: engine.night != nil) }
+      if p == .active { micOn = AVAudioApplication.shared.recordPermission == .granted; liveOn = ActivityAuthorizationInfo().areActivitiesEnabled }
     }
   }
 }
@@ -150,23 +118,5 @@ private struct Allowed: View {
       .transition(.opacity.combined(with: .scale(scale: 0.85, anchor: .trailing)))
     }
     .animation(.snappy(duration: 0.3), value: on)
-  }
-}
-
-/// The phone's media volume, followed as the side buttons change it (the alarm plays at it).
-@MainActor final class VolumeWatcher: ObservableObject {
-  @Published var level: Float = AVAudioSession.sharedInstance().outputVolume
-  private var watch: NSKeyValueObservation?
-  /// `night`: the night's own session is running, leave it be.
-  func start(night: Bool) {
-    let s = AVAudioSession.sharedInstance()
-    // outputVolume follows the buttons only while a session is active (a night ends with it switched
-    // off, its category kept); ambient leaves other audio alone
-    if !night { try? s.setCategory(.ambient, options: .mixWithOthers); try? s.setActive(true) }
-    level = s.outputVolume
-    watch = s.observe(\.outputVolume) { [weak self] s, _ in
-      let v = s.outputVolume
-      Task { @MainActor in self?.level = v }
-    }
   }
 }
